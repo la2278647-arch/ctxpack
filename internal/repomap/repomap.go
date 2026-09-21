@@ -32,7 +32,9 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 	totalTokens, totalBytes := 0, 0
 
 	for _, fe := range res.Files {
-		e := cnt.Estimate(fe.RelPath)
+		// Without content, size is the only remaining signal, and it is worth
+		// far more than tokenising the file's own name.
+		e := cnt.EstimateSize(fe.Size)
 		if fe.Content != nil {
 			e = cnt.EstimateBytes(fe.Content)
 		}

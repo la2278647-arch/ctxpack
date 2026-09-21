@@ -88,6 +88,15 @@ func (d *Default) EstimateBytes(b []byte) Estimate {
 	return d.Estimate(string(b))
 }
 
+// EstimateSize estimates tokens from a byte count alone, for files whose
+// content was not read (too large for MaxFileSize, or ReadContent is false).
+// It applies the same bytes-per-token floor that Estimate uses, so a repo map
+// built without reading content reports the same magnitude one built with it.
+func (d *Default) EstimateSize(bytes int64) Estimate {
+	n := int(bytes)
+	return Estimate{Tokens: (n + 3) / 4, Chars: n, Bytes: n}
+}
+
 // ModelRegistry maps model identifiers to their metadata.
 var models = []Model{
 	{"gpt-3.5-turbo", 16385, "openai"},
