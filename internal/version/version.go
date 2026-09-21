@@ -12,7 +12,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.0-dev"
+var Version = "0.1.0"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -23,7 +23,7 @@ var BuildDate = "unknown"
 // Info is a human-readable summary of how the binary was built.
 func Info() string {
 	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
-		", go" + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
+		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
 }
 
 // UserAgent is a short product token for HTTP clients.

@@ -255,9 +255,9 @@ func (s *server) writeResult(id any, result any) {
 }
 
 func (s *server) writeError(id any, code int, message string) {
-	if id == nil {
-		return
-	}
+	// Unlike results, errors are always reported: JSON-RPC requires a parse
+	// error to come back as {"id": null, "error": {...}} even when the message
+	// could not be decoded far enough to recover an id.
 	s.write(map[string]any{
 		"jsonrpc": "2.0",
 		"id":      id,

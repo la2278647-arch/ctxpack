@@ -125,7 +125,8 @@ func cmdPack(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	fs.StringVar(output, "o", "", "shorthand for --output")
+	if err := fs.Parse(reorderArgs(args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -183,7 +184,8 @@ func cmdDiff(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	fs.StringVar(output, "o", "", "shorthand for --output")
+	if err := fs.Parse(reorderArgs(args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -247,7 +249,7 @@ func cmdMap(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderArgs(args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -260,7 +262,7 @@ func cmdMap(args []string) int {
 		MaxFileSize:      *maxSize,
 		RespectGitignore: !*noGit,
 		IncludeHidden:    *hidden,
-		ReadContent:      false,
+		ReadContent:      true,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -285,7 +287,7 @@ func cmdTokens(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderArgs(args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -298,7 +300,7 @@ func cmdTokens(args []string) int {
 		MaxFileSize:      *maxSize,
 		RespectGitignore: !*noGit,
 		IncludeHidden:    *hidden,
-		ReadContent:      false,
+		ReadContent:      true,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -340,7 +342,7 @@ func cmdModels(args []string) int {
 func cmdMCP(args []string) int {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(reorderArgs(args)); err != nil {
 		return 2
 	}
 	if err := mcp.Serve(os.Stdin, os.Stdout, version.Version); err != nil {
@@ -351,6 +353,35 @@ func cmdMCP(args []string) int {
 }
 
 // --- helpers ---
+
+// reorderArgs moves positional arguments to the end of the slice.
+//
+// The stdlib flag package stops parsing at the first non-flag token, so
+// `ctxpack pack ./repo --format markdown` would otherwise silently ignore every
+// flag that came after the path. Reordering means the documented usage works
+// and users do not have to learn a flag-before-path rule.
+func reorderArgs(args []string) []string {
+	out := make([]string, 0, len(args))
+	var positional []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "-" || (len(a) > 1 && a[0] == '-' && strings.Contains(a, "=")) {
+			out = append(out, a)
+			continue
+		}
+		if len(a) > 1 && a[0] == '-' {
+			out = append(out, a)
+			// "-f value" form: carry the value along unless it is itself a flag.
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				out = append(out, args[i+1])
+				i++
+			}
+			continue
+		}
+		positional = append(positional, a)
+	}
+	return append(out, positional...)
+}
 
 func parseFormat(s string) format.Format {
 	switch strings.ToLower(s) {
