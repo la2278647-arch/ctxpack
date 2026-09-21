@@ -76,6 +76,72 @@ func TestRenderXMLEscapesRoot(t *testing.T) {
 	}
 }
 
+func TestRenderXMLEscapesFilePath(t *testing.T) {
+	// '&' is legal in a directory name on every platform, and %q does not
+	// escape it, so the file element was not valid XML.
+	path := "a&b/x < y.go"
+	b := &Bundle{
+		Root:        "repo",
+		Files:       []File{{Path: path, Tokens: 2, Bytes: 7, Content: "hi\n"}},
+		TotalTokens: 2,
+		TotalBytes:  7,
+	}
+	out := renderXML(b)
+	var node struct {
+		Files struct {
+			File []struct {
+				Path string `xml:"path,attr"`
+			} `xml:"file"`
+		} `xml:"files"`
+	}
+	if err := xml.Unmarshal([]byte(out), &node); err != nil {
+		t.Fatalf("not well-formed: %v\n%s", err, out)
+	}
+	if len(node.Files.File) != 1 || node.Files.File[0].Path != path {
+		t.Errorf("path round-trip = %q, want %q", node.Files.File[0].Path, path)
+	}
+}
+
+func TestRenderXMLContentWithCDataTerminator(t *testing.T) {
+	// A "]]>" sequence occurs in real source (e.g. a > b[i]]> 0) and used to
+	// close the CDATA section early, leaving the rest of the file as markup.
+	content := "a := b[i]]> 0\n"
+	b := &Bundle{
+		Root:        "repo",
+		Files:       []File{{Path: "t.go", Tokens: 1, Bytes: len(content), Content: content}},
+		TotalTokens: 1,
+		TotalBytes:  len(content),
+	}
+	out := renderXML(b)
+	var node struct {
+		Files struct {
+			File []struct {
+				Path    string `xml:"path,attr"`
+				Content string `xml:"content"`
+			} `xml:"file"`
+		} `xml:"files"`
+	}
+	// The document must parse, and the content must survive intact. The
+	// fragment is split across two CDATA sections, so compare through the
+	// parser rather than with strings.Contains on the raw text.
+	if err := xml.Unmarshal([]byte(out), &node); err != nil {
+		t.Fatalf("not well-formed: %v\n%s", err, out)
+	}
+	if len(node.Files.File) != 1 {
+		t.Fatalf("files = %d, want 1", len(node.Files.File))
+	}
+	got := node.Files.File[0].Content
+	if !strings.Contains(got, content) {
+		t.Errorf("content round-trip = %q, want it to contain %q", got, content)
+	}
+	// The renderer wraps the content in newlines, so the parsed text starts
+	// with "\n" + content. Assert that rather than trimming, which would eat
+	// a newline that belongs to the source itself.
+	if !strings.HasPrefix(node.Files.File[0].Content, "\n"+content) {
+		t.Errorf("round-trip = %q, want a prefix of %q", node.Files.File[0].Content, "\n"+content)
+	}
+}
+
 func TestRenderXMLBinaryMarker(t *testing.T) {
 	b := &Bundle{
 		Root: "repo",

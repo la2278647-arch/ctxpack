@@ -65,13 +65,30 @@ func renderXML(b *Bundle) string {
 	sb.WriteString("  </meta>\n")
 	sb.WriteString("  <files>\n")
 	for _, f := range b.Files {
-		fmt.Fprintf(&sb, "    <file path=%q tokens=%q bytes=%q>\n", f.Path, itoa(f.Tokens), itoa(f.Bytes))
+		// xmlEscape, not %q: Go's string quoting is not XML escaping, so a
+		// path containing '&' or '<' emitted an entity that was not there.
+		fmt.Fprintf(&sb, "    <file path=\"%s\" tokens=\"%s\" bytes=\"%s\">\n",
+			xmlEscape(f.Path), itoa(f.Tokens), itoa(f.Bytes))
 		if f.Binary {
 			sb.WriteString("      <content binary=\"true\"/>\n")
 		} else {
-			sb.WriteString("      <content>\n<![CDATA[\n")
-			sb.WriteString(f.Content)
-			sb.WriteString("\n]]>\n      </content>\n")
+			// "]]>" inside the content would close the CDATA section early and
+			// leave the rest of the file parsed as markup, so emit one CDATA
+			// section per fragment.
+			sb.WriteString("      <content>\n")
+			parts := strings.Split(f.Content, "]]>")
+			for i, part := range parts {
+				if i > 0 {
+					// The separator itself cannot live inside CDATA, so write
+					// it in the text context with the '>' escaped. Without
+					// this the split content loses its "]]>" sequence.
+					sb.WriteString("]]&gt;")
+				}
+				sb.WriteString("<![CDATA[")
+				sb.WriteString(part)
+				sb.WriteString("]]>")
+			}
+			sb.WriteString("\n      </content>\n")
 		}
 		sb.WriteString("    </file>\n")
 	}
