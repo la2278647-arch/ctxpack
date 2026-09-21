@@ -271,13 +271,22 @@ channel — and reports tool failures as `isError: true` rather than throwing.
 ## Development
 
 ```sh
-go test ./...
-go vet  ./...
-gofmt   -l internal/ ./*.go
+make check
 ```
 
-Run from a source checkout. CI runs the same on every push to `main` across
-Go 1.21–1.23 on Linux, macOS and Windows.
+From a source checkout. That runs gofmt cleanliness, `go vet`, the test
+suite, and the stdlib-only assertion — `go.sum` must stay empty and
+`go list -m all` must report exactly one module. `make smoke` additionally
+builds the binary and drives every command against the source tree itself.
+
+Without make, the same four checks are:
+
+```sh
+test -z "$(gofmt -l internal/ ./*.go)"
+go vet  ./...
+go test ./...
+test ! -s go.sum
+```
 
 ## License
 
