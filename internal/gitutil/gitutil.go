@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -59,7 +60,7 @@ func parsePorcelain(out string) []string {
 			continue
 		}
 		status := strings.TrimSpace(line[:2])
-		path := strings.TrimSpace(line[3:])
+		path := unquote(strings.TrimSpace(line[3:]))
 		if i := strings.Index(path, " -> "); i >= 0 {
 			path = path[i+4:]
 		}
@@ -76,22 +77,38 @@ func parsePorcelain(out string) []string {
 func parseNameStatus(out string) []string {
 	var files []string
 	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 2 {
 			continue
 		}
-		if line[0] == 'D' {
+		if strings.HasPrefix(parts[0], "D") {
 			continue
 		}
-		path := strings.TrimSpace(line[1:])
-		if i := strings.Index(path, " -> "); i >= 0 {
-			path = path[i+4:]
+		path := unquote(strings.TrimSpace(parts[1]))
+		// A rename or copy carries the new name in the third field; the old
+		// name is not the file that needs packing.
+		if len(parts) == 3 && len(parts[0]) > 0 &&
+			(parts[0][0] == 'R' || parts[0][0] == 'C') {
+			path = unquote(strings.TrimSpace(parts[2]))
 		}
 		if path != "" {
 			files = append(files, filepath.ToSlash(path))
 		}
 	}
 	return files
+}
+
+// unquote strips git's C-style quoting. With core.quotePath (the default) a
+// path containing non-ASCII bytes arrives as "caf\303\251.go"; the quotes and
+// octal escapes are not part of the path.
+func unquote(p string) string {
+	if len(p) < 2 || p[0] != '"' {
+		return p
+	}
+	if u, err := strconv.Unquote(p); err == nil {
+		return u
+	}
+	return p
 }
 
 func git(root string, args ...string) (string, error) {
