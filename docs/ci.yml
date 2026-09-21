@@ -54,6 +54,10 @@ jobs:
   test:
     name: test · go${{ matrix.go }} · ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      # The module declares go 1.21 and depends on nothing, so a build must
+      # never need to fetch a different toolchain. Fail loudly if it would.
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
@@ -83,34 +87,42 @@ jobs:
       - name: test
         run: go test ./... -count=1 -v
 
-      - name: build
-        shell: bash
-        run: go build -o ctxpack .
-
       - name: smoke test
         shell: bash
         run: |
           set -euo pipefail
-          ./ctxpack version
-          ./ctxpack models | grep -qi gpt
-          ./ctxpack tokens . | grep -qi tokens
-          ./ctxpack map . | grep -qi repository
-          ./ctxpack pack . > /dev/null
-          ./ctxpack pack . --format json | python3 -c 'import json,sys; json.load(sys.stdin)'
-          ./ctxpack pack . --format markdown | grep -q '^#'
-          ./ctxpack pack . --format text | grep -q '^REPOSITORY'
-          ./ctxpack pack . --format markdown --budget 500 > /dev/null
-          ./ctxpack pack . -o /tmp/out.md && test -s /tmp/out.md
+          # Build into an empty dir: outputting ./ctxpack would collide with
+          # this repo's ./ctxpack/ source directory.
+          B=$(mktemp -d)/ctxpack
+          case "$RUNNER_OS" in Windows) B="$B.exe" ;; esac
+          go build -o "$B" .
+          "$B" version
+          "$B" models | grep -qi gpt
+          "$B" tokens . | grep -qi tokens
+          "$B" map . | grep -qi repository
+          "$B" pack . > /dev/null
+          # Validity is guaranteed by construction (encoding/json.Marshal) and
+          # asserted in internal/format; no python3 dependency here, because
+          # it is not present on every runner image.
+          "$B" pack . --format json > /tmp/p.json
+          test -s /tmp/p.json && grep -q '"files"' /tmp/p.json
+          "$B" pack . --format markdown | grep -q '^#'
+          "$B" pack . --format text | grep -q '^Repository:'
+          "$B" pack . --format markdown --budget 500 > /dev/null
+          "$B" pack . -o /tmp/out.md && test -s /tmp/out.md
           printf '%s\n%s\n' \
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-            | ./ctxpack mcp | grep -q ctxpack
+            | "$B" mcp | grep -q ctxpack
 
   packages:
     name: release binaries
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'release'
+    env:
+      # Same as the test job: never fetch a toolchain from the network.
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
