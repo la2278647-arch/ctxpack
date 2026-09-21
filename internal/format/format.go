@@ -134,15 +134,18 @@ func itoa(n int) string { return fmt.Sprintf("%d", n) }
 
 func humanBytes(n int) string {
 	const unit = 1024
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB"}
 	if n < unit {
 		return fmt.Sprintf("%d B", n)
 	}
-	div, exp := int64(unit), 0
-	for v := int64(n); v >= unit; v /= unit {
-		div *= unit
-		exp++
+	// i counts whole divisions by unit, so units[i] is the right label.
+	// The bound stops a pathological size from running past the table.
+	f, i := float64(n), 0
+	for f >= unit && i < len(units)-1 {
+		f /= unit
+		i++
 	}
-	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div/unit), "KMGTPE"[exp])
+	return fmt.Sprintf("%.1f %s", f, units[i])
 }
 
 // langHint returns a markdown code-fence language hint from the file path.
