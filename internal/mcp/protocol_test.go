@@ -363,11 +363,43 @@ func TestParseFormat(t *testing.T) {
 		want string
 	}{
 		{"xml", "xml"}, {"XML", "xml"}, {"markdown", "markdown"}, {"MD", "markdown"},
-		{"json", "json"}, {"text", "text"}, {"txt", "text"}, {"plain", "text"},
-		{"", "xml"}, {"yaml", "xml"},
+		{"json", "json"}, {"text", "text"}, {"txt", "text"}, {"plain", "text"}, {"raw", "text"},
 	} {
-		if got := parseFormat(tc.in); string(got) != tc.want {
+		got, err := parseFormat(tc.in)
+		if err != nil {
+			t.Errorf("parseFormat(%q) errored: %v", tc.in, err)
+			continue
+		}
+		if string(got) != tc.want {
 			t.Errorf("parseFormat(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+	for _, bad := range []string{"yaml", "html", "csv", "rawx"} {
+		if _, err := parseFormat(bad); err == nil {
+			t.Errorf("parseFormat(%q) accepted an unknown format", bad)
+		}
+	}
+}
+
+func TestToolCallUnknownFormat(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"yaml"}}}`, dir))
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected an in-tool error, got %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); !isErr {
+		t.Errorf("unknown format must set isError: %v", msg)
+	}
+	if text := toolText(t, msgs, "1"); !strings.Contains(text, "unknown format") {
+		t.Errorf("error text: %q", text)
 	}
 }

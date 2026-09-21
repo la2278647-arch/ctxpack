@@ -89,13 +89,40 @@ func TestParseFormat(t *testing.T) {
 		{"txt", "text"},
 		{"plain", "text"},
 		{"raw", "text"},
-		// Unknown values silently fall back to XML.
-		{"", "xml"},
-		{"yaml", "xml"},
-		{"html", "xml"},
 	} {
-		if got := parseFormat(tc.in); string(got) != tc.want {
+		got, err := parseFormat(tc.in)
+		if err != nil {
+			t.Errorf("parseFormat(%q) errored: %v", tc.in, err)
+			continue
+		}
+		if string(got) != tc.want {
 			t.Errorf("parseFormat(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+	// An unknown format is a mistake, not a reason to guess XML.
+	for _, bad := range []string{"", "yaml", "html", "jons", "csv"} {
+		if _, err := parseFormat(bad); err == nil {
+			t.Errorf("parseFormat(%q) accepted an unknown format", bad)
+		}
+	}
+}
+
+func TestPackRejectsUnknownFormat(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	for _, f := range []string{"yaml", "jons", "csv"} {
+		if code := cmdPack([]string{src, "--format", f}); code != 2 {
+			t.Errorf("--format %s: exit = %d, want 2", f, code)
+		}
+	}
+}
+
+func TestPackAcceptsValidFormats(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	for _, f := range []string{"xml", "json", "markdown", "text", "md", "txt"} {
+		if code := cmdPack([]string{src, "-o", filepath.Join(t.TempDir(), "o."+f), "--format", f}); code != 0 {
+			t.Errorf("--format %s: exit = %d, want 0", f, code)
 		}
 	}
 }

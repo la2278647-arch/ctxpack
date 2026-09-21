@@ -188,6 +188,10 @@ func callPackRepo(args map[string]any) (string, string) {
 	if path == "" {
 		return "", "missing required argument: path"
 	}
+	outFmt, err := parseFormat(getString(args, "format", "xml"))
+	if err != nil {
+		return "", err.Error()
+	}
 	bundle, err := packer.Pack(path, packer.Options{
 		Walker: walker.Options{
 			Include:          toStrSlice(args["include"]),
@@ -202,7 +206,7 @@ func callPackRepo(args map[string]any) (string, string) {
 	if err != nil {
 		return "", "pack error: " + err.Error()
 	}
-	return format.Render(bundle, parseFormat(getString(args, "format", "xml"))), ""
+	return format.Render(bundle, outFmt), ""
 }
 
 func callRepoMap(args map[string]any) (string, string) {
@@ -330,15 +334,16 @@ func getString(m map[string]any, key, def string) string {
 	return def
 }
 
-func parseFormat(s string) format.Format {
+func parseFormat(s string) (format.Format, error) {
 	switch strings.ToLower(s) {
+	case "xml":
+		return format.XML, nil
 	case "md", "markdown":
-		return format.Markdown
+		return format.Markdown, nil
 	case "json":
-		return format.JSON
-	case "text", "txt", "plain":
-		return format.Text
-	default:
-		return format.XML
+		return format.JSON, nil
+	case "text", "txt", "plain", "raw":
+		return format.Text, nil
 	}
+	return format.XML, fmt.Errorf("unknown format %q (want xml, markdown, json or text)", s)
 }

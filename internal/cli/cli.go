@@ -134,6 +134,13 @@ func cmdPack(args []string) int {
 		path = fs.Arg(0)
 	}
 
+	// Validate the format before walking the tree, so a typo fails fast.
+	outFmt, err := parseFormat(*fmtFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ctxpack:", err)
+		return 2
+	}
+
 	bundle, err := packer.Pack(path, packer.Options{
 		Walker: walker.Options{
 			Include:          []string(includes),
@@ -150,7 +157,7 @@ func cmdPack(args []string) int {
 		return 1
 	}
 
-	out := format.Render(bundle, parseFormat(*fmtFlag))
+	out := format.Render(bundle, outFmt)
 	header := ""
 	if *model != "" {
 		header = annotateFit(bundle.TotalTokens, *model) + "\n"
@@ -193,6 +200,12 @@ func cmdDiff(args []string) int {
 		path = fs.Arg(0)
 	}
 
+	outFmt, err := parseFormat(*fmtFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ctxpack:", err)
+		return 2
+	}
+
 	changed, err := gitutil.ChangedFiles(path, *ref)
 	if err != nil {
 		if err == gitutil.ErrNotARepo {
@@ -223,7 +236,7 @@ func cmdDiff(args []string) int {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
 	}
-	out := format.Render(bundle, parseFormat(*fmtFlag))
+	out := format.Render(bundle, outFmt)
 	header := fmt.Sprintf("<!-- ctxpack diff vs %q: %d files -->\n", *ref, len(changed))
 	if *model != "" {
 		header += annotateFit(bundle.TotalTokens, *model) + "\n"
@@ -411,17 +424,21 @@ func takesValue(fs *flag.FlagSet, f string) bool {
 	return true
 }
 
-func parseFormat(s string) format.Format {
+// parseFormat validates the requested output format. An unknown value is an
+// error rather than a silent fallback: a typo such as --format jons must not
+// quietly produce XML when JSON was asked for.
+func parseFormat(s string) (format.Format, error) {
 	switch strings.ToLower(s) {
+	case "xml":
+		return format.XML, nil
 	case "md", "markdown":
-		return format.Markdown
+		return format.Markdown, nil
 	case "json":
-		return format.JSON
+		return format.JSON, nil
 	case "text", "txt", "plain", "raw":
-		return format.Text
-	default:
-		return format.XML
+		return format.Text, nil
 	}
+	return format.XML, fmt.Errorf("unknown format %q (want xml, markdown, json or text)", s)
 }
 
 func annotateFit(tokens int, model string) string {
