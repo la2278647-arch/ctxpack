@@ -147,6 +147,12 @@ func tools() []map[string]any {
 func (s *server) handleToolCall(id any, params any) {
 	pmap, _ := params.(map[string]any)
 	name, _ := pmap["name"].(string)
+	if name == "" {
+		// Without a name we would otherwise report 'Unknown tool: ' with an
+		// empty name, which tells the agent nothing about what it sent wrong.
+		s.writeError(id, -32602, "tools/call is missing arguments.name")
+		return
+	}
 	args, _ := pmap["arguments"].(map[string]any)
 
 	var text string
