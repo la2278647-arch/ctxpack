@@ -126,7 +126,7 @@ func cmdPack(args []string) int {
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
-	if err := fs.Parse(reorderArgs(args)); err != nil {
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -185,7 +185,7 @@ func cmdDiff(args []string) int {
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
-	if err := fs.Parse(reorderArgs(args)); err != nil {
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -249,7 +249,7 @@ func cmdMap(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(reorderArgs(args)); err != nil {
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -287,7 +287,7 @@ func cmdTokens(args []string) int {
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
-	if err := fs.Parse(reorderArgs(args)); err != nil {
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
 	path := "."
@@ -342,7 +342,7 @@ func cmdModels(args []string) int {
 func cmdMCP(args []string) int {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
-	if err := fs.Parse(reorderArgs(args)); err != nil {
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
 	if err := mcp.Serve(os.Stdin, os.Stdout, version.Version); err != nil {
@@ -360,7 +360,7 @@ func cmdMCP(args []string) int {
 // `ctxpack pack ./repo --format markdown` would otherwise silently ignore every
 // flag that came after the path. Reordering means the documented usage works
 // and users do not have to learn a flag-before-path rule.
-func reorderArgs(args []string) []string {
+func reorderArgs(fs *flag.FlagSet, args []string) []string {
 	out := make([]string, 0, len(args))
 	var positional []string
 	for i := 0; i < len(args); i++ {
@@ -371,8 +371,11 @@ func reorderArgs(args []string) []string {
 		}
 		if len(a) > 1 && a[0] == '-' {
 			out = append(out, a)
-			// "-f value" form: carry the value along unless it is itself a flag.
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			// "-f value" form: carry the value along - but only when the flag
+			// actually takes one. A boolean flag such as --hidden is not
+			// followed by a value, and treating the path as its value would
+			// swallow it and stop flag parsing for the rest of the command.
+			if takesValue(fs, a) && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				out = append(out, args[i+1])
 				i++
 			}
@@ -381,6 +384,31 @@ func reorderArgs(args []string) []string {
 		positional = append(positional, a)
 	}
 	return append(out, positional...)
+}
+
+// takesValue reports whether the flag token f (such as --format or -o) expects
+// a value, as opposed to a boolean flag that stands alone.
+func takesValue(fs *flag.FlagSet, f string) bool {
+	name := strings.TrimLeft(f, "-")
+	if eq := strings.IndexByte(name, '='); eq >= 0 {
+		name = name[:eq]
+	}
+	fl := fs.Lookup(name)
+	if fl == nil {
+		// Unknown: do not carry, so flag reports "not defined" instead of
+		// "needs an argument" for what may have been a positional.
+		return false
+	}
+	// The flag package keeps IsBoolFlag() on an unexported interface, so it
+	// cannot be queried from here. Every built-in bool flag stores a bool, so
+	// asking its Value for the current value and checking the dynamic type
+	// identifies them exactly.
+	if g, ok := fl.Value.(interface{ Get() any }); ok {
+		if _, isBool := g.Get().(bool); isBool {
+			return false
+		}
+	}
+	return true
 }
 
 func parseFormat(s string) format.Format {
