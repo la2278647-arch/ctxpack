@@ -288,6 +288,16 @@ go test ./...
 test ! -s go.sum
 ```
 
+The same gate runs as GitHub Actions. The workflow definition is in
+[docs/ci.yml](docs/ci.yml) rather than under `.github/workflows/` because the
+token that published this repository does not carry the `workflow` scope
+GitHub requires to create workflow files. Activate it with:
+
+```sh
+git mv docs/ci.yml .github/workflows/ci.yml
+git push
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
