@@ -55,14 +55,14 @@ Requires Go 1.21+. No modules are fetched; `go.sum` is empty by design.
 
 ```sh
 ctxpack version
-# ctxpack 0.1.0 (linux/amd64, go1.22.4, commit abc1234, built 2025-01-01)
+# ctxpack 0.1.1 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
 ```
 
 Pin build identity at release time:
 
 ```sh
 go build -ldflags "\
-  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.0 \
+  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.1 \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildCommit=$(git rev-parse --short HEAD) \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildDate=$(date -u +%Y-%m-%d)" \
   -o ctxpack .

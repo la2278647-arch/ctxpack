@@ -12,6 +12,8 @@
 *.test
 coverage.txt
 coverage.html
+cover
+cover.out
 
 # OS
 .DS_Store

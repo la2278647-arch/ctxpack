@@ -4,6 +4,61 @@ All notable changes to ctxpack are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project aims
 to follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-09-22
+
+Bug-fix release. Nothing new to write — eleven things that were plainly
+wrong, plus the tests that would have caught each of them.
+
+### Fixed
+
+- **`pack` and `tokens` over-reported every byte count by 1024x.** `a.txt` at
+  10 bytes reported as 10 KB. The threshold ladder divided by 1024 but the
+  label formatter had already multiplied.
+- **`pack --format xml` could emit XML that does not parse.** File paths and
+  the `tokens`/`bytes` attributes were not escaped, and a `]]>` inside a file
+  body terminated its CDATA section. Both now round-trip through a real
+  XML parser, including a file literally named `a&b/x < y.go`.
+- **`pack --format foo` silently produced XML.** An unknown format is now
+  rejected with a non-zero exit; `CTXPACK_FORMAT` is validated the same way.
+- **`map` rendered the tree root as `./`.** The tree is read relative to the
+  walked directory, so the root is now labelled with the directory's own
+  name.
+- **`diff` could not see renames or quoted paths.** `git status --name-status`
+  output is split on tabs now (a rename's whole line was previously treated as
+  one path) and git's C-style path quoting is unquoted.
+- **`mcp`'s `repo_map` under-counted by orders of magnitude.** When content is
+  not read, tokens are estimated from file size rather than from the file's
+  own name — a 40 KiB file read as roughly one token.
+- **A boolean flag made every flag after it disappear.** `--format json --budget 500`
+  dropped `--budget`; the flag reordering now respects which flags take a value.
+- **`mcp` returned a generic error when `tools/call` had no tool name.** It now
+  reports `tools/call is missing arguments.name`.
+- **Flags after the path were silently ignored.** Go's `flag` package stops
+  parsing at the first non-flag token, so `ctxpack pack ./repo --format
+  markdown` produced XML. Positional arguments are moved to the end of the
+  argument slice before parsing, so `ctxpack <command> [path] [flags]` works
+  in either order.
+- **`--version` printed `gogo1.26.5`.** `runtime.Version()` already carries a
+  `go` prefix.
+- **The documented `-o` shorthand did not exist.** It is now registered on
+  `pack` and `diff`.
+
+### Tests
+
+Coverage went from thin to honest on the packages that were untested:
+
+| package   | before | after |
+| --------- | ------ | ----- |
+| version   |  0.0%  |100.0% |
+| format    |  0.0%  | 98.8% |
+| repomap   |  0.0%  | 98.2% |
+| gitutil   |  0.0%  | 95.4% |
+| mcp       |  0.0%  | 92.9% |
+| walker    | 73.8%  | 91.3% |
+| cli       |  0.0%  | 56.7% |
+
+The full suite is green under `go test ./...`, `go vet ./...` and `gofmt -l .`.
+
 ## [0.1.0] - 2025-01-01
 
 First public release.
@@ -41,17 +96,5 @@ First public release.
   `packer`/`repomap`/`gitutil` packages.
 - **Read-only** — no code path writes into the target tree.
 
-## [Unreleased]
-
-### Fixed
-
-- `--version` printed `gogo1.26.5` because `runtime.Version()` already carries
-  a `go` prefix.
-- Flags placed after a positional argument were silently ignored. Go's `flag`
-  package stops parsing at the first non-flag token, so
-  `ctxpack pack ./repo --format markdown` produced XML. Positional arguments
-  are now moved to the end of the argument slice before parsing, so the
-  documented `ctxpack <command> [path] [flags]` usage works in either order.
-- Registered the documented `-o` shorthand for `--output` on `pack` and `diff`.
-
+[0.1.1]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.1
 [0.1.0]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
