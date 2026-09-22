@@ -12,12 +12,12 @@ makes the token budget bite.
 The demo's README embeds ctxpack's own output captured on that project, which
 is a more useful illustration than any hand-written sample:
 
-- `ctxpack tokens .` reports 35545 estimated tokens and marks two small-window
-  models `[OVERFLOW]` — `gpt-3.5-turbo` at 289% of its window, `gpt-4` at 868%.
-- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 73.6% of the whole
+- `ctxpack tokens .` reports 39212 estimated tokens and marks two small-window
+  models `[OVERFLOW]` — `gpt-3.5-turbo` at 319% of its window, `gpt-4` at 957%.
+- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 66.8% of the whole
   tree, so the ranking problem is visible at a glance.
-- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 16 files at
-  ~4938 tokens, then lists the six files it cut with their individual token
+- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 13 files at
+  ~4973 tokens, then lists the twelve files it cut with their individual token
   counts.
 
 That last list is the feature. A budget that truncates mid-file hides what it

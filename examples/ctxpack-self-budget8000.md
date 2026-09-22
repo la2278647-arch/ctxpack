@@ -1,7 +1,7 @@
-<!-- fit: FITS model=gpt-4o used=7.5k/123.9k (6%) FITS -->
+<!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
 # Repository: D:\垃圾\ctxpack
 
-- Files: 9  | Tokens: ~7529  | Bytes: 17.7 KB  | Skipped: 0
+- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 0
 
 ---
 
@@ -324,6 +324,71 @@ in the release notes alongside the fix.
 
 ---
 
+## `docs/examples.md` (904 tokens, 2.1 KB)
+
+```markdown
+# Examples
+
+Two ways to see ctxpack in action.
+
+## [ctxpack-demo](https://github.com/la2278647-arch/ctxpack-demo)
+
+A real project, not ctxpack itself. It is a FastAPI microservice
+(hello-service v0.3.1): one table, five endpoints, cursor pagination,
+pydantic validation, a test per behaviour, and a 58 KB synthetic catalog that
+makes the token budget bite.
+
+The demo's README embeds ctxpack's own output captured on that project, which
+is a more useful illustration than any hand-written sample:
+
+- `ctxpack tokens .` reports 35545 estimated tokens and marks two small-window
+  models `[OVERFLOW]` — `gpt-3.5-turbo` at 289% of its window, `gpt-4` at 868%.
+- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 73.6% of the whole
+  tree, so the ranking problem is visible at a glance.
+- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 16 files at
+  ~4938 tokens, then lists the six files it cut with their individual token
+  counts.
+
+That last list is the feature. A budget that truncates mid-file hides what it
+lost; a budget that names what it cut lets you decide.
+
+Clone it and try your own numbers:
+
+```sh
+git clone https://github.com/la2278647-arch/ctxpack-demo
+cd ctxpack-demo
+ctxpack tokens .
+ctxpack map .
+ctxpack pack . --model gpt-4o --format markdown --budget 5000
+```
+
+Try `--budget 2000` and watch the omitted list grow. Try `--max-size 10000`
+and see the 58 KB catalog stop being read.
+
+## [`examples/`](../examples/)
+
+ctxpack run on **itself**: a token-aware tree of this repository, and a pack
+of this repository capped at 8000 tokens. Useful as a self-contained artifact
+because it has no dependency on a second checkout.
+
+The two approaches are complementary. The self-snapshots are stable and
+shippable; the demo project shows the tool against a codebase with the shape
+of something a reader would actually point it at.
+
+## Regenerating
+
+```sh
+ctxpack map . > examples/ctxpack-self.map.txt
+ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
+  -o examples/ctxpack-self-budget8000.md
+```
+
+Both snapshots reflect the tree at the commit they were generated. The
+estimates move as the tree changes, so regenerate before tagging a release.
+```
+
+---
+
 ## `docs/release-notes-v0.1.0.md` (1107 tokens, 2.6 KB)
 
 ```markdown
@@ -393,68 +458,44 @@ Or take a binary from this release. Binaries are built with `-trimpath` and
 
 ---
 
-## `examples/ctxpack-self.map.txt` (1069 tokens, 1.9 KB)
+## `examples/README.md` (527 tokens, 1.2 KB)
 
+```markdown
+# Examples
+
+This directory holds **`ctxpack` run on itself** — a show-don't-tell snapshot
+of what the tool produces. Both files are generated artifacts; regenerate them
+with `make`-equivalent commands documented below.
+
+## `ctxpack-self.map.txt`
+
+A token-aware tree outline of the ctxpack repository. Every directory and file
+is annotated with a token estimate and byte size, so you can see at a glance
+where the context budget goes.
+
+```sh
+ctxpack map . > examples/ctxpack-self.map.txt
 ```
-Repository: ctxpack
-Files: ~141067 tokens, 317.0 KB
 
-ctxpack/  [141067t, 317.0KB]
-  docs/  [10367t, 24.3KB]
-    ci.yml  [2390t, 5.6KB]
-    promote.md  [3741t, 9.0KB]
-    release-notes-v0.1.0.md  [1107t, 2.6KB]
-    release-notes-v0.1.1.md  [1203t, 2.7KB]
-    release-notes-v0.1.2.md  [1926t, 4.5KB]
-  examples/  [0t, 0B]
-    ctxpack-self.map.txt  [0t, 0B]
-  internal/  [106740t, 235.7KB]
-    cli/  [24390t, 53.5KB]
-      cli.go  [7355t, 16.8KB]
-      cli_more_test.go  [12284t, 26.4KB]
-      cli_test.go  [4751t, 10.3KB]
-    counter/  [8930t, 20.1KB]
-      counter.go  [2737t, 6.3KB]
-      counter_test.go  [6193t, 13.8KB]
-    format/  [10966t, 24.3KB]
-      format.go  [3855t, 8.8KB]
-      format_test.go  [7111t, 15.6KB]
-    gitutil/  [4847t, 10.5KB]
-      gitutil.go  [1578t, 3.5KB]
-      gitutil_test.go  [3269t, 7.0KB]
-    ignore/  [12181t, 27.2KB]
-      ignore.go  [3297t, 7.8KB]
-      ignore_more_test.go  [7114t, 15.5KB]
-      ignore_test.go  [1770t, 3.9KB]
-    mcp/  [14058t, 31.0KB]
-      protocol_test.go  [5427t, 11.8KB]
-      server.go  [4388t, 9.8KB]
-      server_more_test.go  [2307t, 5.1KB]
-      server_test.go  [1936t, 4.3KB]
-    packer/  [7750t, 17.1KB]
-      packer.go  [2907t, 6.6KB]
-      packer_test.go  [4843t, 10.5KB]
-    repomap/  [7186t, 15.6KB]
-      repomap.go  [1830t, 4.1KB]
-      repomap_test.go  [5356t, 11.5KB]
-    version/  [1761t, 4.0KB]
-      version.go  [444t, 1.0KB]
-      version_test.go  [1317t, 2.9KB]
-    walker/  [14671t, 32.3KB]
-      walker.go  [3955t, 9.2KB]
-      walker_more_test.go  [9282t, 20.1KB]
-      walker_test.go  [1434t, 3.0KB]
-  CHANGELOG.md  [11037t, 26.7KB]
-  CODE_OF_CONDUCT.md  [1404t, 3.6KB]
-  CONTRIBUTING.md  [1232t, 2.9KB]
-  LICENSE  [413t, 1.0KB]
-  Makefile  [1234t, 2.8KB]
-  README.md  [5012t, 11.6KB]
-  SECURITY.md  [1457t, 3.6KB]
-  go.mod  [23t, 50B]
-  install.ps1  [744t, 1.7KB]
-  install.sh  [1024t, 2.3KB]
-  main.go  [380t, 904B]
+## `ctxpack-self-budget8000.md`
+
+`ctxpack` packing **itself** into a single Markdown bundle, capped to an 8000
+token budget and annotated for `gpt-4o`. This is the interesting demo: it
+keeps the 9 highest-priority files (~7.5k tokens) and **lists the 33 files it
+omitted and why** — the "what got cut" report that is the whole point of a
+budget.
+
+```sh
+ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
+  -o examples/ctxpack-self-budget8000.md
+```
+
+## Notes
+
+- Token counts are estimates (a tiktoken-style pre-tokenization + calibrated
+  heuristic), not real-BPE output. See the main README's "Limitations" section.
+- These snapshots reflect the tree at the commit they were generated; the
+  numbers move as the repo changes. Regenerate before tagging a release.
 ```
 
 ---
@@ -486,7 +527,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.2"
+var Version = "0.1.4"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -545,7 +586,7 @@ func main() {
 
 ---
 
-## Omitted by budget (33 files, ~134607 tokens)
+## Omitted by budget (37 files, ~165953 tokens)
 
 - `CHANGELOG.md`
 - `Makefile`
@@ -554,6 +595,10 @@ func main() {
 - `docs/promote.md`
 - `docs/release-notes-v0.1.1.md`
 - `docs/release-notes-v0.1.2.md`
+- `docs/release-notes-v0.1.3.md`
+- `docs/release-notes-v0.1.4.md`
+- `examples/ctxpack-self-budget8000.md`
+- `examples/ctxpack-self.map.txt`
 - `install.ps1`
 - `install.sh`
 - `internal/cli/cli.go`
