@@ -5,6 +5,7 @@ package repomap
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -28,7 +29,7 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 		return nil, 0, 0, err
 	}
 	cnt := counter.NewDefault()
-	rootNode := &Node{Name: root, IsDir: true}
+	rootNode := &Node{Name: rootNodeName(res.Root), IsDir: true}
 	totalTokens, totalBytes := 0, 0
 
 	for _, fe := range res.Files {
@@ -64,6 +65,13 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 	}
 	sortNodes(rootNode)
 	return rootNode, totalTokens, totalBytes, nil
+}
+
+// rootNodeName labels the tree root with the walked directory's base name
+// instead of the raw argument, so that "ctxpack map ." renders "ctxpack/"
+// rather than "./".
+func rootNodeName(root string) string {
+	return strings.TrimRight(filepath.Base(root), string(filepath.Separator))
 }
 
 func findChild(n *Node, name string) *Node {

@@ -194,6 +194,48 @@ func TestRenderEmptyTree(t *testing.T) {
 	}
 }
 
+func TestRootNodeName(t *testing.T) {
+	cases := []struct {
+		root string
+		want string
+	}{
+		{filepath.FromSlash("C:/tmp/ctxpack"), "ctxpack"},
+		{filepath.FromSlash("C:/tmp/ctxpack/"), "ctxpack"},
+		{filepath.FromSlash("/home/u/proj"), "proj"},
+		{filepath.FromSlash("C:/tmp/.repo"), ".repo"},
+	}
+	for _, tc := range cases {
+		if got := rootNodeName(tc.root); got != tc.want {
+			t.Errorf("rootNodeName(%q) = %q, want %q", tc.root, got, tc.want)
+		}
+	}
+}
+
+func TestBuildRootLabelIsBaseName(t *testing.T) {
+	// "ctxpack map ." used to render the tree root as "./"; the label must be
+	// the walked directory's base name regardless of how the caller wrote it.
+	dir := t.TempDir()
+	writeFile(t, dir, "a.go", "package main\n")
+
+	for _, arg := range []string{
+		dir,
+		dir + string(filepath.Separator),
+		dir + string(filepath.Separator) + ".",
+	} {
+		root, _, _, err := Build(arg, walker.Options{ReadContent: true})
+		if err != nil {
+			t.Fatalf("arg %q: %v", arg, err)
+		}
+		want := filepath.Base(dir)
+		if root.Name != want {
+			t.Errorf("arg %q: root.Name = %q, want %q", arg, root.Name, want)
+		}
+		if got := Render(root); !strings.HasPrefix(got, want+"/") {
+			t.Errorf("arg %q: Render = %q, want it to start with %q", arg, got, want+"/")
+		}
+	}
+}
+
 func TestHuman(t *testing.T) {
 	for _, tc := range []struct {
 		n    int
