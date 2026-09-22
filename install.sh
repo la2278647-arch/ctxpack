@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
 # install.sh — download the right ctxpack binary for your platform from the
-# latest GitHub release and put it on PATH.
+# latest GitHub release, verify it against the published SHA256SUMS.txt, and
+# put it on PATH.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
 #   # or pin a version:
-#   curl -fsSL ... | bash -s -- v0.1.2
+#   curl -fsSL ... | bash -s -- v0.1.3
 #
 # Environment:
 #   CTXPACK_INSTALL_DIR  override the install directory (default: /usr/local/bin
@@ -16,13 +17,25 @@ set -euo pipefail
 OWNER="la2278647-arch"
 REPO="ctxpack"
 
-if [ -n "${BASH_EXE:-}" ]; then :; fi
-
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
+    # The REST API is precise but is rate-limited at 60 anonymous requests per
+    # hour, which turns a routine install into a 403 on a busy machine. The
+    # /releases/latest page redirects to /releases/tag/vX.Y.Z instead and is
+    # not rate-limited at all, so it is the fallback.
     echo "Detecting latest release…" >&2
-    VERSION="$(curl -fsSL "https://api.github.com/repos/${OWNER}/${REPO}/releases/latest" \
-        | grep -m1 '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/')"
+    VERSION="$(curl -fsSL -H 'User-Agent: ctxpack-installer' \
+        "https://api.github.com/repos/${OWNER}/${REPO}/releases/latest" \
+        | grep -m1 '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/' 2>/dev/null || true)"
+    if [ -z "$VERSION" ]; then
+        # || true: under "set -euo pipefail" a curl failure here would abort the
+        # script before the friendly message below could be printed.
+        LOC="$(curl -fsL -I "https://github.com/${OWNER}/${REPO}/releases/latest" \
+            | tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2; exit}' || true)"
+        case "$LOC" in
+            */releases/tag/*) VERSION="${LOC##*/tag/}" ;;
+        esac
+    fi
     if [ -z "$VERSION" ]; then
         echo "ctxpack: could not determine the latest release." >&2
         exit 1
@@ -48,7 +61,7 @@ esac
 
 ASSET="ctxpack_${VER}_${OS}_${ARCH}"
 if [ "$OS" = "windows" ]; then ASSET="${ASSET}.exe"; fi
-URL="https://github.com/${OWNER}/${REPO}/releases/download/v${VER}/${ASSET}"
+BASE="https://github.com/${OWNER}/${REPO}/releases/download/v${VER}"
 
 INSTALL_DIR="${CTXPACK_INSTALL_DIR:-}"
 if [ -z "$INSTALL_DIR" ]; then
@@ -63,12 +76,45 @@ mkdir -p "$INSTALL_DIR"
 BIN="${INSTALL_DIR}/ctxpack"
 [ "$OS" = "windows" ] && BIN="${BIN}.exe"
 
-echo "Downloading ${URL}" >&2
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-curl -fsSL "$URL" -o "${TMP}/ctxpack-download"
-chmod +x "${TMP}/ctxpack-download"
-mv "${TMP}/ctxpack-download" "$BIN"
+
+# Download to a scratch directory and move into place only after the checksum
+# is verified, so a truncated or tampered download cannot leave a bad binary
+# sitting on PATH.
+echo "Downloading ${BASE}/${ASSET}" >&2
+curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/ctxpack"
+curl -fsSL "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA256SUMS.txt"
+
+# The two spaces are part of the match, so the asset cannot match a filename
+# that merely has it as a prefix.
+# || true: a grep with no match would otherwise abort under "set -e" and skip
+# the message below.
+WANT="$(grep -F "  ${ASSET}" "${TMP}/SHA256SUMS.txt" | cut -d' ' -f1 || true)"
+if [ -z "$WANT" ]; then
+    echo "ctxpack: ${ASSET} is not listed in SHA256SUMS.txt" >&2
+    exit 1
+fi
+
+# sha256sum is GNU coreutils (Linux); shasum is BSD (macOS).
+if command -v sha256sum >/dev/null 2>&1; then
+    GOT="$(sha256sum "${TMP}/ctxpack" | cut -d' ' -f1)"
+elif command -v shasum >/dev/null 2>&1; then
+    GOT="$(shasum -a 256 "${TMP}/ctxpack" | cut -d' ' -f1)"
+else
+    echo "ctxpack: need sha256sum or shasum to verify the download" >&2
+    exit 1
+fi
+if [ "$GOT" != "$WANT" ]; then
+    echo "ctxpack: SHA256 mismatch for ${ASSET}" >&2
+    echo "  expected ${WANT}" >&2
+    echo "  got      ${GOT}" >&2
+    exit 1
+fi
+echo "SHA256 verified: ${GOT}" >&2
+
+chmod +x "${TMP}/ctxpack"
+mv "${TMP}/ctxpack" "$BIN"
 
 echo "Installed ctxpack v${VER} → ${BIN}" >&2
 if command -v "$BIN" >/dev/null 2>&1; then

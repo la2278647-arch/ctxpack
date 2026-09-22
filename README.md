@@ -60,6 +60,12 @@ The installers detect your OS/architecture, download the matching binary
 from the [latest release](https://github.com/la2278647-arch/ctxpack/releases),
 and put it on your `PATH`. Set `CTXPACK_INSTALL_DIR` to override the target.
 
+Both download to a scratch directory and move into place only after verifying
+the binary against the release's `SHA256SUMS.txt`. A mismatch, a missing
+entry, or a failed download aborts without leaving a binary on your `PATH`.
+They prefer the GitHub REST API to find the latest release and fall back to
+the unrate-limited `/releases/latest` redirect if the API 403s.
+
 **Or via a package manager:**
 
 ```sh

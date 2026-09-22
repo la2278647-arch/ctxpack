@@ -8,6 +8,20 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The installers now verify the binary they install.**
+  Both downloaded the release asset straight onto `PATH` and trusted it. They
+  now also fetch the release's `SHA256SUMS.txt`, compare, and abort on a
+  mismatch, a missing entry, or a failed download — with nothing left on
+  `PATH`. `install.sh` already downloaded to a scratch directory and moved the
+  result into place; `install.ps1` wrote directly to the destination, so a
+  truncated download could have left a broken `ctxpack.exe` where the real one
+  belonged. Both are atomic now.
+
+  Verification is exercised three ways against a local stand-in release rather
+  than only by inspection: a correct checksum installs, a single flipped hex
+  digit is refused, and an asset absent from the list is refused. In every case
+  the scratch files are removed and nothing is installed.
+
 - **A `list_models` MCP tool.**
   The three MCP tools all required a path, and none could tell an MCP client
   which model names existed. An MCP client *is* an LLM picking a model name by
@@ -46,6 +60,30 @@ to follow [Semantic Versioning](https://semver.org/).
   inconsistency the other way would break a documented exit code for no gain.
 
 ### Fixed
+
+- **`install.ps1` failed to find the latest release whenever GitHub rate-limited it.**
+  Untagged installs call the REST API, which allows 60 anonymous requests per
+  hour; on a busy machine that 403s and the install aborts. It now falls back
+  to the `/releases/latest` page, which 302-redirects to `/releases/tag/vX.Y.Z`
+  and is not rate-limited. That fallback reads the `Location` header off the raw
+  response, because `Invoke-WebRequest -MaximumRedirection 0` throws an exception
+  whose `Headers['Location']` comes back empty. `install.sh` gets the same
+  fallback.
+
+- **Two `set -e` bugs in `install.sh` swallowed its own error messages.**
+  A `grep` that matches nothing exits 1, and under `set -euo pipefail` that
+  aborts the script before the friendly "not listed in SHA256SUMS.txt" line is
+  reached. The same applied to the curl that fetches the redirect. Both are now
+  guarded, so the intended message is what the user sees.
+
+- **`install.ps1` silently installed the amd64 binary on an unrecognised CPU.**
+  The `switch` on `$env:PROCESSOR_ARCHITECTURE` had no `default`, and `$Arch`
+  defaulted to `amd64` above it — so an unrecognised value produced a wrong-
+  architecture binary rather than an error.
+
+- **`install.sh` contained a dead line.**
+  `if [ -n "${BASH_EXE:-}" ]; then :; fi` tested a variable that bash always
+  sets and did nothing with it. Deleted.
 
 - **The reply reserve now has one definition.**
   `cli` declared it as a constant; `mcp` typed `4096` inline. Nothing was wrong
