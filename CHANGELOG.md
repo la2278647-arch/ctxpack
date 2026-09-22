@@ -8,6 +8,31 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`ctxpack map --json` and `ctxpack tokens --json`.**
+  Both commands now emit machine-readable JSON, so a script can read the tree or
+  the per-model fit instead of parsing a text outline. `pack` already had
+  `--format json` for its bundle; these two have no format family, so they take
+  a `--json` boolean instead.
+
+  `map --json` wraps the tree in `{root, total_tokens, total_bytes, tree}` and
+  `tokens --json` wraps the summary in `{path, total_tokens, total_bytes,
+  reserve_tokens, fits}`. Two invariants are tested rather than merely intended:
+  `tree.children` is always an array and never `null`, so a file and an empty
+  directory both read `[]` and `is_dir` is what separates them; and the header
+  totals equal the tree totals and agree with the text output, because every
+  format reads one shared walk and cannot drift.
+
+  Each fit entry carries `used`, `limit` (the window minus the reply reserve)
+  and `pct_used` rounded to two decimals, so the JSON stops echoing float64
+  noise such as `1258.287899747742`. The reply reserve is now `fitReserve`, a
+  named constant instead of a literal repeated in two call sites, so the text
+  table, the JSON output and `pack`'s fit annotation all read the same value.
+
+  Eight new tests cover the two JSON shapes, both invariants, the empty-tree
+  case, and `writeEnvelope`'s error branch — the last by handing the encoder a
+  writer that refuses every byte, which needs no test hook. `internal/cli`
+  stays at 100.0%.
+
 - **A real project to try ctxpack on: `ctxpack-demo`.**
   [la2278647-arch/ctxpack-demo](https://github.com/la2278647-arch/ctxpack-demo)
   is a 27-file FastAPI microservice (hello-service v0.3.1) with cursor

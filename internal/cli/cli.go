@@ -6,9 +6,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -88,12 +90,15 @@ FLAGS (diff)
 
 FLAGS (map / tokens)
   --include/--exclude/--max-size/--no-gitignore/--hidden
+  --json               Emit JSON instead of the text outline, for scripting
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
   ctxpack pack . --include "*.go" --exclude "*_test.go" --model gpt-4o
   ctxpack diff . --ref main            # what changed since main
   ctxpack pack . --budget 60000 --model gpt-4o
+  ctxpack map . --json                 # the tree as JSON, for scripting
+  ctxpack tokens . --json              # per-model fit as JSON
   ctxpack mcp                          # for Claude Desktop / Cursor config
 
 Project: https://github.com/la2278647-arch/ctxpack
@@ -294,6 +299,7 @@ func cmdMap(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		jsonOut  = fs.Bool("json", false, "print the tree as JSON instead of the text outline")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -315,6 +321,11 @@ func cmdMap(args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
+	}
+	if *jsonOut {
+		return writeEnvelope(os.Stdout, mapEnvelope{
+			Root: root.Name, TotalTokens: tokens, TotalBytes: bytes, Tree: toJSONNode(root),
+		})
 	}
 	fmt.Printf("Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))
 	fmt.Print(repomap.Render(root))
@@ -332,6 +343,7 @@ func cmdTokens(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -354,13 +366,22 @@ func cmdTokens(args []string) int {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
 	}
+	if *jsonOut {
+		return writeEnvelope(os.Stdout, tokensEnvelope{
+			Path:          root.Name,
+			TotalTokens:   tokens,
+			TotalBytes:    bytes,
+			ReserveTokens: fitReserve,
+			Fits:          tokenFits(tokens),
+		})
+	}
 	fmt.Printf("Path:       %s\n", root.Name)
 	fmt.Printf("Tokens:     ~%d\n", tokens)
 	fmt.Printf("Bytes:      %s\n", humanBytes(bytes))
 	fmt.Println()
 	fmt.Println("Per-model fit (est. tokens / context window):")
 	for _, m := range counter.Models() {
-		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, 4096)
+		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
 		mark := "fits"
 		if !fit.Fits {
 			mark = "OVERFLOW"
@@ -482,12 +503,112 @@ func parseFormat(s string) (format.Format, error) {
 	return format.XML, fmt.Errorf("unknown format %q (want xml, markdown, json or text)", s)
 }
 
+// fitReserve is the token budget held back for a model's reply, so a bundle that
+// just fills a window still leaves room to answer. Every fit calculation in
+// this package uses the same value, the text output and the JSON alike.
+const fitReserve = 4096
+
+// mapEnvelope is the JSON form of `ctxpack map`. The text outline is for
+// people; this shape is for scripts that want to rank files or pick a budget.
+type mapEnvelope struct {
+	Root        string    `json:"root"`
+	TotalTokens int       `json:"total_tokens"`
+	TotalBytes  int       `json:"total_bytes"`
+	Tree        *jsonNode `json:"tree"`
+}
+
+// tokensEnvelope is the JSON form of `ctxpack tokens`.
+type tokensEnvelope struct {
+	Path          string     `json:"path"`
+	TotalTokens   int        `json:"total_tokens"`
+	TotalBytes    int        `json:"total_bytes"`
+	ReserveTokens int        `json:"reserve_tokens"`
+	Fits          []fitEntry `json:"fits"`
+}
+
+// fitEntry is one model's fit against a token total.
+type fitEntry struct {
+	Model   string  `json:"model"`
+	Used    int     `json:"used"`
+	Limit   int     `json:"limit"`
+	Fits    bool    `json:"fits"`
+	PctUsed float64 `json:"pct_used"`
+}
+
+// jsonNode mirrors repomap.Node for JSON output. Children is emitted even when
+// empty, so a consumer can tell a file ([] ) from an empty directory without
+// guessing from a missing field.
+type jsonNode struct {
+	Name     string      `json:"name"`
+	IsDir    bool        `json:"is_dir"`
+	Tokens   int         `json:"tokens"`
+	Bytes    int         `json:"bytes"`
+	Children []*jsonNode `json:"children"`
+}
+
+// toJSONNode converts a repomap tree into its JSON form. Children is always a
+// slice, never null: a file and an empty directory both get [] and the is_dir
+// field is what distinguishes them.
+func toJSONNode(n *repomap.Node) *jsonNode {
+	out := &jsonNode{
+		Name:     n.Name,
+		IsDir:    n.IsDir,
+		Tokens:   n.Tokens,
+		Bytes:    n.Bytes,
+		Children: []*jsonNode{},
+	}
+	if n.Children != nil {
+		out.Children = make([]*jsonNode, len(n.Children))
+		for i, c := range n.Children {
+			out.Children[i] = toJSONNode(c)
+		}
+	}
+	return out
+}
+
+// tokenFits reports each known model's fit against a total token count.
+func tokenFits(tokens int) []fitEntry {
+	models := counter.Models()
+	out := make([]fitEntry, 0, len(models))
+	for _, m := range models {
+		f := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
+		out = append(out, fitEntry{
+			Model:   m.Name,
+			Used:    f.Used,
+			Limit:   f.Limit,
+			Fits:    f.Fits,
+			PctUsed: round2(f.PctUsed),
+		})
+	}
+	return out
+}
+
+// round2 rounds to two decimals. Two is far more precision than an estimated
+// fit percentage warrants, and it keeps the JSON readable instead of echoing
+// float64 noise such as 1258.287899747742.
+func round2(v float64) float64 {
+	return math.Round(v*100) / 100
+}
+
+// writeEnvelope marshals v to w as indented JSON and returns the exit code: 0
+// on success, 1 if marshalling fails. That failure would be a bug in the shape,
+// because every field is a string, an int, a bool or a slice of those.
+func writeEnvelope(w io.Writer, v any) int {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		fmt.Fprintln(os.Stderr, "ctxpack:", err)
+		return 1
+	}
+	return 0
+}
+
 func annotateFit(tokens int, model string) string {
 	m, ok := counter.LookupModel(model)
 	if !ok {
 		return fmt.Sprintf("<!-- unknown model %q; run `ctxpack models` for known models -->", model)
 	}
-	fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, 4096)
+	fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
 	mark := "FITS"
 	if !fit.Fits {
 		mark = "OVERFLOW"

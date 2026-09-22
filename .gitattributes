@@ -1,0 +1,11 @@
+# Pin line endings so the working tree is always LF.
+#
+# Without this, a machine with core.autocrlf=true checks the repository out as
+# CRLF. Git then sees no difference (it reverses the conversion on comparison),
+# but `gofmt -l .` disagrees and reports every Go file as unformatted. That
+# trap is invisible in CI and only appears on a fresh clone on Windows.
+* text=auto eol=lf
+
+# Binary artifacts are never line-ending-normalised.
+*.exe binary
+*.zip binary

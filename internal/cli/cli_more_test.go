@@ -16,6 +16,7 @@ import (
 	"github.com/la2278647-arch/ctxpack/internal/counter"
 	"github.com/la2278647-arch/ctxpack/internal/format"
 	"github.com/la2278647-arch/ctxpack/internal/packer"
+	"github.com/la2278647-arch/ctxpack/internal/repomap"
 )
 
 // --- stream capture ---
@@ -917,6 +918,219 @@ func TestAnnotateFitOverflow(t *testing.T) {
 func TestParseFormatRejectsEmpty(t *testing.T) {
 	if _, err := parseFormat(""); err == nil {
 		t.Error("parseFormat(\"\") accepted an empty format")
+	}
+}
+
+// --- map and tokens --json ---
+
+func TestMapJSONEmitsATree(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdMap([]string{src, "--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("map --json is not valid JSON: %v", err)
+	}
+	if env.Root != filepath.Base(src) {
+		t.Errorf("root = %q, want %q", env.Root, filepath.Base(src))
+	}
+	if env.Tree == nil || !env.Tree.IsDir || env.Tree.Name != env.Root {
+		t.Fatalf("tree = %+v, want a directory named %q", env.Tree, filepath.Base(src))
+	}
+	if env.TotalTokens != env.Tree.Tokens || env.TotalBytes != env.Tree.Bytes {
+		t.Errorf("header totals disagree with the tree: %+v", env)
+	}
+
+	// Walk the tree, recording leaf names and checking the shape invariants on
+	// the way down.
+	var leaves []string
+	var walk func(*jsonNode)
+	walk = func(n *jsonNode) {
+		if n.Children == nil {
+			t.Fatalf("%q: children is nil, want an empty slice", n.Name)
+		}
+		if !n.IsDir {
+			if len(n.Children) != 0 {
+				t.Errorf("file %q has %d children, want 0", n.Name, len(n.Children))
+			}
+			leaves = append(leaves, n.Name)
+			return
+		}
+		for _, child := range n.Children {
+			walk(child)
+		}
+	}
+	walk(env.Tree)
+	for _, want := range []string{"README.md", "a.go", "b.go", "notes.txt"} {
+		present := false
+		for _, leaf := range leaves {
+			if leaf == want {
+				present = true
+				break
+			}
+		}
+		if !present {
+			t.Errorf("tree is missing %q; leaves were %v", want, leaves)
+		}
+	}
+}
+
+func TestMapJSONAndTextReportTheSameTotals(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatal(err)
+	}
+
+	c2 := captureStdout(t)
+	if code := cmdMap([]string{src}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	text := c2.Content()
+	// Both walks use the same options, so the estimate must match to the token.
+	want := fmt.Sprintf("Files: ~%d tokens", env.TotalTokens)
+	if !strings.Contains(text, want) {
+		t.Errorf("text header lacks %q:\n%s", want, text)
+	}
+}
+
+func TestTokensJSONReportsEveryModel(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+	errOut := captureStderr(t)
+
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("tokens --json is not valid JSON: %v", err)
+	}
+	if got := errOut.Content(); got != "" {
+		t.Errorf("tokens --json wrote to stderr:\n%s", got)
+	}
+	if env.ReserveTokens != fitReserve {
+		t.Errorf("reserve_tokens = %d, want %d", env.ReserveTokens, fitReserve)
+	}
+	models := counter.Models()
+	if len(env.Fits) != len(models) {
+		t.Fatalf("fits has %d entries, want %d", len(env.Fits), len(models))
+	}
+	for i, f := range env.Fits {
+		m := models[i]
+		if f.Model != m.Name {
+			t.Errorf("fits[%d].model = %q, want %q", i, f.Model, m.Name)
+			continue
+		}
+		wantLimit := m.ContextWindow - fitReserve
+		if f.Used != env.TotalTokens {
+			t.Errorf("fits[%d].used = %d, want %d", i, f.Used, env.TotalTokens)
+		}
+		if f.Limit != wantLimit {
+			t.Errorf("fits[%d].limit = %d, want %d", i, f.Limit, wantLimit)
+		}
+		wantFits := env.TotalTokens <= wantLimit
+		if f.Fits != wantFits {
+			t.Errorf("fits[%d].fits = %v, want %v", i, f.Fits, wantFits)
+		}
+	}
+}
+
+func TestTokensJSONHandlesAnEmptyTree(t *testing.T) {
+	src := t.TempDir()
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.TotalTokens != 0 || env.TotalBytes != 0 {
+		t.Errorf("empty tree totals = %d/%d, want 0/0", env.TotalTokens, env.TotalBytes)
+	}
+	for _, f := range env.Fits {
+		if !f.Fits {
+			t.Errorf("an empty tree overflows %s", f.Model)
+		}
+	}
+}
+
+func TestMapJSONHandlesAnEmptyTree(t *testing.T) {
+	src := t.TempDir()
+	c := captureStdout(t)
+
+	if code := cmdMap([]string{src, "--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Tree == nil || !env.Tree.IsDir || len(env.Tree.Children) != 0 {
+		t.Errorf("empty tree = %+v", env.Tree)
+	}
+}
+
+func TestToJSONNodeNeverEmitsNullChildren(t *testing.T) {
+	for _, n := range []*repomap.Node{
+		{Name: "file.go", IsDir: false, Tokens: 5, Bytes: 42},
+		{Name: "empty/", IsDir: true},
+		{Name: "nested/", IsDir: true, Children: []*repomap.Node{{Name: "x", Tokens: 1}}},
+	} {
+		got := toJSONNode(n)
+		if got.Children == nil {
+			t.Fatalf("%s: children is nil, want a slice", n.Name)
+		}
+	}
+}
+
+func TestRound2TrimsFloatNoise(t *testing.T) {
+	for _, tc := range []struct {
+		in, want float64
+	}{
+		{1258.287899747742, 1258.29},
+		{0, 0},
+		{29.0, 29.0},
+		{28.94, 28.94},
+		{12.3456, 12.35},
+		{99.999, 100.0},
+		{-1.236, -1.24},
+	} {
+		if got := round2(tc.in); got != tc.want {
+			t.Errorf("round2(%v) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+// failWriter makes json.Encoder.Encode fail without any hook: the encoder
+// flushes its buffer through the writer at the end of Encode, so a writer that
+// refuses every byte turns an ordinary Encode into an error.
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("disc") }
+
+func TestWriteEnvelopeReportsAWriteFailure(t *testing.T) {
+	errOut := captureStderr(t)
+
+	code := writeEnvelope(failWriter{}, mapEnvelope{Root: "x", Tree: &jsonNode{Name: "x"}})
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1 for a failing writer", code)
+	}
+	if got := errOut.Content(); !strings.Contains(got, "ctxpack:") || !strings.Contains(got, "disc") {
+		t.Errorf("write failure message = %q", got)
 	}
 }
 

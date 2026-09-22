@@ -164,6 +164,49 @@ myrepo/  (48 files, 31842 tokens, 142.3KB)
 └── go.mod  [12 tokens, 312B]
 ```
 
+### `map --json` and `tokens --json`
+
+Both take `--json` for scripts. `pack` has `--format json` for its bundle; these
+two have no format family, so a boolean flag is enough.
+
+```json
+{
+  "root": "myrepo",
+  "total_tokens": 31842,
+  "total_bytes": 145728,
+  "tree": {
+    "name": "myrepo",
+    "is_dir": true,
+    "tokens": 31842,
+    "bytes": 145728,
+    "children": [
+      { "name": "README.md", "is_dir": false, "tokens": 1204, "bytes": 5632, "children": [] }
+    ]
+  }
+}
+```
+
+```json
+{
+  "path": "myrepo",
+  "total_tokens": 31842,
+  "total_bytes": 145728,
+  "reserve_tokens": 4096,
+  "fits": [
+    { "model": "gpt-4o", "used": 31842, "limit": 119808, "fits": true, "pct_used": 26.58 }
+  ]
+}
+```
+
+Two invariants worth relying on:
+
+- `tree.children` is always an array, never `null`. A file and an empty
+  directory both get `[]`; `is_dir` is what separates them.
+- The header totals equal the tree totals, and both agree with the text output.
+  Every format reads one shared walk, so the estimates cannot drift. The text
+  output rounds the same `pct_used` to the nearest integer (`26.58` above shows
+  as `26%`).
+
 ### `pack` — the bundle
 
 ```xml
