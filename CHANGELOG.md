@@ -6,6 +6,11 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-22
+
+The first release that was actually published. Statement coverage is 98.7% of
+942 statements, with seven of ten packages at 100%.
+
 ### Added
 
 - **`ctxpack map --json` and `ctxpack tokens --json`.**
@@ -154,9 +159,11 @@ to follow [Semantic Versioning](https://semver.org/).
   `NewMatcher`'s `Abs` fallback needs the process cwd deleted mid-call.
   `ignore`'s `compilePattern` failure was already explained in place.
 
-  Seven packages are now at 100% and the repository total is 98.7%. Eight
-  statements remain uncovered: six in `walker`, two in `ignore`, one in
-  `format`, and two in `main.go`, a `main()` package a test cannot call.
+  Seven packages are now at 100% and the repository total is 98.7% of 942
+  statements. Twelve statements remain uncovered: seven in `walker`, two in
+  `ignore`, one in `format`, and two in `main.go` — a `main()` the test harness
+  cannot call. The "eight statements" figure in the earlier draft was wrong;
+  these counts are taken from the coverage profile itself.
 
 ## [0.1.2] - 2026-09-22
 

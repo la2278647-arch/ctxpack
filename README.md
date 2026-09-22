@@ -48,7 +48,7 @@ ctxpack makes all three visible and controllable:
 # Linux / macOS / WSL / git-bash
 curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
 # pin a version:
-curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.2
+curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.3
 ```
 
 ```powershell
@@ -89,14 +89,14 @@ Requires Go 1.21+. No modules are fetched; `go.sum` is empty by design.
 
 ```sh
 ctxpack version
-# ctxpack 0.1.2 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
+# ctxpack 0.1.3 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
 ```
 
 Pin build identity at release time:
 
 ```sh
 go build -ldflags "\
-  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.2 \
+  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.3 \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildCommit=$(git rev-parse --short HEAD) \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildDate=$(date -u +%Y-%m-%d)" \
   -o ctxpack .

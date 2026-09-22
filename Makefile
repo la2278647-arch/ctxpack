@@ -6,7 +6,7 @@
 
 GO       ?= go
 MOD      := github.com/la2278647-arch/ctxpack
-VERSION  ?= 0.1.2
+VERSION  ?= 0.1.3
 COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 DATE     := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -X $(MOD)/internal/version.Version=$(VERSION) -X $(MOD)/internal/version.BuildCommit=$(COMMIT) -X $(MOD)/internal/version.BuildDate=$(DATE)
@@ -76,7 +76,7 @@ release:
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags '$(LDFLAGS)' \
 			-o "dist/ctxpack_$(VERSION)_$$os_$$arch$$ext" . || exit 1; \
 	done
-	@cd dist && (sha256sum * > SHA256SUMS 2>/dev/null || sha256 * > SHA256SUMS) && cat SHA256SUMS
+	@cd dist && (sha256sum * > SHA256SUMS.txt 2>/dev/null || sha256 * > SHA256SUMS.txt) && cat SHA256SUMS.txt
 
 clean:
 	rm -rf bin dist
