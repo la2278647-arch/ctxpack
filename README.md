@@ -288,6 +288,7 @@ Run `ctxpack <command> --help` for details.
 | `--budget N` | Cap output to ~N tokens; selects by priority. |
 | `--model NAME` | Annotate the bundle with fit for a named model. |
 | `-o, --output FILE` | Write to FILE instead of stdout. |
+| `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.
 

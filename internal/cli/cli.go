@@ -83,9 +83,11 @@ FLAGS (pack)
   --budget N           Cap output to ~N tokens (priority-selects files)
   --model NAME         Annotate fit for a model (gpt-4o, claude-3.5-sonnet, ...)
   -o, --output FILE    Write to FILE instead of stdout
+  -q, --quiet          Suppress the 'wrote' message when --output is set
 
 FLAGS (diff)
   --ref REF            Base git ref (default: working-tree changes). e.g. HEAD~1, main
+  -q, --quiet          Suppress stderr status messages
   (also accepts --format/--include/--exclude/--budget/--model/-o)
 
 FLAGS (map / tokens / models)
@@ -128,10 +130,12 @@ func cmdPack(args []string) int {
 		budget   = fs.Int("budget", envInt("CTXPACK_BUDGET"), "cap output to ~N tokens")
 		model    = fs.String("model", os.Getenv("CTXPACK_MODEL"), "annotate fit for a model")
 		output   = fs.String("output", "", "write to FILE (default stdout)")
+		quiet    = fs.Bool("quiet", false, "suppress the 'wrote' message when --output is set")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
+	fs.BoolVar(quiet, "q", false, "shorthand for --quiet")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -167,7 +171,7 @@ func cmdPack(args []string) int {
 	header := ""
 	if *model != "" {
 		note := annotateFit(bundle.TotalTokens, *model)
-		if outFmt == format.JSON {
+		if outFmt == format.JSON && !*quiet {
 			// An HTML comment in front of a JSON document makes the file fail
 			// to parse, so the note goes to stderr instead of the output.
 			fmt.Fprintln(os.Stderr, note)
@@ -179,7 +183,7 @@ func cmdPack(args []string) int {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
 	}
-	if *output != "" {
+	if *output != "" && !*quiet {
 		if len(bundle.Omitted) > 0 {
 			fmt.Fprintf(os.Stderr,
 				"wrote %s — %d files, ~%d tokens; %d files, ~%d tokens omitted by the budget\n",
@@ -218,10 +222,12 @@ func cmdDiff(args []string) int {
 		budget   = fs.Int("budget", 0, "cap output to ~N tokens")
 		model    = fs.String("model", "", "annotate fit for a model")
 		output   = fs.String("output", "", "write to FILE")
+		quiet    = fs.Bool("quiet", false, "suppress stderr status messages")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
+	fs.BoolVar(quiet, "q", false, "shorthand for --quiet")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -276,7 +282,7 @@ func cmdDiff(args []string) int {
 		if *model != "" {
 			header += annotateFit(bundle.TotalTokens, *model) + "\n"
 		}
-	} else {
+	} else if !*quiet {
 		fmt.Fprintf(os.Stderr, "ctxpack diff vs %q: %d files\n", *ref, len(changed))
 		if *model != "" {
 			fmt.Fprintln(os.Stderr, annotateFit(bundle.TotalTokens, *model))

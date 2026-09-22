@@ -387,3 +387,46 @@ func TestDiffOutsideRepo(t *testing.T) {
 		t.Errorf("exit = %d, want 1 outside a git repo", code)
 	}
 }
+
+// --- quiet ---
+
+func TestPackQuietSuppressesWrote(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.json")
+
+	// Without --quiet: the "wrote" message goes to stderr.
+	errCap := captureStderr(t)
+	code := cmdPack([]string{src, "-o", out, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if !strings.Contains(errCap.Content(), "wrote") {
+		t.Errorf("without --quiet, stderr missing 'wrote':\n%s", errCap.Content())
+	}
+
+	// With --quiet: stderr must be empty.
+	errCap = captureStderr(t)
+	code = cmdPack([]string{src, "-o", out, "--format", "json", "--quiet"})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d with --quiet", code)
+	}
+	if got := errCap.Content(); got != "" {
+		t.Errorf("with --quiet, stderr should be empty, got %d bytes:\n%s", len(got), got)
+	}
+}
+
+func TestPackQuietShortFlag(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.json")
+
+	errCap := captureStderr(t)
+	code := cmdPack([]string{src, "-o", out, "-q"})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d with -q", code)
+	}
+	if got := errCap.Content(); got != "" {
+		t.Errorf("with -q, stderr should be empty, got %d bytes:\n%s", len(got), got)
+	}
+}
