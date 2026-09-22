@@ -42,6 +42,26 @@ ctxpack makes all three visible and controllable:
 
 ## Install
 
+**One-line binary install (no Go required):**
+
+```sh
+# Linux / macOS / WSL / git-bash
+curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
+# pin a version:
+curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.2
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.ps1 | iex
+```
+
+The installers detect your OS/architecture, download the matching binary
+from the [latest release](https://github.com/la2278647-arch/ctxpack/releases),
+and put it on your `PATH`. Set `CTXPACK_INSTALL_DIR` to override the target.
+
+**Or build from source:**
+
 ```sh
 # from source
 git clone https://github.com/la2278647-arch/ctxpack
