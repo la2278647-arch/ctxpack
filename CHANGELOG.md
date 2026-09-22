@@ -8,6 +8,25 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The ignore matcher is pinned down.** `internal/ignore` went from 81.1%
+  to 97.0% coverage. New direct tests cover the loader (blank lines, commented
+  lines, whitespace-only lines, trailing and leading whitespace, backslash
+  escaping of `#` and `!`, an unreadable input surfacing as an error, a missing
+  file being silent) and, for the first time, the scoping contract the walker
+  only exercised end-to-end: a pattern loaded from `web/.gitignore` must not
+  apply to `app.js` at the root, a root pattern still applies inside `web/`, a
+  nested negation overrides the root exclusion, and the last matching pattern
+  wins. Also covered: `?` not crossing a separator, every `**` form, leading
+  `/` anchoring, every regex-special character being emitted literally,
+  directory-only patterns not ignoring a file of the same name, exclusion
+  propagating through three or more levels, and `Pattern.String()`.
+
+  The two remaining uncovered lines are the `filepath.Abs` error fallback and
+  the `os.Open` error return, both reachable only from a filesystem that
+  refuses a call the tests cannot produce. The `regexp.Compile` error branch
+  is documented as unreachable: `translateGlob` escapes every regex-special
+  character, so its output can never fail to compile.
+
 - **The estimator is pinned down.** `internal/counter` went from 74.4% to
   95.3% coverage. New tests pin the pre-tokenization contract (contractions
   split as `don` + `'t`, digits cap at three per chunk, a leading space is
@@ -46,6 +65,27 @@ to follow [Semantic Versioning](https://semver.org/).
   10. They are implemented now, and the README's tier table gained the scores.
 
 ### Fixed
+
+- **`a/**/b` matched `a/xby`.** `**/` was translated by consuming the
+  following slash and emitting `.*`, so the separator between the two glob
+  parts was lost: `a/**/b` compiled to `a/.*b`. That matches `a/b`, `a/x/b`
+  and `a/x/y/b` as intended, but also `a/xby` and `a/xb`, which git does not
+  match. `**/` now becomes `(?:.*/)?` — zero or more intermediate directories
+  with the separator preserved. `a/**` still becomes `a/.*`.
+
+- **Indented comments became patterns.** Git strips leading spaces and tabs
+  unless they are escaped with a backslash, so `  # comment` is a comment.
+  ctxpack only trimmed trailing whitespace, so an indented comment line became
+  a real pattern — and an indented `!foo` silently turned into a negation that
+  could re-include something no one asked to keep. Leading whitespace is now
+  stripped, and a leading backslash still protects it (`\#name` matches a file
+  literally named `#name`).
+
+- **`Match("")` reported "ignored".** `*` and `**` compile to regexes that
+  match the empty string, so an empty relative path returned ignored for any
+  glob. There is no such path in practice — the walker only passes real entries
+  — but `Match` is exported and documented to take a root-relative path, so an
+  empty string now returns `false` explicitly.
 
 - **`--model ""` matched `gpt-3.5-turbo`.** `LookupModel` fell back to a
   bidirectional prefix match, and `strings.HasPrefix(name, "")` is true for

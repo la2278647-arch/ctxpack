@@ -62,11 +62,18 @@ func (m *Matcher) Load(path string) error {
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
-		raw := line
 		// Strip trailing whitespace that isn't escaped.
 		line = strings.TrimRightFunc(line, func(r rune) bool {
 			return r == ' ' || r == '\t'
 		})
+		// Git also strips leading whitespace, so "  # comment" is a comment. The
+		// only exception is a leading backslash, which escapes the next
+		// character and therefore protects the whitespace that follows it.
+		if !strings.HasPrefix(line, `\`) {
+			line = strings.TrimLeftFunc(line, func(r rune) bool {
+				return r == ' ' || r == '\t'
+			})
+		}
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -85,13 +92,17 @@ func (m *Matcher) Load(path string) error {
 		re, err := compilePattern(line)
 		if err != nil {
 			// Skip unparseable patterns rather than aborting the whole file.
+			// Unreachable today: translateGlob escapes every regex-special
+			// character, so regexp.Compile cannot fail on its output. Kept so
+			// a future change that lets a pattern through raw cannot silently
+			// drop the rest of the file.
 			continue
 		}
 		m.patterns = append(m.patterns, Pattern{
 			re:      re,
 			negate:  negate,
 			dirOnly: dirOnly,
-			raw:     raw,
+			raw:     line,
 			source:  dir,
 		})
 	}
@@ -107,6 +118,12 @@ func (m *Matcher) Load(path string) error {
 // ancestor of (or equal to) the path's directory.
 func (m *Matcher) Match(relPath string, isDir bool) bool {
 	rootRel := filepath.ToSlash(relPath)
+	if rootRel == "" {
+		// No path, no verdict. Without this, "*" and "**" compile to regexes
+		// that match the empty string, so an empty relPath would report as
+		// ignored.
+		return false
+	}
 
 	// Subjects to test: each ancestor directory plus the path itself. This
 	// makes an excluded directory exclude its contents (a core gitignore
@@ -203,12 +220,15 @@ func translateGlob(g string) string {
 			if i+1 < len(runes) && runes[i+1] == '*' {
 				// "**" — match across path separators.
 				i++
-				// Consume an optional following slash so "**/" doesn't leave a
-				// dangling separator pattern.
 				if i+1 < len(runes) && runes[i+1] == '/' {
+					// "**/" — zero or more intermediate directories. The
+					// separator is kept, so "a/**/b" matches "a/b" and "a/x/b"
+					// but not "a/xby".
 					i++
-					b.WriteString(".*")
+					b.WriteString(`(?:.*/)?`)
 				} else {
+					// "**" at the end of a segment, or on its own: anything at
+					// any depth. "a/**" becomes "a/.*".
 					b.WriteString(".*")
 				}
 			} else {
