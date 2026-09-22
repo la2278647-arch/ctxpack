@@ -153,6 +153,103 @@ func TestSortDirsBeforeFiles(t *testing.T) {
 	}
 }
 
+func TestFoldFileAndDirShareName(t *testing.T) {
+	// A file and a directory may share a name — legal on Linux and macOS, not
+	// on Windows. Matching on the name alone folded the two into one node, so
+	// the file vanished as an entry and its size was stacked on top of the
+	// directory's subtree total. fold is called directly so the case runs on
+	// every platform.
+	a := []byte("root file a\n")           // 12 bytes, the file named a
+	b := []byte("package a\nfunc b(){}\n") // 21 bytes, a/b.go
+	cases := []struct {
+		name  string
+		files []walker.FileEntry
+	}{
+		{"file visited first", []walker.FileEntry{
+			{RelPath: "a", Size: int64(len(a)), Content: a},
+			{RelPath: "a/b.go", Size: int64(len(b)), Content: b},
+		}},
+		{"directory visited first", []walker.FileEntry{
+			{RelPath: "a/b.go", Size: int64(len(b)), Content: b},
+			{RelPath: "a", Size: int64(len(a)), Content: a},
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root, totalTokens, totalBytes, err := fold(
+				&Node{Name: "repo", IsDir: true},
+				&walker.Result{Root: "/tmp/repo", Files: tc.files},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir := byKind(root, "a", true)
+			leaf := byKind(root, "a", false)
+			if dir == nil || leaf == nil {
+				t.Fatalf("collision lost an entry:\n%s", Render(root))
+			}
+			// The file must stay a leaf: the old code hung the directory's
+			// children off it.
+			if len(leaf.Children) != 0 {
+				t.Errorf("file node has %d children, want 0:\n%s", len(leaf.Children), Render(root))
+			}
+			if leaf.Bytes != len(a) {
+				t.Errorf("file bytes = %d, want %d", leaf.Bytes, len(a))
+			}
+			if dir.Bytes != len(b) {
+				t.Errorf("directory bytes = %d, want %d (its subtree only)", dir.Bytes, len(b))
+			}
+			if totalBytes != len(a)+len(b) {
+				t.Errorf("total bytes = %d, want %d: both files counted once",
+					totalBytes, len(a)+len(b))
+			}
+			if len(dir.Children) != 1 || dir.Children[0].Name != "b.go" {
+				t.Fatalf("directory children = %+v, want one b.go", dir.Children)
+			}
+			if dir.Children[0].Bytes != len(b) {
+				t.Errorf("b.go bytes = %d, want %d", dir.Children[0].Bytes, len(b))
+			}
+			// Every token belongs to exactly one of the two nodes.
+			if totalTokens != leaf.Tokens+dir.Tokens {
+				t.Errorf("total tokens = %d, want %d", totalTokens, leaf.Tokens+dir.Tokens)
+			}
+			if got := Render(root); !strings.Contains(got, "  a/ ") || !strings.Contains(got, "\n  a ") {
+				t.Errorf("render must show both the directory and the file:\n%s", got)
+			}
+		})
+	}
+}
+
+func TestFoldCountsFromSizeWhenContentAbsent(t *testing.T) {
+	// ReadContent:false is what repo_map passes, so the size-only path must
+	// still fold correctly and must not count a path name as tokens.
+	root, _, totalBytes, err := fold(
+		&Node{Name: "repo", IsDir: true},
+		&walker.Result{
+			Root:  "/tmp/repo",
+			Files: []walker.FileEntry{{RelPath: "src/large.go", Size: 40000}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totalBytes != 40000 {
+		t.Errorf("total bytes = %d, want 40000", totalBytes)
+	}
+	if root.Tokens < 9000 {
+		t.Errorf("tokens = %d for 40 KiB, want roughly a quarter of the bytes", root.Tokens)
+	}
+}
+
+func byKind(n *Node, name string, wantDir bool) *Node {
+	for _, c := range n.Children {
+		if c.Name == name && c.IsDir == wantDir {
+			return c
+		}
+	}
+	return nil
+}
+
 func TestFileAndDirShareName(t *testing.T) {
 	// Windows will not allow a file and a directory to share a name in one
 	// directory, so this collision is unreachable here. On Linux the walker

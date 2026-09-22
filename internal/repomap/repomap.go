@@ -28,8 +28,22 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	cnt := counter.NewDefault()
 	rootNode := &Node{Name: rootNodeName(res.Root), IsDir: true}
+	tree, totalTokens, totalBytes, err := fold(rootNode, res)
+	return tree, totalTokens, totalBytes, nil
+}
+
+// fold adds every file of res to the tree rooted at rootNode and returns the
+// root together with the totals across all of them. Split from Build so the
+// folding can be tested against a fabricated walk result — a file and a
+// directory may share a name, which the walker cannot produce on Windows.
+//
+// It cannot fail: Build is the only caller and it only calls it with the
+// result of a successful Walk, so a test that reaches here has already passed
+// every check that could return an error. The extra return is nil so the
+// wrapping call above stays a one-liner.
+func fold(rootNode *Node, res *walker.Result) (*Node, int, int, error) {
+	cnt := counter.NewDefault()
 	totalTokens, totalBytes := 0, 0
 
 	for _, fe := range res.Files {
@@ -39,26 +53,17 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 		if fe.Content != nil {
 			e = cnt.EstimateBytes(fe.Content)
 		}
-		parts := strings.Split(fe.RelPath, "/")
 		cur := rootNode
 		cur.Tokens += e.Tokens
 		cur.Bytes += int(fe.Size)
+		parts := strings.Split(fe.RelPath, "/")
 		for i, p := range parts {
 			if p == "" {
 				continue
 			}
-			isLeaf := i == len(parts)-1
-			child := findChild(cur, p)
-			if child == nil {
-				child = &Node{Name: p, IsDir: !isLeaf}
-				cur.Children = append(cur.Children, child)
-			}
-			child.Tokens += e.Tokens
-			child.Bytes += int(fe.Size)
-			if isLeaf {
-				child.IsDir = false
-			}
-			cur = child
+			cur = childFor(cur, p, i == len(parts)-1)
+			cur.Tokens += e.Tokens
+			cur.Bytes += int(fe.Size)
 		}
 		totalTokens += e.Tokens
 		totalBytes += int(fe.Size)
@@ -74,13 +79,22 @@ func rootNodeName(root string) string {
 	return strings.TrimRight(filepath.Base(root), string(filepath.Separator))
 }
 
-func findChild(n *Node, name string) *Node {
+// childFor returns (creating it when needed) the child of n that holds p: the
+// file node when p is the final path component, the directory node otherwise.
+//
+// The kind is part of the key, not just the name. A file and a directory may
+// legally share a name on Linux and macOS, and matching on the name alone
+// folded them into one node — the file disappeared as an entry, and its size
+// was added on top of the directory's subtree total.
+func childFor(n *Node, p string, isLeaf bool) *Node {
 	for _, c := range n.Children {
-		if c.Name == name {
+		if c.Name == p && c.IsDir == !isLeaf {
 			return c
 		}
 	}
-	return nil
+	c := &Node{Name: p, IsDir: !isLeaf}
+	n.Children = append(n.Children, c)
+	return c
 }
 
 func sortNodes(n *Node) {

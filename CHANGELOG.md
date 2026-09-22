@@ -8,6 +8,24 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`map` could lose a file that shared its name with a directory.** A file and
+  a directory may legally share a name on Linux and macOS, and the tree folder
+  matched children on the name alone, so it folded the two into one node: the
+  file stopped appearing as an entry and its size was stacked on top of the
+  directory's subtree total. The lookup key is now the name plus the kind.
+
+  ```text
+  old (matched on the name alone)      new (matched on name plus kind)
+  repo/  [33 B]                        repo/  [33 B]
+    a  [33 B]                            a  [12 B]          <- the file
+      b.go  [21 B]                      a/  [21 B]          <- the directory, subtree only
+                                            b.go  [21 B]
+  ```
+
+  `fold` was split out of `Build` so the case can be exercised on every
+  platform; on Windows the filesystem forbids the collision, so the
+  integration test there still skips.
+
 - **The XML and Markdown renderers could not be read back exactly.** `<content>`
   was pretty-printed with a newline before the CDATA and a newline plus
   indentation after it, so parsing the bundle back out gave every file a
