@@ -38,6 +38,10 @@ type Matcher struct {
 // NewMatcher creates an empty matcher rooted at root. Call Load to read the
 // root .gitignore (and nested ones via the walker).
 func NewMatcher(root string) *Matcher {
+	// Abs only fails if os.Getwd fails, which needs the process working
+	// directory deleted mid-call. Fall back to the caller's path so a
+	// matcher can still be built; the paths it compares against come from the
+	// same root, so they stay consistent either way.
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		abs = root

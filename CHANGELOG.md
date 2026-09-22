@@ -76,6 +76,44 @@ to follow [Semantic Versioning](https://semver.org/).
   failures need `ignore.translateGlob` to emit a regex it cannot compile, which
   it provably cannot because it escapes every regex-special character.
 
+- **Two more packages hit 100%, and the last reachable `ignore` branch was
+  folded in.** The same question again: is this "unreachable" comment
+  describing the code or the test?
+
+  `repomap` (98.1% → 100.0%): `fold` skips an empty path component, guarded by
+  `if p == "" { continue }`. The walker always yields a relative path, so the
+  guard never fires in production. But `fold` was already split out of `Build`
+  specifically so it can be tested against a fabricated walk result — which is
+  exactly the tool needed here. `TestFoldSkipsEmptyPathComponents` feeds it
+  `""`, `"/"`, `"/abs/path.go"` and `"//double"`, and `assertNoEmptyName` walks
+  the whole tree asserting no node has an empty name, while the totals still
+  count the file.
+
+  `ignore` (97.0% → 98.0%): `Load` reports an error when a `.gitignore` cannot
+  be opened, except when it is missing, which is a legitimate "nothing here".
+  That distinction had no test. A file whose ACL denies read opens successfully
+  and fails on read, which is precisely the reported case, so
+  `TestLoadReportsAnUnreadableGitignore` denies read on a real `.gitignore`
+  and asserts `Load` returns an error while `Load` of a missing path returns
+  nil.
+
+  Two things had to hold before the assertion would mean anything, so the test
+  checks them first: the deny must actually be applied (`os.Open` must fail)
+  and a missing file must genuinely be a no-op. Without that, the test would
+  fail the assertion for the wrong reason on a box where the ACL is not
+  enforced.
+
+  `format` stays at 99.1% and `ignore` at 98.0%. Their remaining blocks were
+  given accurate comments in place of hand-waving: `renderJSON`'s
+  `MarshalIndent` error cannot occur for `*Bundle`, because every field is a
+  string, an int, a bool or a slice of those — no floats, maps or cycles — and
+  `NewMatcher`'s `Abs` fallback needs the process cwd deleted mid-call.
+  `ignore`'s `compilePattern` failure was already explained in place.
+
+  Seven packages are now at 100% and the repository total is 98.7%. Eight
+  statements remain uncovered: six in `walker`, two in `ignore`, one in
+  `format`, and two in `main.go`, a `main()` package a test cannot call.
+
 ## [0.1.2] - 2026-09-22
 
 Bug-fix and hardening release. Three things that now report what they do,

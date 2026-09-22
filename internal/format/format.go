@@ -163,6 +163,10 @@ func writeOmittedMarkdown(sb *strings.Builder, b *Bundle) {
 }
 
 func renderJSON(b *Bundle) string {
+	// MarshalIndent cannot fail for *Bundle: every field is a string, an int,
+	// a bool or a slice of those, and there are no floats, maps or cycles. The
+	// error is handled rather than blanked because the signature says it can
+	// return one and a future float field would make it real.
 	data, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		return "{}"

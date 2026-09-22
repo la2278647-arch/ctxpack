@@ -220,6 +220,42 @@ func TestFoldFileAndDirShareName(t *testing.T) {
 	}
 }
 
+// The walker always yields a relative path, so a split never produces an empty
+// component. fold is tested against a fabricated result, so it is worth
+// pinning that a degenerate RelPath cannot create a node with an empty name.
+func TestFoldSkipsEmptyPathComponents(t *testing.T) {
+	b := []byte("package a\n")
+	for _, rel := range []string{"", "/", "/abs/path.go", "//double"} {
+		root, totalTokens, totalBytes, err := fold(
+			&Node{Name: "repo", IsDir: true},
+			&walker.Result{Root: "/tmp/repo", Files: []walker.FileEntry{
+				{RelPath: rel, Size: int64(len(b)), Content: b},
+			}},
+		)
+		if err != nil {
+			t.Fatalf("%q: %v", rel, err)
+		}
+		if root.Tokens != totalTokens || root.Bytes != totalBytes {
+			t.Errorf("%q: root (%d/%d) disagrees with the totals (%d/%d)",
+				rel, root.Tokens, root.Bytes, totalTokens, totalBytes)
+		}
+		if totalTokens <= 0 || totalBytes != len(b) {
+			t.Errorf("%q: the file was not counted: tokens=%d bytes=%d", rel, totalTokens, totalBytes)
+		}
+		assertNoEmptyName(t, rel, root)
+	}
+}
+
+func assertNoEmptyName(t *testing.T, rel string, n *Node) {
+	t.Helper()
+	if n.Name == "" {
+		t.Errorf("%q produced a node with an empty name", rel)
+	}
+	for _, c := range n.Children {
+		assertNoEmptyName(t, rel, c)
+	}
+}
+
 func TestFoldCountsFromSizeWhenContentAbsent(t *testing.T) {
 	// ReadContent:false is what repo_map passes, so the size-only path must
 	// still fold correctly and must not count a path name as tokens.

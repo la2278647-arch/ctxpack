@@ -2,6 +2,7 @@ package ignore
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -92,5 +93,40 @@ func TestMatcher(t *testing.T) {
 		if got != c.want {
 			t.Errorf("Match(%q, dir=%v) = %v, want %v", c.path, c.isDir, got, c.want)
 		}
+	}
+}
+
+// Load distinguishes "no .gitignore here" (ignored) from "the .gitignore could
+// not be read" (reported), so the caller can tell a missing file apart from a
+// damaged one. A file whose ACL denies read is openable but not readable, which
+// is exactly that second case.
+func TestLoadReportsAnUnreadableGitignore(t *testing.T) {
+	if _, err := exec.LookPath("icacls"); err != nil {
+		t.Skip("icacls unavailable")
+	}
+	dir := t.TempDir()
+	gi := filepath.Join(dir, ".gitignore")
+	if err := os.WriteFile(gi, []byte("*.log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("icacls", gi, "/deny", "Everyone:(R)").Run(); err != nil {
+		t.Skip("could not deny read on a file")
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("icacls", gi, "/remove", "Everyone").Run()
+	})
+
+	// Proving the premise before asserting anything: a missing file is not an
+	// error, and this file's open must fail. Without that, a box where the
+	// deny is not enforced would fail the next line for the wrong reason.
+	if err := NewMatcher(dir).Load(filepath.Join(dir, "nope.gitignore")); err != nil {
+		t.Fatalf("a missing .gitignore must be ignored, got %v", err)
+	}
+	if _, err := os.Open(gi); err == nil {
+		t.Skip("the deny was not applied: the file is readable, so the branch is unreachable")
+	}
+
+	if err := NewMatcher(dir).Load(gi); err == nil {
+		t.Fatal("Load returned nil for a .gitignore it cannot read")
 	}
 }
