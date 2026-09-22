@@ -285,6 +285,55 @@ func TestEstimateFloorDoesNotBind(t *testing.T) {
 	}
 }
 
+// chunkTokens and floorTokens are the two insurance clamps in Estimate, pulled
+// out so each can be pinned directly rather than only observed through the
+// regex.
+
+func TestChunkTokens(t *testing.T) {
+	// The formula is ~n/3.5 rounded, never below 1.
+	for _, tc := range []struct {
+		in   int
+		want int
+	}{
+		{0, 1}, {-1, 1}, {1, 1}, {2, 1}, {3, 1}, {4, 2}, {5, 2},
+		{10, 3}, {34, 10}, {35, 10}, {100, 29}, {1000, 286},
+	} {
+		if got := chunkTokens(tc.in); got != tc.want {
+			t.Errorf("chunkTokens(%d) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestFloorTokens(t *testing.T) {
+	if got := floorTokens(0, 100); got != 25 {
+		t.Errorf("floorTokens(0,100) = %d, want 25", got)
+	}
+	if got := floorTokens(25, 100); got != 25 {
+		t.Errorf("floorTokens(25,100) = %d, want 25 (at the floor, unchanged)", got)
+	}
+	if got := floorTokens(40, 100); got != 40 {
+		t.Errorf("floorTokens(40,100) = %d, want 40 (above the floor, kept)", got)
+	}
+	if got := floorTokens(0, 0); got != 0 {
+		t.Errorf("floorTokens(0,0) = %d, want 0", got)
+	}
+}
+
+// The existing TestEstimateFloorDoesNotBind only samples large texts. A single
+// chunk is the worst case for the floor: it earns the fewest of the +34 byte
+// bonuses in the chunk formula, so if the floor can bind anywhere it binds on
+// a one-chunk text. Sweep every length to prove it cannot.
+func TestEstimateFloorNeverBindsOneChunk(t *testing.T) {
+	c := NewDefault()
+	for n := 1; n <= 500; n++ {
+		e := c.Estimate(strings.Repeat("a", n))
+		if e.Tokens*4 <= e.Bytes {
+			t.Errorf("n=%d: tokens (%d) not strictly above the bytes/4 floor: the floor binds",
+				n, e.Tokens)
+		}
+	}
+}
+
 func TestEstimateBytesAndRuneCount(t *testing.T) {
 	c := NewDefault()
 	text := "café ✓"

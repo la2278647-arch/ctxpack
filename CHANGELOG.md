@@ -6,6 +6,36 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The last two uncovered branches of the two "unreachable" packages were
+  unreachable because they were unreachable.** `cmdDiff`'s `packer.Pack` error
+  branch and `counter.Estimate`'s two insurance clamps were all documented as
+  "needs a filesystem condition no test can produce reliably". That was a
+  description of a test's laziness, not a fact about the code.
+
+  `cmdDiff` now calls `packer.Pack` through a `runPack` variable, mirroring the
+  `runMCP` hook `cmdMCP` got in v0.1.2, and `TestDiffReportsAPackError`
+  substitutes it to return an error and asserts the branch reports
+  `ctxpack: walk denied` and exits 1. The substitution is justified in the
+  variable's own comment: `Pack` silently ignores any path in `Options.Files`
+  the walk did not reach, and a root that fails `os.Stat` would already have
+  failed `gitutil.ChangedFiles`, so the branch has no repository-level trigger.
+
+  The two clamps in `Estimate` were pulled into named helpers, `chunkTokens`
+  and `floorTokens`, so each is pinned directly instead of only through the
+  regex: `TestChunkTokens` covers the zero/negative clamp, and `TestFloorTokens`
+  covers the at-floor, below-floor and above-floor cases. A new
+  `TestEstimateFloorNeverBindsOneChunk` sweeps every one-chunk length from 1 to
+  500 — one chunk is the worst case, earning the fewest of the +34 byte bonuses
+  in the chunk formula — and confirms the floor never binds, which is what the
+  clamp's comment claims. The clamps stay: they are insurance, and the tests
+  now prove the insurance is not load-bearing today.
+
+  `internal/cli` and `internal/counter` both reach 100.0%; the repository goes
+  from 97.5% to 97.9%. Five packages are now at 100%: `cli`, `counter`, `mcp`,
+  `packer`, `version`.
+
 ## [0.1.2] - 2026-09-22
 
 Bug-fix and hardening release. Three things that now report what they do,

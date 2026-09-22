@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
+	"github.com/la2278647-arch/ctxpack/internal/format"
+	"github.com/la2278647-arch/ctxpack/internal/packer"
 )
 
 // --- stream capture ---
@@ -545,6 +548,36 @@ func TestDiffReportsAChangeSetError(t *testing.T) {
 	}
 	if out := errBuf.Content(); !strings.HasPrefix(out, "ctxpack:") {
 		t.Errorf("stderr = %q, want a ctxpack: error", out)
+	}
+}
+
+// The pack-error branch of cmdDiff. A real repository cannot reach it: Pack
+// silently ignores any path in Options.Files the walk did not reach, and a
+// root that fails os.Stat would already have failed ChangedFiles. So the test
+// substitutes the packer through runPack, which mirrors the runMCP hook.
+func TestDiffReportsAPackError(t *testing.T) {
+	dir := newGitRepo(t)
+	writeFile(t, dir, "a.go", "package a\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+	writeFile(t, dir, "a.go", "package a\n// x\n")
+
+	old := runPack
+	runPack = func(path string, opts packer.Options) (*format.Bundle, error) {
+		return nil, errors.New("walk denied")
+	}
+	defer func() { runPack = old }()
+
+	errBuf := captureStderr(t)
+	if code := cmdDiff([]string{dir}); code != 1 {
+		t.Fatalf("exit = %d, want 1", code)
+	}
+	out := errBuf.Content()
+	if !strings.HasPrefix(out, "ctxpack:") {
+		t.Errorf("stderr = %q, want a ctxpack: error", out)
+	}
+	if !strings.Contains(out, "walk denied") {
+		t.Errorf("stderr = %q, want the pack error surfaced", out)
 	}
 }
 

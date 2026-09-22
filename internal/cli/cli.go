@@ -189,6 +189,15 @@ func cmdPack(args []string) int {
 
 // --- diff ---
 
+// runPack calls packer.Pack. It is a variable so a test can reach cmdDiff's
+// pack-error branch without needing a directory that `git rev-parse` accepts
+// and `walker.Walk` refuses — a condition no test can produce reliably, since
+// Pack silently ignores any path in Options.Files the walk did not reach, and
+// a path that failed os.Stat would already have failed ChangedFiles.
+var runPack = func(path string, opts packer.Options) (*format.Bundle, error) {
+	return packer.Pack(path, opts)
+}
+
 func cmdDiff(args []string) int {
 	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
@@ -235,7 +244,7 @@ func cmdDiff(args []string) int {
 		return 0
 	}
 
-	bundle, err := packer.Pack(path, packer.Options{
+	bundle, err := runPack(path, packer.Options{
 		Walker: walker.Options{
 			Include:          []string(includes),
 			Exclude:          []string(excludes),

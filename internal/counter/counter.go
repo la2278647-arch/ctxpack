@@ -65,28 +65,42 @@ func (d *Default) Estimate(text string) Estimate {
 	}
 	chunks := d.re.FindAllString(text, -1)
 	tokens := 0
-	bytes := len(text)
 	for _, c := range chunks {
-		// Each pre-token becomes ~1 BPE token minimum; longer chunks add at
-		// ~4 chars/token for prose and ~2.7 chars/token for symbol-heavy code.
-		// A blended 3.5 divisor calibrated against mixed repos performs best.
-		n := len(c)
-		est := (n*10 + 34) / 35 // ≈ n/3.5, rounded
-		// Insurance, not a live path: no alternative in the pattern matches the
-		// empty string, so n is always ≥ 1 and the division above is always ≥ 1.
-		// See TestEstimateNeverYieldsEmptyChunks.
-		if est < 1 {
-			est = 1
-		}
-		tokens += est
+		tokens += chunkTokens(len(c))
 	}
-	// Floor at the naive bytes/4 so we never wildly under-report huge files.
-	// Insurance against a future change to the formula above, which today always
-	// sums to at least bytes/3.5: see TestEstimateFloorDoesNotBind.
+	bytes := len(text)
+	return Estimate{Tokens: floorTokens(tokens, bytes), Chars: len([]rune(text)), Bytes: bytes}
+}
+
+// chunkTokens estimates the BPE tokens in one regex chunk of n bytes.
+//
+// Each pre-token becomes ~1 BPE token minimum; longer chunks add at ~4
+// chars/token for prose and ~2.7 chars/token for symbol-heavy code. A blended
+// 3.5 divisor calibrated against mixed repos performs best.
+//
+// The clamp is insurance rather than a live path: no alternative in the pattern
+// matches the empty string, so n is always >= 1 and the division above is
+// already >= 1. It is kept so a future pattern that does match empty strings
+// reports one token for the chunk instead of silently under-reporting it as
+// zero. See TestEstimateNeverYieldsEmptyChunks.
+func chunkTokens(n int) int {
+	est := (n*10 + 34) / 35 // ≈ n/3.5, rounded
+	if est < 1 {
+		est = 1
+	}
+	return est
+}
+
+// floorTokens never under-reports a file by more than the naive bytes/4 guess,
+// so an estimate can not regress into absurd territory if the chunk formula
+// above is ever changed. Today it is insurance that does not bind: the chunks
+// account for all bytes and sum to at least bytes/3.5. See
+// TestEstimateFloorDoesNotBind.
+func floorTokens(tokens, bytes int) int {
 	if floor := (bytes + 3) / 4; tokens < floor {
-		tokens = floor
+		return floor
 	}
-	return Estimate{Tokens: tokens, Chars: len([]rune(text)), Bytes: bytes}
+	return tokens
 }
 
 // EstimateBytes is a convenience for byte slices (handles invalid UTF-8 by
