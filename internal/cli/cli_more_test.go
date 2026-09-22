@@ -1134,6 +1134,97 @@ func TestWriteEnvelopeReportsAWriteFailure(t *testing.T) {
 	}
 }
 
+// --- models --json ---
+
+func TestModelsJSONListsEveryModel(t *testing.T) {
+	c := captureStdout(t)
+	errOut := captureStderr(t)
+
+	if code := cmdModels([]string{"--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if got := errOut.Content(); got != "" {
+		t.Errorf("models --json wrote to stderr:\n%s", got)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("models --json is not valid JSON: %v", err)
+	}
+	models := counter.Models()
+	if len(env.Models) != len(models) {
+		t.Fatalf("models has %d entries, want %d", len(env.Models), len(models))
+	}
+	seen := map[string]bool{}
+	for i, m := range models {
+		e := env.Models[i]
+		if e.Name != m.Name || e.Vendor != m.Vendor || e.ContextWindow != m.ContextWindow {
+			t.Errorf("models[%d] = %+v, want %+v", i, e, m)
+		}
+		if want := m.ContextWindow - fitReserve; e.Limit != want {
+			t.Errorf("models[%d].limit = %d, want %d", i, e.Limit, want)
+		}
+		if e.Limit <= 0 {
+			t.Errorf("%s has a non-positive limit %d", e.Name, e.Limit)
+		}
+		if seen[e.Name] {
+			t.Errorf("model %q appears twice", e.Name)
+		}
+		seen[e.Name] = true
+	}
+}
+
+func TestModelsJSONAgreesWithTheTextOutput(t *testing.T) {
+	text := captureStdout(t)
+	if code := cmdModels(nil); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	out := text.Content()
+
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--json"}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatal(err)
+	}
+	// Both formats read counter.Models(), so every entry must appear in both.
+	for _, m := range env.Models {
+		if !strings.Contains(out, m.Name) {
+			t.Errorf("text output is missing %q", m.Name)
+		}
+		if !strings.Contains(out, m.Vendor) {
+			t.Errorf("text output is missing the vendor %q", m.Vendor)
+		}
+	}
+}
+
+func TestModelsRejectsAnUnknownFlag(t *testing.T) {
+	errOut := captureStderr(t)
+	if code := cmdModels([]string{"--bogus"}); code != 2 {
+		t.Fatalf("exit = %d, want 2", code)
+	}
+	if got := errOut.Content(); !strings.Contains(got, "bogus") {
+		t.Errorf("error did not name the flag:\n%s", got)
+	}
+}
+
+func TestModelsRejectsAStrayArgument(t *testing.T) {
+	// Before cmdModels took a FlagSet it checked only args[0] and ignored
+	// everything else, so this was indistinguishable from a bare "models".
+	errOut := captureStderr(t)
+	if code := cmdModels([]string{"unexpected"}); code != 2 {
+		t.Fatalf("exit = %d, want 2", code)
+	}
+	if got := errOut.Content(); !strings.Contains(got, "unexpected argument") {
+		t.Errorf("error did not name the stray argument:\n%s", got)
+	}
+	// A stray argument still loses to a flag after reordering.
+	if code := cmdModels([]string{"unexpected", "--json"}); code != 2 {
+		t.Fatalf("exit = %d, want 2 for a stray argument with --json", code)
+	}
+}
+
 // --- git helpers ---
 
 func runGit(t *testing.T, dir string, args ...string) {

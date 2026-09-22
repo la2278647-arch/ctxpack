@@ -164,10 +164,10 @@ myrepo/  (48 files, 31842 tokens, 142.3KB)
 └── go.mod  [12 tokens, 312B]
 ```
 
-### `map --json` and `tokens --json`
+### `map --json`, `tokens --json`, `models --json`
 
-Both take `--json` for scripts. `pack` has `--format json` for its bundle; these
-two have no format family, so a boolean flag is enough.
+All three take `--json` for scripts. `pack` has `--format json` for its bundle;
+these have no format family, so a boolean flag is enough.
 
 ```json
 {
@@ -193,19 +193,29 @@ two have no format family, so a boolean flag is enough.
   "total_bytes": 145728,
   "reserve_tokens": 4096,
   "fits": [
-    { "model": "gpt-4o", "used": 31842, "limit": 119808, "fits": true, "pct_used": 26.58 }
+    { "model": "gpt-4o", "used": 31842, "limit": 123904, "fits": true, "pct_used": 25.7 }
   ]
 }
 ```
 
-Two invariants worth relying on:
+```json
+{
+  "models": [
+    { "name": "gpt-4o", "vendor": "openai", "context_window": 128000, "limit": 123904 }
+  ]
+}
+```
+
+Three invariants worth relying on:
 
 - `tree.children` is always an array, never `null`. A file and an empty
   directory both get `[]`; `is_dir` is what separates them.
 - The header totals equal the tree totals, and both agree with the text output.
   Every format reads one shared walk, so the estimates cannot drift. The text
-  output rounds the same `pct_used` to the nearest integer (`26.58` above shows
+  output rounds the same `pct_used` to the nearest integer (`25.7` above shows
   as `26%`).
+- `limit` is always `context_window` minus the same 4096-token reply reserve, so
+  `models --json` and `tokens --json` join without recomputing it.
 
 ### `pack` — the bundle
 

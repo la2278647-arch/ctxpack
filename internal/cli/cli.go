@@ -88,9 +88,9 @@ FLAGS (diff)
   --ref REF            Base git ref (default: working-tree changes). e.g. HEAD~1, main
   (also accepts --format/--include/--exclude/--budget/--model/-o)
 
-FLAGS (map / tokens)
-  --include/--exclude/--max-size/--no-gitignore/--hidden
-  --json               Emit JSON instead of the text outline, for scripting
+FLAGS (map / tokens / models)
+  --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
+  --json               Emit JSON instead of the text output, for scripting
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
@@ -99,6 +99,7 @@ EXAMPLES
   ctxpack pack . --budget 60000 --model gpt-4o
   ctxpack map . --json                 # the tree as JSON, for scripting
   ctxpack tokens . --json              # per-model fit as JSON
+  ctxpack models --json                # the model table as JSON
   ctxpack mcp                          # for Claude Desktop / Cursor config
 
 Project: https://github.com/la2278647-arch/ctxpack
@@ -395,12 +396,32 @@ func cmdTokens(args []string) int {
 // --- models ---
 
 func cmdModels(args []string) int {
+	// Handled before the FlagSet so that "-h" keeps returning 0 here, unlike the
+	// other commands where an undefined flag is a parse error.
 	if len(args) > 0 && (args[0] == "-h" || args[0] == "--help") {
 		fmt.Println("usage: ctxpack models")
 		return 0
 	}
+	fs := flag.NewFlagSet("models", flag.ContinueOnError)
+	fs.Usage = func() { printHelp(os.Stderr) }
+	jsonOut := fs.Bool("json", false, "print the model table as JSON")
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
+		return 2
+	}
+	// Before this used a manual args[0] check and silently ignored everything
+	// else, so `ctxpack models --bogus` and `ctxpack models --json` were both
+	// indistinguishable from `ctxpack models`. Rejecting stray arguments is what
+	// makes --json mean anything here.
+	if fs.NArg() > 0 {
+		fmt.Fprintln(os.Stderr, "ctxpack: unexpected argument", fs.Arg(0))
+		return 2
+	}
+	models := counter.Models()
+	if *jsonOut {
+		return writeEnvelope(os.Stdout, modelsEnvelope{Models: modelJSON(models)})
+	}
 	fmt.Println("Known models (name — context window):")
-	for _, m := range counter.Models() {
+	for _, m := range models {
 		fmt.Printf("  %-22s %s (%s)\n", m.Name, humanTokens(m.ContextWindow), m.Vendor)
 	}
 	return 0
@@ -535,6 +556,21 @@ type fitEntry struct {
 	PctUsed float64 `json:"pct_used"`
 }
 
+// modelsEnvelope is the JSON form of `ctxpack models`.
+type modelsEnvelope struct {
+	Models []modelEntry `json:"models"`
+}
+
+// modelEntry is one registered model. Limit is the context window minus the
+// reply reserve, the same value tokens --json reports per fit, so a script can
+// compare the two without recomputing the subtraction.
+type modelEntry struct {
+	Name          string `json:"name"`
+	Vendor        string `json:"vendor"`
+	ContextWindow int    `json:"context_window"`
+	Limit         int    `json:"limit"`
+}
+
 // jsonNode mirrors repomap.Node for JSON output. Children is emitted even when
 // empty, so a consumer can tell a file ([] ) from an empty directory without
 // guessing from a missing field.
@@ -579,6 +615,20 @@ func tokenFits(tokens int) []fitEntry {
 			Fits:    f.Fits,
 			PctUsed: round2(f.PctUsed),
 		})
+	}
+	return out
+}
+
+// modelJSON converts the registered models into their JSON form.
+func modelJSON(models []counter.Model) []modelEntry {
+	out := make([]modelEntry, len(models))
+	for i, m := range models {
+		out[i] = modelEntry{
+			Name:          m.Name,
+			Vendor:        m.Vendor,
+			ContextWindow: m.ContextWindow,
+			Limit:         m.ContextWindow - fitReserve,
+		}
 	}
 	return out
 }

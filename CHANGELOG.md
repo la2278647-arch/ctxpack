@@ -6,6 +6,42 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`ctxpack models --json`.**
+  That completes the machine-readable surface: `pack --format json` for the
+  bundle, and `--json` for `map`, `tokens` and now `models`. The model table is
+  what an LLM reads before deciding whether a repo fits at all, so it belongs
+  in the same scriptable shape as the fit it produces.
+
+  `models --json` wraps the table in `{models: [...]}`, one entry per
+  registered model carrying `name`, `vendor`, `context_window` and `limit`.
+  `limit` is the window minus the 4096-token reply reserve — the same value
+  `tokens --json` reports inside each fit entry — so the two outputs join
+  without a script recomputing the subtraction. All 19 models and 7 vendors are
+  present, and every `limit` is asserted to be `context_window - fitReserve`.
+
+- **`ctxpack models` no longer swallows unknown arguments.**
+  It was the only command using a manual `args[0]` check instead of a
+  `flag.FlagSet`, so `ctxpack models --bogus`, `ctxpack models --json` and a
+  bare `ctxpack models` were all indistinguishable from each other: a typo'd
+  flag was silently ignored and the table printed anyway. It now parses with
+  `reorderArgs` like the rest, and a stray argument exits 2 naming the offender.
+
+  `models -h` still exits 0 rather than 2, unlike every other command. That is
+  a test-asserted quirk (`TestRunDispatchExitCodes` pins it) so it was
+  preserved: the help check runs before the FlagSet parse. Fixing the
+  inconsistency the other way would break a documented exit code for no gain.
+
+### Fixed
+
+- **The README's own JSON example had a wrong number.**
+  It showed `gpt-4o` with `"limit": 119808`, which is off by exactly 4096.
+  `gpt-4o`'s window is 128000, so the limit is 123904; the `pct_used` of
+  26.58 was computed against the wrong window and is 25.7. Caught by cross-
+  checking the example against `ctxpack models`'s table rather than by eye.
+  The new `limit` invariant now pins the relationship that would have caught it.
+
 ## [0.1.3] - 2026-09-22
 
 The first release that was actually published. Statement coverage is 98.7% of
