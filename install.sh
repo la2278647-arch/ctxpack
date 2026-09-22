@@ -7,7 +7,7 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
 #   # or pin a version:
-#   curl -fsSL ... | bash -s -- v0.1.3
+#   curl -fsSL ... | bash -s -- v0.1.4
 #
 # Environment:
 #   CTXPACK_INSTALL_DIR  override the install directory (default: /usr/local/bin

@@ -6,6 +6,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Nothing to report yet.
+
+## [0.1.4] - 2026-09-22
+
+The release that makes the installers trustworthy, and closes out the
+machine-readable surface: four commands now emit JSON, the MCP server exposes
+all four operations, and a script can read the whole model table without
+parsing text.
+
 ### Added
 
 - **The installers now verify the binary they install.**
