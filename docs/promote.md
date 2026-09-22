@@ -5,7 +5,7 @@ account credentials for any of these sites and I will not fabricate a post
 report. Post from your own account, or hand it to whoever owns the account.
 
 Repo: https://github.com/la2278647-arch/ctxpack
-Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
+Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.1
 
 ---
 
@@ -31,7 +31,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
 > mode, so an agent can call it as a tool.
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.0
+> go install github.com/la2278647-arch/ctxpack@v0.1.1
 > ctxpack pack ./myrepo --format markdown --budget 8000
 > ```
 >
@@ -69,7 +69,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
 > MCP server.
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.0
+> go install github.com/la2278647-arch/ctxpack@v0.1.1
 > ctxpack pack ./repo --format markdown --budget 8000
 > ```
 >
@@ -101,7 +101,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
 > 5/ There's also an MCP server mode on stdio, so an agent can call it as a tool
 > instead of shelling out. Same packer behind both frontends, so they can't drift.
 
-> 6/ `go install github.com/la2278647-arch/ctxpack@v0.1.0`
+> 6/ `go install github.com/la2278647-arch/ctxpack@v0.1.1`
 > `ctxpack pack ./repo --format markdown --budget 8000`
 >
 > Token counts are estimates (bytes/chars heuristic), not real tokenizer output.
@@ -126,7 +126,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
 > 被裁掉的文件会列出来，并说明为什么没进。
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.0
+> go install github.com/la2278647-arch/ctxpack@v0.1.1
 > ctxpack pack ./myrepo --format markdown --budget 8000
 > ```
 >

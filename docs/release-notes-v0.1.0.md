@@ -1,3 +1,9 @@
+> **Superseded by [v0.1.1](https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.1).**
+> The binaries on this release were built at commit `5a2017d`, which is five
+> commits after this release's tag, and they predate the fixes for the 1024x
+> byte counts, the unparseable XML output, the token under-count in `mcp`'s
+> `repo_map`, and the flag-parsing drops. Use v0.1.1.
+>
 # v0.1.0
 
 First release.
