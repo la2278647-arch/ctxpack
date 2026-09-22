@@ -4,6 +4,19 @@ All notable changes to ctxpack are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project aims
 to follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **The XML and Markdown renderers could not be read back exactly.** `<content>`
+  was pretty-printed with a newline before the CDATA and a newline plus
+  indentation after it, so parsing the bundle back out gave every file a
+  leading and a trailing blank line instead of its own bytes; the Markdown
+  fence gained a newline for every file, terminated or not. Both now round-trip
+  byte for byte. (XML still normalizes carriage returns to line feeds, but that
+  is required by the XML specification and applies to every parser — markdown,
+  JSON and text do preserve CRLF.)
+
 ## [0.1.1] - 2026-09-22
 
 Bug-fix release. Nothing new to write — eleven things that were plainly

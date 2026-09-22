@@ -121,24 +121,109 @@ func TestRenderXMLContentWithCDataTerminator(t *testing.T) {
 			} `xml:"file"`
 		} `xml:"files"`
 	}
-	// The document must parse, and the content must survive intact. The
-	// fragment is split across two CDATA sections, so compare through the
-	// parser rather than with strings.Contains on the raw text.
+	// The document must parse, and the content must survive byte for byte.
+	// The "]]>" splits the body across two CDATA sections, so compare through
+	// the parser rather than with strings.Contains on the raw text.
 	if err := xml.Unmarshal([]byte(out), &node); err != nil {
 		t.Fatalf("not well-formed: %v\n%s", err, out)
 	}
 	if len(node.Files.File) != 1 {
 		t.Fatalf("files = %d, want 1", len(node.Files.File))
 	}
-	got := node.Files.File[0].Content
-	if !strings.Contains(got, content) {
-		t.Errorf("content round-trip = %q, want it to contain %q", got, content)
+	if got := node.Files.File[0].Content; got != content {
+		t.Errorf("content round-trip = %q, want exactly %q", got, content)
 	}
-	// The renderer wraps the content in newlines, so the parsed text starts
-	// with "\n" + content. Assert that rather than trimming, which would eat
-	// a newline that belongs to the source itself.
-	if !strings.HasPrefix(node.Files.File[0].Content, "\n"+content) {
-		t.Errorf("round-trip = %q, want a prefix of %q", node.Files.File[0].Content, "\n"+content)
+}
+
+func TestRenderXMLContentRoundTripsExactly(t *testing.T) {
+	// The parsed <content> text must equal the source bytes for any content.
+	// A newline on either side of the CDATA leaked into the round trip, so a
+	// read-back of a file gained a leading and trailing blank line; the table
+	// covers the shapes that would have caught that.
+	cases := []struct {
+		name    string
+		content string
+	}{
+		{"empty", ""},
+		{"no trailing newline", "package a"},
+		{"one trailing newline", "package a\n"},
+		{"two trailing newlines", "package a\n\n"},
+		{"leading newline", "\npackage a"},
+		{"only whitespace", "   \n\t\n"},
+		{"markup characters", "<a & b> `c`</a>\n"},
+		{"cdata terminator", "x := y]]> 0\n"},
+		{"cdata terminator at start", "]]> leading\n"},
+		{"cdata terminator at end", "trailing ]]>"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := &Bundle{
+				Root:        "repo",
+				Files:       []File{{Path: "f.txt", Content: tc.content, Tokens: 1, Bytes: len(tc.content)}},
+				TotalTokens: 1,
+				TotalBytes:  len(tc.content),
+			}
+			out := renderXML(b)
+			var node struct {
+				Files struct {
+					File []struct {
+						Path    string `xml:"path,attr"`
+						Content string `xml:"content"`
+					} `xml:"file"`
+				} `xml:"files"`
+			}
+			if err := xml.Unmarshal([]byte(out), &node); err != nil {
+				t.Fatalf("not well-formed for %q: %v\n%s", tc.content, err, out)
+			}
+			if len(node.Files.File) != 1 {
+				t.Fatalf("files = %d, want 1", len(node.Files.File))
+			}
+			if got := node.Files.File[0].Content; got != tc.content {
+				t.Errorf("round-trip = %q, want exactly %q", got, tc.content)
+			}
+		})
+	}
+}
+
+func TestRenderXMLContentDoesNotTouchIndentation(t *testing.T) {
+	// The fix hugs the CDATA to the element tags; a regression that puts the
+	// pretty-printed whitespace back would show up as an exact-string failure.
+	b := &Bundle{
+		Root:        "repo",
+		Files:       []File{{Path: "a.go", Content: "package a\n", Tokens: 1, Bytes: 9}},
+		TotalTokens: 1,
+		TotalBytes:  9,
+	}
+	out := renderXML(b)
+	if !strings.Contains(out, "<content><![CDATA[package a\n]]></content>") {
+		t.Errorf("content element is not hugged to its CDATA:\n%s", out)
+	}
+}
+
+func TestRenderXMLNormalizesCarriageReturn(t *testing.T) {
+	// XML requires a carriage return in character data to be normalized to a
+	// line feed, and encoding/xml does it even when the CR comes through a
+	// character reference. The XML format therefore cannot round-trip CRLF,
+	// whatever the renderer emits; markdown, json and text do preserve it.
+	// Pinning the behavior here keeps a later edit from chasing it as a bug.
+	b := &Bundle{
+		Root:        "repo",
+		Files:       []File{{Path: "a.txt", Content: "a\r\nb\r\n", Tokens: 1, Bytes: 6}},
+		TotalTokens: 1,
+		TotalBytes:  6,
+	}
+	var node struct {
+		Files struct {
+			File []struct {
+				Content string `xml:"content"`
+			} `xml:"file"`
+		} `xml:"files"`
+	}
+	if err := xml.Unmarshal([]byte(renderXML(b)), &node); err != nil {
+		t.Fatalf("not well-formed: %v", err)
+	}
+	if got := node.Files.File[0].Content; got != "a\nb\n" {
+		t.Errorf("CR normalization = %q, want %q", got, "a\nb\n")
 	}
 }
 
@@ -222,6 +307,37 @@ func TestRenderTextTerminatesEveryFile(t *testing.T) {
 	b.Files[0].Content = "package a\n"
 	if !strings.Contains(out, "package a\n\n") || strings.Contains(Render(b, Text), "package a\n\n\n") {
 		t.Errorf("double newline: %q", Render(b, Text))
+	}
+}
+
+func TestRenderMarkdownFenceIsExact(t *testing.T) {
+	// The closing fence must start on its own line, but the file's bytes must
+	// not gain a newline to get there.
+	terminated := "package a\nfunc f() {}\n"
+	b := &Bundle{
+		Root:        "repo",
+		Files:       []File{{Path: "a.go", Content: terminated, Tokens: 1, Bytes: len(terminated)}},
+		TotalTokens: 1,
+		TotalBytes:  len(terminated),
+	}
+	out := Render(b, Markdown)
+	if !strings.Contains(out, "```go\n"+terminated+"```\n\n") {
+		t.Errorf("terminated content must be exact:\n%s", out)
+	}
+	// CRLF survives the markdown fence untouched.
+	b.Files[0].Content = "a\r\nb\r\n"
+	out = Render(b, Markdown)
+	if !strings.Contains(out, "```go\na\r\nb\r\n```\n\n") {
+		t.Errorf("crlf content must be exact:\n%q", out)
+	}
+	// An unterminated source needs one newline for the fence, and only one.
+	b.Files[0].Content = "package a"
+	out = Render(b, Markdown)
+	if !strings.Contains(out, "```go\npackage a\n```\n\n") {
+		t.Errorf("unterminated content must gain exactly one newline:\n%s", out)
+	}
+	if strings.Contains(out, "package a\n\n```\n\n") {
+		t.Errorf("unterminated content must not gain two newlines:\n%s", out)
 	}
 }
 

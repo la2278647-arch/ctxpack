@@ -75,7 +75,12 @@ func renderXML(b *Bundle) string {
 			// "]]>" inside the content would close the CDATA section early and
 			// leave the rest of the file parsed as markup, so emit one CDATA
 			// section per fragment.
-			sb.WriteString("      <content>\n")
+			//
+			// The element is hugged to the CDATA so the parsed text is the
+			// file's bytes and nothing else: a newline before or after would
+			// leak into the round trip, so every file read back gained a
+			// leading and trailing blank line.
+			sb.WriteString("      <content>")
 			parts := strings.Split(f.Content, "]]>")
 			for i, part := range parts {
 				if i > 0 {
@@ -88,7 +93,7 @@ func renderXML(b *Bundle) string {
 				sb.WriteString(part)
 				sb.WriteString("]]>")
 			}
-			sb.WriteString("\n      </content>\n")
+			sb.WriteString("</content>\n")
 		}
 		sb.WriteString("    </file>\n")
 	}
@@ -108,7 +113,14 @@ func renderMarkdown(b *Bundle) string {
 		if f.Binary {
 			sb.WriteString("_(binary file — content omitted)_\n\n")
 		} else {
-			fmt.Fprintf(&sb, "```%s\n%s\n```\n\n", langHint(f.Path), f.Content)
+			// The closing fence must start on its own line, but the file's
+			// bytes must not gain a newline to get there: add one only when
+			// the source lacks it.
+			fmt.Fprintf(&sb, "```%s\n%s", langHint(f.Path), f.Content)
+			if !strings.HasSuffix(f.Content, "\n") {
+				sb.WriteString("\n")
+			}
+			sb.WriteString("```\n\n")
 		}
 		sb.WriteString("---\n\n")
 	}
