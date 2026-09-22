@@ -5,7 +5,7 @@ account credentials for any of these sites and I will not fabricate a post
 report. Post from your own account, or hand it to whoever owns the account.
 
 Repo: https://github.com/la2278647-arch/ctxpack
-Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
+Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.4
 
 ---
 
@@ -31,13 +31,13 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > mode, so an agent can call it as a tool.
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.2
+> go install github.com/la2278647-arch/ctxpack@v0.1.4
 > ctxpack pack ./myrepo --format markdown --budget 8000
 > ```
 >
-> Other install paths: `brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`, Scoop on Windows, or `curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash`.
+> Other install paths: `brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`, Scoop on Windows, `docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo`, or `curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash`.
 >
-> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 33 files it omitted and why.
+> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 37 files it omitted and why.
 >
 > The budget model is the interesting bit and also the bit I'd like feedback
 > on. Files are tiered: READMEs and licenses first, then entry points, then
@@ -73,11 +73,11 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > MCP server.
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.2
+> go install github.com/la2278647-arch/ctxpack@v0.1.4
 > ctxpack pack ./repo --format markdown --budget 8000
 > ```
 >
-> Also on Homebrew (`brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`) and Scoop. See it [run on itself](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) — an 8000-token budget-capped pack with the "what got cut" report.
+> Also on Homebrew (`brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`), Scoop, and Docker (`docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo`). See it [run on itself](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) — an 8000-token budget-capped pack with the "what got cut" report.
 >
 > The whole thing is the Go standard library. No cobra, no viper, no jsoniter.
 > `go.sum` is empty and CI asserts that it stays that way.
@@ -107,7 +107,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > 5/ There's also an MCP server mode on stdio, so an agent can call it as a tool
 > instead of shelling out. Same packer behind both frontends, so they can't drift.
 
-> 6/ `go install github.com/la2278647-arch/ctxpack@v0.1.2`
+> 6/ `go install github.com/la2278647-arch/ctxpack@v0.1.4`
 > `ctxpack pack ./repo --format markdown --budget 8000`
 >
 > Token counts are estimates (bytes/chars heuristic), not real tokenizer output.
@@ -132,7 +132,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > 被裁掉的文件会列出来，并说明为什么没进。
 >
 > ```sh
-> go install github.com/la2278647-arch/ctxpack@v0.1.2
+> go install github.com/la2278647-arch/ctxpack@v0.1.4
 > ctxpack pack ./myrepo --format markdown --budget 8000
 > ```
 >

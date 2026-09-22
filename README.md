@@ -80,6 +80,23 @@ scoop bucket add la2278647-arch https://github.com/la2278647-arch/scoop-bucket
 scoop install ctxpack
 ```
 
+**Or via Docker:**
+
+```sh
+# build and run from source
+docker build -t ctxpack .
+docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo
+docker run --rm -v "$(pwd):/repo:ro" ctxpack pack /repo --budget 8000 --format markdown
+
+# build with a version stamp
+docker build -t ctxpack --build-arg VERSION=0.1.4 --build-arg COMMIT=$(git rev-parse --short HEAD) .
+```
+
+The image is a multi-stage build: a static binary compiled with `CGO_ENABLED=0`
+on `golang:1.21-alpine`, copied into `alpine:latest`. The entrypoint is the
+binary itself, so any arguments become `ctxpack` arguments. Mount your tree
+read-only (`:ro`) — `ctxpack` never writes to the tree it reads.
+
 **Or build from source:**
 
 ```sh
