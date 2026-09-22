@@ -27,6 +27,11 @@ type Bundle struct {
 	TotalTokens int    `json:"total_tokens"`
 	TotalBytes  int    `json:"total_bytes"`
 	Skipped     int    `json:"skipped"`
+	// Omitted lists the paths a token budget left out, and OmittedTokens is
+	// what they would have cost. Both stay empty unless a budget was applied,
+	// so a caller always sees the cut instead of an unexplained shortfall.
+	Omitted       []string `json:"omitted,omitempty"`
+	OmittedTokens int      `json:"omitted_tokens,omitempty"`
 }
 
 // Format is the output style.
@@ -98,8 +103,22 @@ func renderXML(b *Bundle) string {
 		sb.WriteString("    </file>\n")
 	}
 	sb.WriteString("  </files>\n")
+	writeOmittedXML(&sb, b)
 	sb.WriteString("</repository>\n")
 	return sb.String()
+}
+
+// writeOmittedXML reports the files the budget left out. Omitted entirely when
+// nothing was cut, so an unlimited pack keeps its current shape.
+func writeOmittedXML(sb *strings.Builder, b *Bundle) {
+	if len(b.Omitted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "  <omitted count=\"%d\" tokens=\"%d\">\n", len(b.Omitted), b.OmittedTokens)
+	for _, p := range b.Omitted {
+		fmt.Fprintf(sb, "    <path>%s</path>\n", xmlEscape(p))
+	}
+	sb.WriteString("  </omitted>\n")
 }
 
 func renderMarkdown(b *Bundle) string {
@@ -124,7 +143,23 @@ func renderMarkdown(b *Bundle) string {
 		}
 		sb.WriteString("---\n\n")
 	}
+	writeOmittedMarkdown(&sb, b)
 	return sb.String()
+}
+
+// writeOmittedMarkdown reports the files the budget left out, so a truncated
+// bundle says so instead of looking like the repository was small. Left empty
+// when nothing was cut.
+func writeOmittedMarkdown(sb *strings.Builder, b *Bundle) {
+	if len(b.Omitted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "## Omitted by budget (%d files, ~%d tokens)\n\n",
+		len(b.Omitted), b.OmittedTokens)
+	for _, p := range b.Omitted {
+		fmt.Fprintf(sb, "- `%s`\n", p)
+	}
+	sb.WriteString("\n")
 }
 
 func renderJSON(b *Bundle) string {
@@ -151,7 +186,23 @@ func renderText(b *Bundle) string {
 		}
 		sb.WriteString("\n")
 	}
+	writeOmittedText(&sb, b)
 	return sb.String()
+}
+
+// writeOmittedText reports the files the budget left out. Left empty when
+// nothing was cut.
+func writeOmittedText(sb *strings.Builder, b *Bundle) {
+	if len(b.Omitted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "==== omitted by budget (%d files, ~%d tokens) ====\n",
+		len(b.Omitted), b.OmittedTokens)
+	for _, p := range b.Omitted {
+		sb.WriteString(p)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
 }
 
 func xmlEscape(s string) string {

@@ -177,21 +177,35 @@ changes included).
 
 Passing `--model gpt-4o` derives the ceiling as
 `context_window − reserve` and packs files until it is spent. Files that do not
-fit are **listed as omitted**, never silently dropped.
+fit are **listed as omitted**, never silently dropped — XML carries an
+`<omitted count="…" tokens="…">` element, Markdown appends an
+"Omitted by budget" section, and JSON adds `omitted` and `omitted_tokens`. The
+omitted element is left out entirely when nothing was cut, so an unlimited pack
+keeps its shape. Adding the packed total to the omitted total gives back every
+token the walk saw.
 
 Files are ranked by *context value*, not by size:
 
-| Tier | Examples |
-| ---- | -------- |
-| Orientation | `README*`, `LICENSE`, `CONTRIBUTING*` |
-| Entry points | `main.go`, `index.ts`, `server.js`, `manage.py` |
-| Interfaces | `*.proto`, `*.graphql`, `*.thrift` |
-| Documentation | `*.md`, `*.rst`, `*.txt` |
-| Source | `*.go`, `*.rs`, `*.py`, `*.ts`, `*.java`, ... |
-| Configuration | `*.yaml`, `*.toml`, `Dockerfile`, `Makefile` |
-| Tests | `*_test.go`, `*.spec.ts`, `test_*.py` |
+| Score | Tier | Examples |
+| ----- | ---- | -------- |
+| 1000 | Orientation | `README*`, `LICENSE`, `CONTRIBUTING*`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `PATENTS` |
+| 400 | Entry points | `main.go`, `index.ts`, `index.js`, `mod.go`, `server.js`, `manage.py` |
+| 350 | Interfaces | `*.proto`, `*.graphql`, `*.thrift` |
+| 300 | Documentation | `*.md`, `*.rst`, `*.txt` |
+| 200 | Source | `*.go`, `*.rs`, `*.py`, `*.ts`, `*.java`, `*.rb`, `*.cs` |
+| 150 | Configuration | `*.yaml`, `*.yml`, `*.toml`, `*.json`, `Dockerfile*`, `Makefile*` |
+| 100 | Scripts | `*.sh` |
+| 50 | Tests | `*_test.go`, `*.test.js`, `*.spec.ts`, `*.test.py`, `test_*.py` |
+| 10 | Everything else | |
 
-Ties break by ascending size, so a budget buys the maximum number of files.
+Order matters as much as the numbers: a `_test.go` file is also a `.go` file,
+so the test tier is matched before source, or every test would score as code
+and nothing would be left to rank last. Within one tier, ties break by
+ascending token count, so a budget buys the most files it can.
+
+Only whole files are dropped by the budget; nothing is truncated. `diff`
+prunes files before the budget is applied, so a file excluded there is not
+reported as omitted.
 
 ### Token estimation
 

@@ -167,7 +167,15 @@ func cmdPack(args []string) int {
 		return 1
 	}
 	if *output != "" {
-		fmt.Fprintf(os.Stderr, "wrote %s — %d files, ~%d tokens\n", *output, len(bundle.Files), bundle.TotalTokens)
+		if len(bundle.Omitted) > 0 {
+			fmt.Fprintf(os.Stderr,
+				"wrote %s — %d files, ~%d tokens; %d files, ~%d tokens omitted by the budget\n",
+				*output, len(bundle.Files), bundle.TotalTokens,
+				len(bundle.Omitted), bundle.OmittedTokens)
+		} else {
+			fmt.Fprintf(os.Stderr, "wrote %s — %d files, ~%d tokens\n",
+				*output, len(bundle.Files), bundle.TotalTokens)
+		}
 	}
 	return 0
 }

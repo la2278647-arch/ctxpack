@@ -426,3 +426,91 @@ func TestLangHint(t *testing.T) {
 		}
 	}
 }
+
+func omittedSample() *Bundle {
+	b := sample()
+	b.Omitted = []string{"vendor/heavy.go", "a <b>&c.md"}
+	b.OmittedTokens = 900
+	return b
+}
+
+func TestRenderXMLOmitted(t *testing.T) {
+	var node struct {
+		XMLName xml.Name `xml:"repository"`
+		Omitted struct {
+			Count  int      `xml:"count,attr"`
+			Tokens int      `xml:"tokens,attr"`
+			Paths  []string `xml:"path"`
+		} `xml:"omitted"`
+	}
+	out := Render(omittedSample(), XML)
+	if err := xml.Unmarshal([]byte(out), &node); err != nil {
+		t.Fatalf("rendered XML is not well-formed: %v\n%s", err, out)
+	}
+	if node.Omitted.Count != 2 || node.Omitted.Tokens != 900 {
+		t.Errorf("omitted attrs = count=%d tokens=%d, want count=2 tokens=900",
+			node.Omitted.Count, node.Omitted.Tokens)
+	}
+	if len(node.Omitted.Paths) != 2 {
+		t.Fatalf("omitted paths = %v", node.Omitted.Paths)
+	}
+	if node.Omitted.Paths[0] != "vendor/heavy.go" {
+		t.Errorf("path[0] = %q", node.Omitted.Paths[0])
+	}
+	// Markup in a path must be escaped, and come back unescaped on parse.
+	if node.Omitted.Paths[1] != "a <b>&c.md" {
+		t.Errorf("path[1] = %q, want %q", node.Omitted.Paths[1], "a <b>&c.md")
+	}
+}
+
+func TestRenderXMLOmittedAbsentWhenEmpty(t *testing.T) {
+	out := Render(sample(), XML)
+	if strings.Contains(out, "<omitted") {
+		t.Errorf("an unlimited pack must not emit an omitted element:\n%s", out)
+	}
+}
+
+func TestRenderMarkdownOmitted(t *testing.T) {
+	out := Render(omittedSample(), Markdown)
+	want := "## Omitted by budget (2 files, ~900 tokens)\n\n" +
+		"- `vendor/heavy.go`\n- `a <b>&c.md`\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("markdown missing the omitted section:\n%s", out)
+	}
+	if i := strings.Index(out, want); i < strings.Index(out, "## `README.md`") {
+		t.Error("the omitted section must come after the packed files")
+	}
+}
+
+func TestRenderMarkdownOmittedAbsentWhenEmpty(t *testing.T) {
+	if strings.Contains(Render(sample(), Markdown), "Omitted by budget") {
+		t.Error("an unlimited pack must not mention omitted files")
+	}
+}
+
+func TestRenderTextOmitted(t *testing.T) {
+	want := "==== omitted by budget (2 files, ~900 tokens) ====\nvendor/heavy.go\n"
+	if got := Render(omittedSample(), Text); !strings.Contains(got, want) {
+		t.Errorf("text missing the omitted section:\n%s", got)
+	}
+	if strings.Contains(Render(sample(), Text), "omitted by budget") {
+		t.Error("an unlimited pack must not mention omitted files")
+	}
+}
+
+func TestRenderJSONOmitted(t *testing.T) {
+	var got struct {
+		Omitted       []string `json:"omitted"`
+		OmittedTokens int      `json:"omitted_tokens"`
+	}
+	if err := json.Unmarshal([]byte(Render(omittedSample(), JSON)), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Omitted) != 2 || got.OmittedTokens != 900 {
+		t.Errorf("json omitted = %v tokens=%d", got.Omitted, got.OmittedTokens)
+	}
+	// omitempty: an unlimited pack must not carry the keys at all.
+	if strings.Contains(Render(sample(), JSON), "omitted") {
+		t.Error("empty omitted lists must be omitted from the JSON")
+	}
+}

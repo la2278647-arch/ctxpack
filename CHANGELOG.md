@@ -6,7 +6,30 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The budget reports what it cut.** `format.Bundle` gained `Omitted` (paths)
+  and `OmittedTokens`, both `omitempty`, so an unlimited pack keeps its exact
+  shape. XML renders an `<omitted count="…" tokens="…">` element after
+  `<files>`, Markdown appends an "Omitted by budget" section, and the text
+  renderer prints an `==== omitted by budget ====` block. `ctxpack pack
+  --output f` now says `…; 12 files, ~8210 tokens omitted by the budget` on
+  stderr instead of a bare file count.
+
+  `LICENSE` and the rest of the policy documents used to rank dead last, so a
+  tight budget happily filled up on source code and never saw the license. The
+  documented tiers (`*.proto`/`*.graphql`/`*.thrift`, `server.js`, `manage.py`,
+  `*.rst`, `Dockerfile`, `Makefile`, `test_*.py`) were also missing and scored
+  10. They are implemented now, and the README's tier table gained the scores.
+
 ### Fixed
+
+- **`--budget` ranked every test as source code.** After reordering the
+  priority ladder, the `_test.go`/`.test.js`/`.spec.ts`/`.test.ts` case was
+  placed after the general source-code case, so `_test.go` was matched by
+  `.go` and scored 200 instead of 50. Nothing was left to rank last, and the
+  "tests last" guarantee was false. The test tier is now matched before
+  source, with a comment recording why the order is load-bearing.
 
 - **`map` could lose a file that shared its name with a directory.** A file and
   a directory may legally share a name on Linux and macOS, and the tree folder
