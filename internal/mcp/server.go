@@ -108,7 +108,7 @@ func tools() []map[string]any {
 					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
 					"include":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include (e.g. \"*.go\")."},
 					"exclude":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
-					"max_size":     map[string]any{"type": "integer", "description": "Skip files larger than N bytes."},
+					"max_size":     map[string]any{"type": "integer", "description": "Read no more than N bytes of a file; larger files are still listed, without content."},
 					"no_gitignore": map[string]any{"type": "boolean", "default": false},
 					"hidden":       map[string]any{"type": "boolean", "default": false},
 					"budget":       map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},

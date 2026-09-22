@@ -181,6 +181,16 @@ to follow [Semantic Versioning](https://semver.org/).
   interaction. `TestWalkHiddenStillExcludedWhenIncluded` now pins it across
   `.env`, `*.env`, `**/.env`, `**/*.env` and `**/.config`.
 
+- **The `pack_repo` tool schema still lied about `max_size`.** The CLI help,
+  the four flag registration strings and the README were corrected above, but
+  the MCP `inputSchema` still read "Skip files larger than N bytes." — which is
+  the text a model reads when deciding how to call the tool. An LLM choosing
+  `max_size` on that basis would expect large files to disappear from the
+  bundle and be surprised to find them listed without content. It now says
+  "Read no more than N bytes of a file; larger files are still listed, without
+  content.", matching the walker. `TestPackRepoSchemaDescribesMaxSizeHonestly`
+  fails if the word "Skip" comes back.
+
 ### Testing
 
 - **The CLI test suite went from 57.5% to 99.1%.** `internal/cli/cli_test.go`
@@ -224,6 +234,26 @@ to follow [Semantic Versioning](https://semver.org/).
   `ignore.translateGlob` to emit an invalid regex, which it provably cannot,
   since it escapes every regex-special character. Each is now commented in
   the source rather than left as a bare uncovered line.
+
+- **The MCP server went from 93.1% to 100%.** Seven blocks were left
+  uncovered, and six of them were reachable — the suite had only ever sent
+  well-formed tool calls. `internal/mcp/server_more_test.go` adds:
+  `pack_repo`/`repo_map`/`count_tokens` each called with an empty
+  `arguments` object, so every tool's required-`path` guard is asserted;
+  `repo_map` and `count_tokens` pointed at a repository whose root `.gitignore`
+  is one byte past the matcher's 1 MiB line cap, which makes `Build` fail and
+  exercises both `map error:` branches; `count_tokens` against 60 documents,
+  large enough to show `OVERFLOW` on the smallest window and still `fits` on
+  the largest in one run; `{"id":null}` as a request, which is a notification
+  and must not be answered; a direct `write(map{"n": math.NaN()})`, since JSON
+  cannot represent NaN, asserting that the message is dropped whole and the
+  writer is still usable; `toInt` fed a Go `int`, which JSON never produces but
+  an in-process caller does; and the `max_size` schema wording above.
+
+  That takes the whole repository from 96.6% to 97.5%. The remaining uncovered
+  lines are `cli` at 99.1%, `counter` at 95.3%, `gitutil` at 95.4%, `ignore`
+  at 97.0%, `repomap` at 98.1% and `walker` at 92.7%; each was examined and
+  left in place, with the `walker` reasons recorded above.
 
 ## [0.1.1] - 2026-09-22
 
