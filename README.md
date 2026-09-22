@@ -110,6 +110,11 @@ See [examples/](examples/) for **ctxpack run on itself**: a token-aware tree
 map, and a budget-capped self-pack that shows exactly which files are kept and
 which are omitted — and why.
 
+For the tool against a codebase that is not ctxpack, see
+[ctxpack-demo](https://github.com/la2278647-arch/ctxpack-demo): a small FastAPI
+service carrying ctxpack's own output captured on it. Both are described in
+[docs/examples.md](docs/examples.md).
+
 ---
 
 ## Quick start

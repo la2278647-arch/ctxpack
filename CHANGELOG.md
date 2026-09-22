@@ -6,6 +6,25 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A real project to try ctxpack on: `ctxpack-demo`.**
+  [la2278647-arch/ctxpack-demo](https://github.com/la2278647-arch/ctxpack-demo)
+  is a 27-file FastAPI microservice (hello-service v0.3.1) with cursor
+  pagination, pydantic validation, a 58 KB synthetic catalog and a test per
+  behaviour. It carries ctxpack's own output captured on it, so the tool is
+  shown rather than described: `ctxpack tokens .` reports 35545 estimated
+  tokens with two small-window models (`gpt-3.5-turbo` at 289%, `gpt-4` at
+  868%) marked `[OVERFLOW]`; `ctxpack map .` shows the 58 KB `data/seed.json`
+  alone accounting for 26178 tokens, 73.6% of the tree; and
+  `ctxpack pack . --budget 5000` keeps 16 files at ~4938 tokens and prints the
+  six files it cut with their individual token counts.
+
+  The snapshot is embedded in the demo's README and linked from
+  [docs/examples.md](docs/examples.md). The single generated data file is the
+  point of the fixture: it is what makes a context budget necessary at all, and
+  the omitted-files report is what makes the trade-off legible.
+
 ### Fixed
 
 - **The last two uncovered branches of the two "unreachable" packages were
