@@ -8,6 +8,18 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A `list_models` MCP tool.**
+  The three MCP tools all required a path, and none could tell an MCP client
+  which model names existed. An MCP client *is* an LLM picking a model name by
+  hand, so it had to guess. `list_models` takes no arguments and returns the
+  whole table — 19 models, each with its window and effective limit — so a
+  client can read it before it asks `count_tokens` or `pack_repo` about a
+  repository.
+
+  It deliberately takes no arguments: there is nothing to filter on, and an
+  argument-taking tool that ignored its arguments would hide typos, which is the
+  bug that just landed on `ctxpack models`.
+
 - **`ctxpack models --json`.**
   That completes the machine-readable surface: `pack --format json` for the
   bundle, and `--json` for `map`, `tokens` and now `models`. The model table is
@@ -34,6 +46,16 @@ to follow [Semantic Versioning](https://semver.org/).
   inconsistency the other way would break a documented exit code for no gain.
 
 ### Fixed
+
+- **The reply reserve now has one definition.**
+  `cli` declared it as a constant; `mcp` typed `4096` inline. Nothing was wrong
+  today, but changing the reserve in one place would have left the other surface
+  reporting a different `limit` with no failure and no warning. Both now read
+  `counter.ReplyReserve`, defined next to the `FitsModel` that consumes it, and
+  `cli.fitReserve` is an alias rather than a restatement. A new test parses the
+  limit out of both MCP tools and fails if they disagree on any of the 19
+  models; another pins `fitReserve == counter.ReplyReserve == 4096` so a change
+  to the policy is deliberate rather than accidental.
 
 - **The README's own JSON example had a wrong number.**
   It showed `gpt-4o` with `"limit": 119808`, which is off by exactly 4096.

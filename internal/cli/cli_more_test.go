@@ -1225,6 +1225,19 @@ func TestModelsRejectsAStrayArgument(t *testing.T) {
 	}
 }
 
+// fitReserve aliases counter.ReplyReserve, so this package's JSON output, the
+// text table and the MCP server all read one value for how many tokens a reply
+// keeps. The second check pins the value itself so a change is deliberate.
+func TestFitReserveIsTheSharedConstant(t *testing.T) {
+	if fitReserve != counter.ReplyReserve {
+		t.Errorf("fitReserve = %d, want counter.ReplyReserve = %d",
+			fitReserve, counter.ReplyReserve)
+	}
+	if fitReserve != 4096 {
+		t.Errorf("fitReserve = %d, want the documented 4096", fitReserve)
+	}
+}
+
 // --- git helpers ---
 
 func runGit(t *testing.T, dir string, args ...string) {

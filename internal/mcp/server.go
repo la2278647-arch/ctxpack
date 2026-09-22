@@ -1,13 +1,14 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio.
 //
 // It speaks JSON-RPC 2.0 with newline-delimited messages (the MCP stdio
-// transport) and exposes three tools that any MCP-capable agent (Claude
+// transport) and exposes four tools that any MCP-capable agent (Claude
 // Desktop, Cursor, Codex, ...) can call:
 //
 //   - pack_repo(path, format?, include?, exclude?, max_size?, no_gitignore?,
 //     hidden?, budget?) -> packed bundle text
 //   - repo_map(path, include?, exclude?, ...) -> token-aware tree text
 //   - count_tokens(path) -> total tokens + per-model fit
+//   - list_models() -> the model table, with each model's effective limit
 //
 // The implementation is stdlib-only and synchronous, which is enough for local
 // single-client use.
@@ -141,6 +142,14 @@ func tools() []map[string]any {
 				"required": []string{"path"},
 			},
 		},
+		{
+			"name":        "list_models",
+			"description": "List the models ctxpack knows about, with each model's context window and its effective limit after the reply reserve. Call this before count_tokens to learn which model names exist.",
+			"inputSchema": map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			},
+		},
 	}
 }
 
@@ -164,6 +173,8 @@ func (s *server) handleToolCall(id any, params any) {
 		text, callErr = callRepoMap(args)
 	case "count_tokens":
 		text, callErr = callCountTokens(args)
+	case "list_models":
+		text, callErr = callListModels()
 	default:
 		s.writeError(id, -32602, "Unknown tool: "+name)
 		return
@@ -245,12 +256,26 @@ func callCountTokens(args map[string]any) (string, string) {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Path: %s\nTokens: ~%d\nBytes: %d\n\nPer-model fit:\n", path, tokens, bytes)
 	for _, m := range counter.Models() {
-		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, 4096)
+		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
 		mark := "fits"
 		if !fit.Fits {
 			mark = "OVERFLOW"
 		}
 		fmt.Fprintf(&sb, "  %s — %d/%d (%.0f%%) %s\n", m.Name, fit.Used, fit.Limit, fit.PctUsed, mark)
+	}
+	return sb.String(), ""
+}
+
+// callListModels reports the model table. It deliberately takes no arguments:
+// there is nothing to filter on, and an argument-taking tool that ignored its
+// arguments would hide typos, as ctxpack models did before it took a FlagSet.
+func callListModels() (string, string) {
+	models := counter.Models()
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Models: %d (limit = context_window - %d reply tokens)\n", len(models), counter.ReplyReserve)
+	for _, m := range models {
+		fmt.Fprintf(&sb, "  %-22s %8d window  %8d limit  (%s)\n",
+			m.Name, m.ContextWindow, m.ContextWindow-counter.ReplyReserve, m.Vendor)
 	}
 	return sb.String(), ""
 }

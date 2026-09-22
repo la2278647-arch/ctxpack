@@ -59,6 +59,15 @@ func TestToolsSchema(t *testing.T) {
 		"pack_repo":    true,
 		"repo_map":     true,
 		"count_tokens": true,
+		"list_models":  true,
+	}
+	// Every tool but list_models takes a path, so only they require one.
+	// list_models takes nothing: an argument-taking tool that ignored its
+	// arguments would hide typos.
+	takesPath := map[string]bool{
+		"pack_repo":    true,
+		"repo_map":     true,
+		"count_tokens": true,
 	}
 	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
 	msg := respByID(msgs, 1)
@@ -101,6 +110,16 @@ func TestToolsSchema(t *testing.T) {
 		props, ok := schema["properties"].(map[string]any)
 		if !ok {
 			t.Errorf("%s: inputSchema.properties missing", name)
+			continue
+		}
+		if !takesPath[name] {
+			// list_models: an empty object schema, and nothing required.
+			if len(props) != 0 {
+				t.Errorf("%s: expected no properties, got %v", name, props)
+			}
+			if req, ok := schema["required"].([]any); ok && len(req) != 0 {
+				t.Errorf("%s: expected no required arguments, got %v", name, req)
+			}
 			continue
 		}
 		if _, ok := props["path"].(map[string]any); !ok {

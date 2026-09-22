@@ -525,9 +525,10 @@ func parseFormat(s string) (format.Format, error) {
 }
 
 // fitReserve is the token budget held back for a model's reply, so a bundle that
-// just fills a window still leaves room to answer. Every fit calculation in
-// this package uses the same value, the text output and the JSON alike.
-const fitReserve = 4096
+// just fills a window still leaves room to answer. It aliases
+// counter.ReplyReserve rather than restating it, so the text table, this
+// package's JSON output and the MCP server all read one value.
+const fitReserve = counter.ReplyReserve
 
 // mapEnvelope is the JSON form of `ctxpack map`. The text outline is for
 // people; this shape is for scripts that want to rank files or pick a budget.

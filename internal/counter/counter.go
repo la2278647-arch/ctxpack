@@ -178,6 +178,13 @@ func Models() []Model {
 	return out
 }
 
+// ReplyReserve is the token budget held back for a model's reply. A bundle
+// that exactly fills a context window leaves no room to answer, so every fit
+// calculation subtracts this from the window. It lives here, next to FitsModel
+// which consumes it, rather than as a literal in each call site: the CLI, the
+// JSON output and the MCP server must all read the same value.
+const ReplyReserve = 4096
+
 // Fit describes how an estimate fits a model's context.
 type Fit struct {
 	Model   Model

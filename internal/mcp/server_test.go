@@ -53,7 +53,7 @@ func TestServeRoundTrip(t *testing.T) {
 		t.Error("initialize: missing result")
 	}
 	tools, ok := byID["2"]["result"].(map[string]any)["tools"].([]any)
-	if !ok || len(tools) != 3 {
+	if !ok || len(tools) != 4 {
 		t.Fatalf("tools/list: %v", byID["2"])
 	}
 	if _, ok := byID["3"]["result"]; !ok {

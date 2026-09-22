@@ -6,8 +6,11 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/la2278647-arch/ctxpack/internal/counter"
 )
 
 // Every tool must name a required argument when it is absent.
@@ -160,6 +163,91 @@ func TestPackRepoSchemaDescribesMaxSizeHonestly(t *testing.T) {
 		}
 		if !strings.Contains(desc, "without content") {
 			t.Errorf("max_size should say the content is what is dropped: %q", desc)
+		}
+	}
+}
+
+// --- list_models ---
+
+// An MCP client is an LLM choosing a model name by hand. Before list_models it
+// could not discover which names existed at all.
+func TestListModelsToolListsEveryModel(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_models","arguments":{}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object: %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); isErr {
+		t.Fatalf("list_models reported an error: %v", res)
+	}
+	text := toolText(t, msgs, "1")
+	if text == "" {
+		t.Fatalf("list_models returned no text: %v", res)
+	}
+
+	models := counter.Models()
+	if want := fmt.Sprintf("Models: %d", len(models)); !strings.Contains(text, want) {
+		t.Errorf("text does not state the model count %q:\n%s", want, text)
+	}
+	if want := fmt.Sprintf("%d reply tokens", counter.ReplyReserve); !strings.Contains(text, want) {
+		t.Errorf("text does not state the reply reserve %q:\n%s", want, text)
+	}
+	for _, m := range models {
+		if !strings.Contains(text, m.Name) {
+			t.Errorf("list_models is missing %q", m.Name)
+		}
+	}
+}
+
+// The reserve was a literal in count_tokens and a constant in the CLI, so a
+// change to one would not have shown in the other. Both tools now read
+// counter.ReplyReserve, and this checks that every model's limit really does
+// come out the same from both.
+func TestListModelsLimitsMatchCountTokensLimits(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	msgs := serveLines(t,
+		fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q}}}`, dir),
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_models","arguments":{}}}`,
+	)
+
+	fit := toolText(t, msgs, "1")
+	table := toolText(t, msgs, "2")
+	if fit == "" || table == "" {
+		t.Fatalf("empty output: count_tokens=%q list_models=%q", fit, table)
+	}
+
+	fromFit := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^\s+(\S+) — (\d+)/(\d+) \(`).FindAllStringSubmatch(fit, -1) {
+		fromFit[m[1]] = m[3]
+	}
+	fromTable := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^\s+(\S+)\s+\d+ window\s+(\d+) limit`).FindAllStringSubmatch(table, -1) {
+		fromTable[m[1]] = m[2]
+	}
+
+	models := counter.Models()
+	if len(fromFit) != len(models) || len(fromTable) != len(models) {
+		t.Fatalf("parsed %d fit limits and %d table limits, want %d",
+			len(fromFit), len(fromTable), len(models))
+	}
+	for _, m := range models {
+		want := fmt.Sprint(m.ContextWindow - counter.ReplyReserve)
+		if got := fromFit[m.Name]; got != want {
+			t.Errorf("%s: count_tokens limit %q, want %s", m.Name, got, want)
+		}
+		if got := fromTable[m.Name]; got != want {
+			t.Errorf("%s: list_models limit %q, want %s", m.Name, got, want)
+		}
+		if fromFit[m.Name] != fromTable[m.Name] {
+			t.Errorf("%s: count_tokens %q != list_models %q",
+				m.Name, fromFit[m.Name], fromTable[m.Name])
 		}
 	}
 }

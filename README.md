@@ -351,6 +351,7 @@ client work the same way. Exposed tools:
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `budget?` |
 | `repo_map` | `path`, `include?`, `exclude?`, `max_size?` |
 | `count_tokens` | `path` |
+| `list_models` | none — the whole table, so a client can pick a valid model name before calling `count_tokens` |
 
 Conversation:
 
@@ -362,6 +363,11 @@ Conversation:
 The server speaks JSON-RPC 2.0 with newline-delimited messages and protocol
 version `2024-11-05`. It logs nothing to stdout — stdout is the protocol
 channel — and reports tool failures as `isError: true` rather than throwing.
+
+Every `limit` it reports is `context_window` minus the same 4096-token reply
+reserve the CLI uses, held in one constant (`counter.ReplyReserve`). A test
+checks that `list_models` and `count_tokens` agree on every model's limit, so
+the two cannot drift apart.
 
 ---
 
