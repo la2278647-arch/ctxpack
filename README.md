@@ -60,6 +60,20 @@ The installers detect your OS/architecture, download the matching binary
 from the [latest release](https://github.com/la2278647-arch/ctxpack/releases),
 and put it on your `PATH`. Set `CTXPACK_INSTALL_DIR` to override the target.
 
+**Or via a package manager:**
+
+```sh
+# Homebrew (macOS / Linux) — builds from source via the tap
+brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap
+brew install ctxpack
+```
+
+```powershell
+# Scoop (Windows) — installs the prebuilt binary
+scoop bucket add la2278647-arch https://github.com/la2278647-arch/scoop-bucket
+scoop install ctxpack
+```
+
 **Or build from source:**
 
 ```sh
