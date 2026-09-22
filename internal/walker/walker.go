@@ -23,7 +23,8 @@ import (
 type Options struct {
 	// Include globs (relative to root). Empty means "match everything not
 	// excluded". A path is included only if it matches at least one include
-	// glob (when set) and no exclude glob.
+	// glob (when set) and no exclude glob. Include does not reach hidden
+	// entries: use IncludeHidden for those.
 	Include []string
 	// Exclude globs, applied after include.
 	Exclude []string
@@ -34,7 +35,8 @@ type Options struct {
 	// default denylist still applies.
 	RespectGitignore bool
 	// IncludeHidden includes dotfiles/dotdirs (.env, .github, ...). Hidden
-	// VCS dirs (.git, .hg, .svn) are always skipped.
+	// entries are otherwise skipped regardless of Include, and hidden VCS dirs
+	// (.git, .hg, .svn) are always skipped.
 	IncludeHidden bool
 	// ReadContent controls whether FileEntry.Content is populated. When false,
 	// only metadata (path, size, binary) is collected — used by the repo map.
@@ -58,6 +60,13 @@ type Result struct {
 }
 
 // Walk walks root and returns the collected files.
+//
+// Every error other than a bad root is tolerated: the walk keeps going and the
+// offending entry is either skipped or dropped from the result. The
+// unreadable-subtree case is covered by TestWalkToleratesAnUnreadableSubtree.
+// The rest need a file to vanish between two calls (d.Info, os.ReadFile) or
+// WalkDir itself to be called with a callback that returns an error, which
+// this callback never does.
 func Walk(root string, opts Options) (*Result, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
@@ -99,15 +108,13 @@ func Walk(root string, opts Options) (*Result, error) {
 		// Hidden entries.
 		if !opts.IncludeHidden && strings.HasPrefix(name, ".") && rel != "." {
 			if d.IsDir() {
-				// Allow .github, .vscode? No — hidden dirs are excluded unless
-				// explicitly included. Users can --include them.
 				return filepath.SkipDir
 			}
-			// Hidden file: skip unless matched by include glob.
-			if !matchesAny(rel, opts.Include) && len(opts.Include) > 0 {
-				return nil
-			}
-			// Even with include, skip hidden by default to avoid leaking .env.
+			// A hidden file is skipped even when an include glob matches it.
+			// --include is a way to narrow a scan, not an escape hatch from
+			// the hidden-file default: if it did leak .env, the user would
+			// have a secret in a prompt without ever having opted in. Hidden
+			// files are brought in only by --hidden.
 			return nil
 		}
 
@@ -315,6 +322,9 @@ func globRegex(pattern string) (*regexp.Regexp, error) {
 	}
 	re, err := ignore.CompileGlob(pattern)
 	if err != nil {
+		// Unreachable: ignore.translateGlob escapes every regex-special
+		// character, so its output always compiles. Kept for parity with the
+		// exported error return.
 		return nil, err
 	}
 	globCache.Store(pattern, re)

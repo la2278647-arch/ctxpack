@@ -167,6 +167,20 @@ to follow [Semantic Versioning](https://semver.org/).
   `io.Reader`/`io.Writer`, and `Run` reaches it through a `runMCP` hook, so the
   stdio handshake is exercised with pipes and no global state.
 
+- **The walker contained dead code that lied about `--include`.** Inside the
+  hidden-entry branch (only reachable when `IncludeHidden` is false) there was
+  `if !matchesAny(rel, opts.Include) && len(opts.Include) > 0 { return nil }`
+  followed immediately by an unconditional `return nil`. The conditional could
+  never change the outcome — a hidden file was skipped either way — so the
+  include check was dead, and the comment above it claimed hidden files could
+  be brought in with `--include`. That was never true and never will be,
+  because `--include` is a way to narrow a scan, not an escape hatch from the
+  hidden-file default: if it did leak `.env`, a secret would land in a prompt
+  without the user ever having opted in. The branch is now the single comment
+  that says so, and `Options.Include`/`Options.IncludeHidden` document the
+  interaction. `TestWalkHiddenStillExcludedWhenIncluded` now pins it across
+  `.env`, `*.env`, `**/.env`, `**/*.env` and `**/.config`.
+
 ### Testing
 
 - **The CLI test suite went from 57.5% to 99.1%.** `internal/cli/cli_test.go`
@@ -188,6 +202,28 @@ to follow [Semantic Versioning](https://semver.org/).
   The two remaining uncovered lines are `cmdDiff`'s `packer.Pack` error
   branch, which needs a directory that `git rev-parse` accepts and
   `os.ReadDir` refuses — not something a test can produce reliably.
+
+- **The walker went from 91.3% to 92.7%.** The unreadable-subtree path in
+  `Walk` was never exercised: it needs `WalkDir` to hand the callback a
+  non-nil error, which needs a subdirectory that refuses to be read.
+  `TestWalkToleratesAnUnreadableSubtree` creates one with `icacls /deny
+  Everyone:(OI)(CI)(R)`, restores the ACL in a `t.Cleanup` that runs before
+  the TempDir is deleted, and asserts the walk continues and drops the
+  subtree rather than failing the whole call. A dangling-symlink test is
+  included for the `d.Info()` path; it skips where `os.Symlink` needs
+  SeCreateSymbolicLinkPrivilege, which is every non-admin Windows box.
+
+  The remaining seven uncovered blocks are all defensible now that they have
+  been examined rather than merely unexplained: `filepath.Abs` can only fail
+  on a base path the subsequent `os.Stat` would already reject; `filepath.Rel`
+  can only fail when the two paths are on different volumes, and both come
+  from the same `WalkDir` root; `d.Info` and `os.ReadFile` need a file to
+  vanish between two calls, which would make the test flaky by construction;
+  `WalkDir` returning an error needs a callback that returns a non-nil error,
+  which this callback never does; and both `globRegex` compile failures need
+  `ignore.translateGlob` to emit an invalid regex, which it provably cannot,
+  since it escapes every regex-special character. Each is now commented in
+  the source rather than left as a bare uncovered line.
 
 ## [0.1.1] - 2026-09-22
 

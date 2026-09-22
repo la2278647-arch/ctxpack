@@ -2,6 +2,7 @@ package walker
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -49,6 +50,75 @@ func TestWalkMalformedRootGitignore(t *testing.T) {
 	if _, err := Walk(dir, Options{RespectGitignore: true}); err == nil {
 		t.Fatal("expected the malformed root .gitignore to surface as an error")
 	}
+}
+
+// A symlink whose target does not exist makes d.Info() fail. The walker must
+// count it as skipped rather than reporting a broken result or a phantom file.
+// Skipped on Windows: os.Symlink needs SeCreateSymbolicLinkPrivilege, and a
+// directory junction is a real directory to WalkDir, so the error cannot be
+// produced there.
+func TestWalkSkipsABrokenSymlink(t *testing.T) {
+	dir := t.TempDir()
+	link := filepath.Join(dir, "missing-link")
+	if err := os.Symlink(filepath.Join(dir, "no-such-target"), link); err != nil {
+		t.Skip("cannot create symlinks here (" + err.Error() + "), skipping")
+	}
+	mustWrite(t, filepath.Join(dir, "real.txt"), []byte("ok\n"))
+
+	res, err := Walk(dir, Options{RespectGitignore: false, ReadContent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := names(res)
+	if len(got) != 1 || got[0] != "real.txt" {
+		t.Fatalf("files = %v, want [real.txt]", got)
+	}
+	if res.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1 for the broken symlink", res.Skipped)
+	}
+}
+
+// A subdirectory whose ACL denies read makes WalkDir hand the walker a
+// non-nil error for that entry. The walk must continue and drop the subtree,
+// not fail the whole call. icacls is required, and the ACL is restored before
+// the TempDir is deleted.
+func TestWalkToleratesAnUnreadableSubtree(t *testing.T) {
+	if _, err := exec.LookPath("icacls"); err != nil {
+		t.Skip("icacls unavailable")
+	}
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "locked")
+	mustWrite(t, filepath.Join(sub, "hidden.txt"), []byte("secret\n"))
+	mustWrite(t, filepath.Join(dir, "open.txt"), []byte("ok\n"))
+
+	if err := exec.Command("icacls", sub, "/deny", "Everyone:(OI)(CI)(R)").Run(); err != nil {
+		t.Skip("could not deny read on a subdirectory")
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("icacls", sub, "/remove", "Everyone").Run()
+		_ = exec.Command("icacls", sub, "/grant", "Everyone:(OI)(CI)(RX)").Run()
+	})
+
+	res, err := Walk(dir, Options{RespectGitignore: false, ReadContent: true})
+	if err != nil {
+		t.Fatalf("Walk errored on an unreadable subtree: %v", err)
+	}
+	got := names(res)
+	if !has(got, "open.txt") {
+		t.Errorf("the readable file was lost: %v", got)
+	}
+	if has(got, "locked/hidden.txt") {
+		t.Errorf("the unreadable subtree leaked into the result: %v", got)
+	}
+}
+
+func has(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Size and content gating ---
@@ -189,13 +259,17 @@ func TestWalkHiddenStillExcludedWhenIncluded(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, ".env"), []byte("SECRET=1\n"))
 	mustWrite(t, filepath.Join(dir, "src"), nil)
 	mustWrite(t, filepath.Join(dir, "src", ".env"), []byte("SECRET=2\n"))
+	mustWrite(t, filepath.Join(dir, "src", "deep"), nil)
+	mustWrite(t, filepath.Join(dir, "src", "deep", ".config"), []byte("x\n"))
 
-	res, err := Walk(dir, Options{Include: []string{".env"}, ReadContent: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res.Files) != 0 {
-		t.Fatalf("files = %v, want none", names(res))
+	for _, glob := range []string{".env", "*.env", "**/.env", "**/*.env", "**/.config"} {
+		res, err := Walk(dir, Options{Include: []string{glob}, ReadContent: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Files) != 0 {
+			t.Fatalf("Include %q leaked hidden files: %v", glob, names(res))
+		}
 	}
 }
 
