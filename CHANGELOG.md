@@ -145,6 +145,50 @@ to follow [Semantic Versioning](https://semver.org/).
   is required by the XML specification and applies to every parser — markdown,
   JSON and text do preserve CRLF.)
 
+- **`--format json` did not produce JSON.** `pack --model` and `diff` always
+  prepended an HTML comment, so every JSON bundle started with `<!-- fit: ... -->`
+  or `<!-- ctxpack diff vs ... -->` and failed to parse. The fit note and the
+  diff header are still printed — to stderr, where a program consumer does not
+  read them — and the file now parses as JSON. XML, Markdown and text keep the
+  leading comment, which is the natural carrier for those formats.
+
+- **`--max-size` was documented as "skip".** The help text, the four flag
+  registration strings and the README all said "Skip files larger than N
+  bytes". The walker does not skip them: a file over the limit is still listed
+  with its real size and a token estimate from its name, it is simply never
+  read. A user capping a scan at 100 KB therefore still saw every large file
+  counted in the total. All six texts now say "read no more than N bytes of a
+  file (larger files stay listed, without content)", matching the walker's
+  documented contract.
+
+- **`ctxpack mcp` could not be tested.** `cmdMCP` hard-coded `os.Stdin` and
+  `os.Stdout`, so the only way to reach the `mcp` dispatch was to drive a live
+  JSON-RPC loop over the process's real standard streams. `cmdMCP` now takes
+  `io.Reader`/`io.Writer`, and `Run` reaches it through a `runMCP` hook, so the
+  stdio handshake is exercised with pipes and no global state.
+
+### Testing
+
+- **The CLI test suite went from 57.5% to 99.1%.** `internal/cli/cli_test.go`
+  exercised the pure helpers (`reorderArgs`, `parseFormat`, `humanTokens`,
+  `humanBytes`, `annotateFit`, the env lookups) but never once ran `map`,
+  `tokens` or the `mcp` server — all three were at 0% — and `diff` at 44.7%,
+  because a test git repository had never been created in the suite.
+  `internal/cli/cli_more_test.go` adds 34 tests: stdout/stderr are captured
+  through `os.Pipe` with a restoring `t.Cleanup`, `cmdMap` and `cmdTokens`
+  are asserted on their rendered output (tree contents, the `Per-model fit`
+  block, exactly 19 model rows, both `fits` and `OVERFLOW` marks in one run),
+  a real git repository is created with `git init`/`add`/`commit` for the
+  `diff` paths (happy path, `--ref HEAD~1`, no changes, outside a repo, an
+  unresolvable ref, a bad format, a bad output path, and a model annotation),
+  and the MCP server is driven over a pipe with a real `initialize` request
+  plus an immediate EOF and a read failure. Two new `json.Valid` assertions
+  guard the regression above on both `pack` and `diff`.
+
+  The two remaining uncovered lines are `cmdDiff`'s `packer.Pack` error
+  branch, which needs a directory that `git rev-parse` accepts and
+  `os.ReadDir` refuses — not something a test can produce reliably.
+
 ## [0.1.1] - 2026-09-22
 
 Bug-fix release. Nothing new to write — eleven things that were plainly

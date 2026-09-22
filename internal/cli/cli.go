@@ -47,7 +47,7 @@ func Run(args []string) int {
 	case "models":
 		return cmdModels(args[1:])
 	case "mcp":
-		return cmdMCP(args[1:])
+		return runMCP(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ctxpack: unknown command %q\n\n", args[0])
 		printHelp(os.Stderr)
@@ -75,7 +75,7 @@ FLAGS (pack)
   --format F           xml|markdown|json|text (default xml)
   --include GLOB       Only include paths matching GLOB (repeatable; basename ok)
   --exclude GLOB       Exclude paths matching GLOB (repeatable)
-  --max-size BYTES     Skip files larger than BYTES (e.g. 100000). 0 = unlimited
+  --max-size BYTES     Read no more than BYTES of a file (larger files stay listed, without content). 0 = unlimited
   --no-gitignore       Ignore .gitignore files (built-in defaults still apply)
   --hidden             Include dotfiles/dotdirs (.git always skipped)
   --budget N           Cap output to ~N tokens (priority-selects files)
@@ -116,7 +116,7 @@ func cmdPack(args []string) int {
 		fmtFlag  = fs.String("format", envStrDefault("CTXPACK_FORMAT", "xml"), "output format: xml|markdown|json|text")
 		includes stringList
 		excludes stringList
-		maxSize  = fs.Int64("max-size", 0, "skip files larger than N bytes")
+		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 		budget   = fs.Int("budget", envInt("CTXPACK_BUDGET"), "cap output to ~N tokens")
@@ -160,7 +160,14 @@ func cmdPack(args []string) int {
 	out := format.Render(bundle, outFmt)
 	header := ""
 	if *model != "" {
-		header = annotateFit(bundle.TotalTokens, *model) + "\n"
+		note := annotateFit(bundle.TotalTokens, *model)
+		if outFmt == format.JSON {
+			// An HTML comment in front of a JSON document makes the file fail
+			// to parse, so the note goes to stderr instead of the output.
+			fmt.Fprintln(os.Stderr, note)
+		} else {
+			header = note + "\n"
+		}
 	}
 	if err := writeOutput(*output, header+out); err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -189,7 +196,7 @@ func cmdDiff(args []string) int {
 		fmtFlag  = fs.String("format", "xml", "output format")
 		includes stringList
 		excludes stringList
-		maxSize  = fs.Int64("max-size", 0, "skip files larger than N bytes")
+		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 		ref      = fs.String("ref", "WORKTREE", "base git ref")
@@ -245,9 +252,20 @@ func cmdDiff(args []string) int {
 		return 1
 	}
 	out := format.Render(bundle, outFmt)
-	header := fmt.Sprintf("<!-- ctxpack diff vs %q: %d files -->\n", *ref, len(changed))
-	if *model != "" {
-		header += annotateFit(bundle.TotalTokens, *model) + "\n"
+	// A JSON bundle must parse as JSON, so the diff header (and the fit note)
+	// cannot be prepended as an HTML comment. For other formats the comment is
+	// the natural carrier.
+	header := ""
+	if outFmt != format.JSON {
+		header = fmt.Sprintf("<!-- ctxpack diff vs %q: %d files -->\n", *ref, len(changed))
+		if *model != "" {
+			header += annotateFit(bundle.TotalTokens, *model) + "\n"
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "ctxpack diff vs %q: %d files\n", *ref, len(changed))
+		if *model != "" {
+			fmt.Fprintln(os.Stderr, annotateFit(bundle.TotalTokens, *model))
+		}
 	}
 	if err := writeOutput(*output, header+out); err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -264,7 +282,7 @@ func cmdMap(args []string) int {
 	var (
 		includes stringList
 		excludes stringList
-		maxSize  = fs.Int64("max-size", 0, "skip files larger than N bytes")
+		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 	)
@@ -302,7 +320,7 @@ func cmdTokens(args []string) int {
 	var (
 		includes stringList
 		excludes stringList
-		maxSize  = fs.Int64("max-size", 0, "skip files larger than N bytes")
+		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 	)
@@ -360,13 +378,19 @@ func cmdModels(args []string) int {
 
 // --- mcp ---
 
-func cmdMCP(args []string) int {
+// runMCP runs the Model Context Protocol server on stdio. It is a variable so
+// tests can observe that "ctxpack mcp" dispatches without having to drive a
+// live JSON-RPC loop over os.Stdin.
+var runMCP = func(args []string) int { return cmdMCP(args, os.Stdin, os.Stdout) }
+
+// cmdMCP parses the mcp subcommand and serves on the given streams.
+func cmdMCP(args []string, in io.Reader, out io.Writer) int {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
-	if err := mcp.Serve(os.Stdin, os.Stdout, version.Version); err != nil {
+	if err := mcp.Serve(in, out, version.Version); err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack mcp:", err)
 		return 1
 	}

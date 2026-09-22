@@ -159,7 +159,7 @@ Run `ctxpack <command> --help` for details.
 | `--format F` | `xml` (default), `markdown`, `json`, `text` |
 | `--include GLOB` | Restrict to matching paths. Repeatable; basename globs like `*.go` work. |
 | `--exclude GLOB` | Drop matching paths. Repeatable. |
-| `--max-size N` | Skip files larger than N bytes. `0` = unlimited. |
+| `--max-size N` | Read no more than N bytes of a file. Larger files are still listed — without content — so the pack shows the name but not the body. `0` = unlimited. |
 | `--no-gitignore` | Ignore `.gitignore` (the built-in denylist still applies). |
 | `--hidden` | Include dotfiles. `.git`/`.hg`/`.svn` are always skipped. |
 | `--budget N` | Cap output to ~N tokens; selects by priority. |
