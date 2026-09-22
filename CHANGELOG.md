@@ -6,6 +6,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-22
+
+Bug-fix and hardening release. Three things that now report what they do,
+fourteen that were plainly wrong, and the tests that would have caught each of
+them. Statement coverage across the repository went from 82.0% to 97.5%, with
+`internal/mcp`, `internal/packer` and `internal/version` at 100%.
+
 ### Added
 
 - **The ignore matcher is pinned down.** `internal/ignore` went from 81.1%
