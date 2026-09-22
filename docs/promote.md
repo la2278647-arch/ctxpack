@@ -35,6 +35,10 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > ctxpack pack ./myrepo --format markdown --budget 8000
 > ```
 >
+> Other install paths: `brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`, Scoop on Windows, or `curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash`.
+>
+> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 33 files it omitted and why.
+>
 > The budget model is the interesting bit and also the bit I'd like feedback
 > on. Files are tiered: READMEs and licenses first, then entry points, then
 > interfaces, then docs, source, config, and tests last. The scale is
@@ -72,6 +76,8 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 > go install github.com/la2278647-arch/ctxpack@v0.1.2
 > ctxpack pack ./repo --format markdown --budget 8000
 > ```
+>
+> Also on Homebrew (`brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`) and Scoop. See it [run on itself](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) — an 8000-token budget-capped pack with the "what got cut" report.
 >
 > The whole thing is the Go standard library. No cobra, no viper, no jsoniter.
 > `go.sum` is empty and CI asserts that it stays that way.
