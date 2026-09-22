@@ -82,11 +82,19 @@ Pin build identity at release time:
 
 ```sh
 go build -ldflags "\
-  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.1 \
+  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.2 \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildCommit=$(git rev-parse --short HEAD) \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildDate=$(date -u +%Y-%m-%d)" \
   -o ctxpack .
 ```
+
+---
+
+## Examples
+
+See [examples/](examples/) for **ctxpack run on itself**: a token-aware tree
+map, and a budget-capped self-pack that shows exactly which files are kept and
+which are omitted — and why.
 
 ---
 
