@@ -210,11 +210,20 @@ reported as omitted.
 ### Token estimation
 
 Estimates use a tiktoken-style pre-tokenisation regex plus a calibrated
-per-chunk heuristic (≈3.5 bytes/token, floored at bytes/4). It targets **±15%**
-of real GPT-4o `o200k_base` tokenisation on mixed code and prose. That is good
-enough to answer "will this fit?" and to drive budget selection, but it is an
-estimate — treat the numbers as sizing, not billing. The estimator lives behind
-an interface so a real BPE tokenizer can be dropped in later.
+per-chunk heuristic. Each pre-token costs at least one token; longer chunks
+cost roughly 3.5 bytes per token, blended between prose (≈4 bytes/token) and
+symbol-heavy code (≈2.7). The result is floored at bytes/4, although with the
+current formula that floor never actually binds — the per-chunk sum is always
+at least bytes/3.5.
+
+Use it for sizing, not for accounting. Against `o200k_base` it over-reports:
+ASCII prose comes out around bytes/3 where GPT-4o sits nearer bytes/4, and
+chunk-dense code can be double the bytes/4 baseline. `EstimateSize`, used when
+a file was too large to read or `ReadContent` is off, applies bytes/4
+directly, so a repo map built without content reads lower than a pack of the
+same files — by up to a factor of two for code. Both numbers are estimates,
+and the error does not have a fixed sign. The estimator sits behind an
+interface, so a real BPE tokenizer can be dropped in later.
 
 ---
 

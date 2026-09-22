@@ -63,7 +63,9 @@ give it. Reasonable security concerns include:
   architecture decision; ctxpack does not contact any model itself.
 - Running ctxpack with `--hidden` on a directory containing `.env` and then
   forwarding the output somewhere. The flag is documented to do exactly that.
-- Estimate inaccuracy. Token counts are documented as ±15% estimates.
+- Estimate inaccuracy. Token counts are heuristic estimates, over-reporting
+  real tokenization by roughly 1.5x to 2x depending on the text. A caller
+  that budgets strictly from these numbers may pack less than it could.
 - Anything in a fork.
 
 ## Design notes relevant to security

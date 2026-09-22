@@ -8,6 +8,29 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The estimator is pinned down.** `internal/counter` went from 74.4% to
+  95.3% coverage. New tests pin the pre-tokenization contract (contractions
+  split as `don` + `'t`, digits cap at three per chunk, a leading space is
+  absorbed by the following class, whitespace and punctuation runs collapse
+  into single chunks, non-ASCII letters stay letters, emoji are symbols), the
+  `EstimateSize`/`EstimateBytes` tables, the model registry, and the
+  `FitsModel` boundary. The two remaining uncovered lines are the `est < 1`
+  clamp and the bytes/4 floor, both provably unreachable: no alternative in
+  the pattern matches the empty string, so `n` is always at least 1, and the
+  per-chunk sum is always at least bytes/3.5. `TestEstimateNeverYieldsEmptyChunks`
+  and `TestEstimateFloorDoesNotBind` assert that, so a formula change that
+  would make either guard start firing fails loudly. Both stay in place as
+  insurance against exactly that.
+
+  The same test surfaced the honest gap in `EstimateSize`: the estimate from
+  content runs at roughly one token per pre-token, so chunk-dense code lands
+  at 170–210% of the bytes/4 the size heuristic uses (11 tokens for
+  `func Foo() int {\n\treturn 0\n}\n` against 7), while ASCII prose sits about
+  33% higher. A repo map built with `ReadContent:false` therefore under-reports
+  the same files the pack reports with content, by up to a factor of two. It
+  stays at "the same magnitude" as documented, and `TestEstimateSizeMirrorsEstimate`
+  now records the measured ratios so the skew cannot drift further unnoticed.
+
 - **The budget reports what it cut.** `format.Bundle` gained `Omitted` (paths)
   and `OmittedTokens`, both `omitempty`, so an unlimited pack keeps its exact
   shape. XML renders an `<omitted count="…" tokens="…">` element after
@@ -23,6 +46,30 @@ to follow [Semantic Versioning](https://semver.org/).
   10. They are implemented now, and the README's tier table gained the scores.
 
 ### Fixed
+
+- **`--model ""` matched `gpt-3.5-turbo`.** `LookupModel` fell back to a
+  bidirectional prefix match, and `strings.HasPrefix(name, "")` is true for
+  every registered model, so an unset or empty value resolved to whatever came
+  first in the registry — `gpt-3.5-turbo`'s 16,385-token window, the smallest
+  on the list. `ctxpack pack --model ""` printed a fit line against the wrong
+  model, and an MCP client that passed an empty string got silently mis-sized.
+  An empty query now matches nothing.
+
+- **`EstimateSize` returned a negative token count for a negative size.** With
+  `n` negative, `(n+3)/4` rounds toward zero and produced `-1` for `-8` and
+  worse below that, which would have driven a bundle's totals backwards. Sizes
+  are now clamped at zero.
+
+- **The "±15%" accuracy claim was not earned.** The README and the
+  `counter` package doc both promised ±15% of real `o200k_base` tokenization,
+  which had never been measured against a real tokenizer — the tool ships
+  offline by design, so there was nothing to measure it against. Measured
+  ratios against the bytes/4 baseline are 133% for ASCII prose and 170–210%
+  for chunk-dense code, with `TestEstimateSizeMirrorsEstimate` recording them
+  so they cannot drift unnoticed. Both documents now describe the heuristic
+  and the measured skew instead of asserting an unverified precision.
+  `SECURITY.md` was updated the same way. The [0.1.0] entry above is left as
+  it stood at release time.
 
 - **`--budget` ranked every test as source code.** After reordering the
   priority ladder, the `_test.go`/`.test.js`/`.spec.ts`/`.test.ts` case was

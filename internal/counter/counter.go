@@ -3,10 +3,12 @@
 //
 // It deliberately avoids a heavyweight BPE encoder and any runtime data
 // download, so the binary is fully self-contained and works offline. The
-// estimate targets ±15% of real GPT-4o/o200k tokenization for mixed
-// code+prose, which is accurate enough to answer "will this fit?" and to drive
-// budget-aware packing. The counter is behind an interface so a precise
-// tokenizer can be substituted later without touching callers.
+// estimate over-reports real GPT-4o/o200k tokenization by a factor that
+// depends on the text — around 2x for chunk-dense code, 1.5x for prose — so
+// it is a sizing number, not a billing one. That is accurate enough to answer
+// "will this fit?" and to drive budget-aware packing, and the counter is
+// behind an interface so a precise tokenizer can be substituted later without
+// touching callers.
 package counter
 
 import (
@@ -69,13 +71,18 @@ func (d *Default) Estimate(text string) Estimate {
 		// ~4 chars/token for prose and ~2.7 chars/token for symbol-heavy code.
 		// A blended 3.5 divisor calibrated against mixed repos performs best.
 		n := len(c)
-		est := (n*10 + 34) / 35 // ≈ n/3.5, rounded, ≥1 for n>0
+		est := (n*10 + 34) / 35 // ≈ n/3.5, rounded
+		// Insurance, not a live path: no alternative in the pattern matches the
+		// empty string, so n is always ≥ 1 and the division above is always ≥ 1.
+		// See TestEstimateNeverYieldsEmptyChunks.
 		if est < 1 {
 			est = 1
 		}
 		tokens += est
 	}
 	// Floor at the naive bytes/4 so we never wildly under-report huge files.
+	// Insurance against a future change to the formula above, which today always
+	// sums to at least bytes/3.5: see TestEstimateFloorDoesNotBind.
 	if floor := (bytes + 3) / 4; tokens < floor {
 		tokens = floor
 	}
@@ -94,6 +101,12 @@ func (d *Default) EstimateBytes(b []byte) Estimate {
 // built without reading content reports the same magnitude one built with it.
 func (d *Default) EstimateSize(bytes int64) Estimate {
 	n := int(bytes)
+	if n < 0 {
+		// A negative size is caller error, not a signal. Without the clamp the
+		// (n+3)/4 division would round toward zero and hand back a negative
+		// token count, which would make a bundle's totals go backwards.
+		n = 0
+	}
 	return Estimate{Tokens: (n + 3) / 4, Chars: n, Bytes: n}
 }
 
@@ -120,8 +133,14 @@ var models = []Model{
 	{"qwen2.5", 128000, "alibaba"},
 }
 
-// LookupModel finds a model by exact or prefix match (case-insensitive).
+// LookupModel finds a model by exact or prefix match (case-insensitive). An
+// empty query matches nothing: with an empty q, HasPrefix(m.Name, "") is true
+// for every registered model, so the lookup used to return the first one
+// whenever a caller passed an unset value.
 func LookupModel(name string) (Model, bool) {
+	if name == "" {
+		return Model{}, false
+	}
 	q := strings.ToLower(name)
 	// Exact match first.
 	for _, m := range models {
