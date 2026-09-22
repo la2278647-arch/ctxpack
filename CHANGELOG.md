@@ -6,7 +6,25 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Nothing to report yet.
+### Added
+
+- **A Dockerfile.**
+  Multi-stage build: `golang:1.21-alpine` compiles a static binary with
+  `CGO_ENABLED=0` and `-trimpath`, `alpine:latest` ships it. Three build args
+  (`VERSION`, `COMMIT`, `DATE`) stamp the version identity the same way the
+  Makefile does. The entrypoint is the binary itself, so any arguments become
+  `ctxpack` arguments. The README gains a Docker install section.
+
+- **`--quiet`/`-q` for `pack` and `diff`.**
+  `pack`: suppresses the "wrote X — N files, ~M tokens" stderr message when
+  `--output` is set, and the JSON fit annotation that would otherwise go to
+  stderr. `diff`: suppresses the JSON-mode stderr status lines. Scripts that
+  capture stderr for diagnostics no longer need to grep around the status line.
+
+- **`--model NAME` for `tokens`.**
+  Show the fit for one model instead of all 19. An unknown model name exits 2
+  with a stderr message before any output is written. JSON output filters the
+  `fits` array to the single entry.
 
 ## [0.1.4] - 2026-09-22
 

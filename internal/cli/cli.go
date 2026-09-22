@@ -92,6 +92,7 @@ FLAGS (diff)
 
 FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
+  --model NAME          (tokens only) Show fit for one model instead of all
   --json               Emit JSON instead of the text output, for scripting
 
 EXAMPLES
@@ -351,6 +352,7 @@ func cmdTokens(args []string) int {
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
+		model    = fs.String("model", "", "show fit for one model only")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -374,20 +376,30 @@ func cmdTokens(args []string) int {
 		return 1
 	}
 	if *jsonOut {
+		fits := tokenFits(tokens)
+		if *model != "" {
+			fits = filterFits(fits, *model)
+		}
 		return writeEnvelope(os.Stdout, tokensEnvelope{
 			Path:          root.Name,
 			TotalTokens:   tokens,
 			TotalBytes:    bytes,
 			ReserveTokens: fitReserve,
-			Fits:          tokenFits(tokens),
+			Fits:          fits,
 		})
+	}
+	if *model != "" {
+		if _, ok := counter.LookupModel(*model); !ok {
+			fmt.Fprintln(os.Stderr, "ctxpack: unknown model", *model)
+			return 2
+		}
 	}
 	fmt.Printf("Path:       %s\n", root.Name)
 	fmt.Printf("Tokens:     ~%d\n", tokens)
 	fmt.Printf("Bytes:      %s\n", humanBytes(bytes))
 	fmt.Println()
-	fmt.Println("Per-model fit (est. tokens / context window):")
-	for _, m := range counter.Models() {
+	if *model != "" {
+		m, _ := counter.LookupModel(*model)
 		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
 		mark := "fits"
 		if !fit.Fits {
@@ -395,6 +407,17 @@ func cmdTokens(args []string) int {
 		}
 		fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
 			humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed)
+	} else {
+		fmt.Println("Per-model fit (est. tokens / context window):")
+		for _, m := range counter.Models() {
+			fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
+			mark := "fits"
+			if !fit.Fits {
+				mark = "OVERFLOW"
+			}
+			fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
+				humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed)
+		}
 	}
 	return 0
 }
@@ -622,6 +645,18 @@ func tokenFits(tokens int) []fitEntry {
 			Fits:    f.Fits,
 			PctUsed: round2(f.PctUsed),
 		})
+	}
+	return out
+}
+
+// filterFits returns only the entries whose model name matches. An unknown
+// name yields an empty slice so the JSON envelope stays well-formed.
+func filterFits(fits []fitEntry, name string) []fitEntry {
+	out := make([]fitEntry, 0, 1)
+	for _, f := range fits {
+		if f.Model == name {
+			out = append(out, f)
+		}
 	}
 	return out
 }

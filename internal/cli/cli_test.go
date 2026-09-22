@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"path/filepath"
@@ -428,5 +429,75 @@ func TestPackQuietShortFlag(t *testing.T) {
 	}
 	if got := errCap.Content(); got != "" {
 		t.Errorf("with -q, stderr should be empty, got %d bytes:\n%s", len(got), got)
+	}
+}
+
+// --- tokens --model ---
+
+func TestTokensModelShowsOneModel(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--model", "gpt-4o"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "gpt-4o") {
+		t.Errorf("output missing gpt-4o:\n%s", out)
+	}
+	if strings.Contains(out, "Per-model fit") {
+		t.Errorf("with --model, the 'Per-model fit' header should be omitted:\n%s", out)
+	}
+	// Count model lines: there should be exactly one.
+	lines := strings.Split(out, "\n")
+	count := 0
+	for _, l := range lines {
+		if strings.HasPrefix(strings.TrimSpace(l), "[") {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 1 model line with --model, got %d:\n%s", count, out)
+	}
+}
+
+func TestTokensModelUnknownFails(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	errCap := captureStderr(t)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--model", "not-a-real-model"})
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 for unknown model", code)
+	}
+	if !strings.Contains(errCap.Content(), "unknown model") {
+		t.Errorf("stderr missing 'unknown model':\n%s", errCap.Content())
+	}
+	if c.Content() != "" {
+		t.Errorf("stdout should be empty on failure:\n%s", c.Content())
+	}
+}
+
+func TestTokensModelJSONFilters(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--json", "--model", "gpt-4o"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v\n%s", err, c.Content())
+	}
+	if len(env.Fits) != 1 {
+		t.Fatalf("expected 1 fit entry with --model, got %d", len(env.Fits))
+	}
+	if env.Fits[0].Model != "gpt-4o" {
+		t.Errorf("fit model = %q, want gpt-4o", env.Fits[0].Model)
 	}
 }

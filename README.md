@@ -172,6 +172,12 @@ Per-model fit (est. tokens / context window):
   [OVERFLOW] gpt-3.5-turbo        31.8k / 12.3k (258%)
 ```
 
+`--model gpt-4o` shows just that model's line:
+
+```
+  [FITS] gpt-4o  31.8k / 123.9k (26%)
+```
+
 ### `map` — where is the budget going?
 
 ```
