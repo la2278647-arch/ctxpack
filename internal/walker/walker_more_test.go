@@ -112,6 +112,52 @@ func TestWalkToleratesAnUnreadableSubtree(t *testing.T) {
 	}
 }
 
+// A file whose ACL denies read can still be stat'ed, so d.Info() succeeds and
+// os.ReadFile is the call that fails. The walker must skip the entry rather
+// than fail the walk, and must not lose the files around it. Unlike the
+// unreadable-subtree case above, this is a per-file deny with no (OI)(CI), so
+// enumeration of the parent directory is unaffected.
+func TestWalkSkipsAFileItCannotRead(t *testing.T) {
+	if _, err := exec.LookPath("icacls"); err != nil {
+		t.Skip("icacls unavailable")
+	}
+	dir := t.TempDir()
+	blocked := filepath.Join(dir, "blocked.txt")
+	mustWrite(t, blocked, []byte("secret\n"))
+	mustWrite(t, filepath.Join(dir, "open.txt"), []byte("ok\n"))
+
+	if err := exec.Command("icacls", blocked, "/deny", "Everyone:(R)").Run(); err != nil {
+		t.Skip("could not deny read on a file")
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("icacls", blocked, "/remove", "Everyone").Run()
+	})
+
+	// Proving the premise: stat succeeds and read fails. Without that the
+	// test would skip silently while covering nothing.
+	if _, err := os.Stat(blocked); err != nil {
+		t.Skipf("cannot stat %s, so the branch is unreachable here: %v", blocked, err)
+	}
+	if _, err := os.ReadFile(blocked); err == nil {
+		t.Skip("the deny was not applied: read succeeded, so the branch is unreachable")
+	}
+
+	res, err := Walk(dir, Options{RespectGitignore: false, ReadContent: true})
+	if err != nil {
+		t.Fatalf("Walk errored on an unreadable file: %v", err)
+	}
+	got := names(res)
+	if !has(got, "open.txt") {
+		t.Errorf("the readable file was lost: %v", got)
+	}
+	if has(got, "blocked.txt") {
+		t.Errorf("an unreadable file leaked into the result: %v", got)
+	}
+	if res.Skipped == 0 {
+		t.Error("the unreadable file was not counted as skipped")
+	}
+}
+
 func has(list []string, want string) bool {
 	for _, v := range list {
 		if v == want {

@@ -36,6 +36,46 @@ to follow [Semantic Versioning](https://semver.org/).
   from 97.5% to 97.9%. Five packages are now at 100%: `cli`, `counter`, `mcp`,
   `packer`, `version`.
 
+- **Three more branches claimed as unreachable turned out to have real triggers.**
+  `gitutil` was reported at 95.4% with its two `git` error branches listed as
+  untestable. Both are reachable from the working tree:
+
+  - A **corrupt index** makes `git status --porcelain` fail with exit 128 while
+    `git rev-parse --git-dir` still succeeds — which is precisely the split that
+    makes `ChangedFiles` distinguish "not a repository" from "repository in a
+    bad state". Verified before writing the test: the error is `fatal: index
+    file corrupt`, and `rev-parse` returns `.git` normally. `TestChangedFilesReportsAStatusError`
+    writes garbage over `.git/index` and asserts the error is not
+    `ErrNotARepo`, then re-runs `rev-parse` inside the test to prove the premise
+    that makes the branch reachable.
+  - An **unresolvable ref** fails `git diff --name-status`, covered by
+    `TestChangedFilesReportsADiffError`.
+
+  `TestUnquoteReturnsMalformedPathsUnchanged` covers the third gap: a path that
+  starts with `"` but is not a valid Go literal must come back unchanged rather
+  than truncated.
+
+  Walker's `os.ReadFile` failure branch had the same story. The existing test
+  reached the unreadable-*subtree* case by denying read on a directory, which
+  makes `WalkDir` hand back an error. A per-file deny with no `(OI)(CI)` leaves
+  enumeration untouched: `os.Stat` on the file still succeeds, so `d.Info()`
+  passes, and `os.ReadFile` is the call that fails. `TestWalkSkipsAFileItCannotRead`
+  uses `icacls file /deny Everyone:(R)`, then verifies the premise inside the
+  test — stat succeeds, read fails — before walking, so it skips loudly rather
+  than silently covering nothing on a box where the deny is not enforced.
+
+  `internal/gitutil` reaches 100.0% and `internal/walker` goes from 92.7% to
+  94.4%. Six packages are now at 100% and the repository total is 98.5%.
+
+  Walker's remaining six blocks are left alone this time. Two need a file to
+  vanish between `ReadDir` and `Info` or between `Info` and `ReadFile` — a race,
+  not a condition. `filepath.Abs` needs the process cwd deleted mid-call.
+  `filepath.Rel` needs two paths on different volumes, which one `WalkDir` root
+  cannot produce. `WalkDir` itself returns a non-nil error only if the callback
+  returns one, and this callback returns `nil` or `SkipDir`. The two `globRegex`
+  failures need `ignore.translateGlob` to emit a regex it cannot compile, which
+  it provably cannot because it escapes every regex-special character.
+
 ## [0.1.2] - 2026-09-22
 
 Bug-fix and hardening release. Three things that now report what they do,

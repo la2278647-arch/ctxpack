@@ -192,6 +192,64 @@ func TestChangedFilesNotARepo(t *testing.T) {
 	}
 }
 
+// A corrupt index makes `git status` fail while `git rev-parse --git-dir`
+// still succeeds, so this is a repository-level failure, not the
+// "not a repository" one. The error must surface rather than be swallowed.
+func TestChangedFilesReportsAStatusError(t *testing.T) {
+	dir := newRepo(t)
+	put(t, dir, "a.go", "package a\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+
+	idx := filepath.Join(dir, ".git", "index")
+	if err := os.WriteFile(idx, []byte("this is not a git index file\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ChangedFiles(dir, "")
+	if err == nil {
+		t.Fatal("wanted an error for a corrupt index")
+	}
+	if err == ErrNotARepo {
+		t.Errorf("a corrupt index is a repository error, not %q", ErrNotARepo)
+	}
+	if _, gerr := git(dir, "rev-parse", "--git-dir"); gerr != nil {
+		t.Fatalf("rev-parse must still succeed, which is what makes the branch reachable: %v", gerr)
+	}
+}
+
+// An unresolvable ref fails `git diff`, which is again neither "not a repo"
+// nor an empty change set.
+func TestChangedFilesReportsADiffError(t *testing.T) {
+	dir := newRepo(t)
+	put(t, dir, "a.go", "package a\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+
+	_, err := ChangedFiles(dir, "ref-that-does-not-exist")
+	if err == nil {
+		t.Fatal("wanted an error for an unresolvable ref")
+	}
+	if err == ErrNotARepo {
+		t.Errorf("an unresolvable ref is a diff error, not %q", ErrNotARepo)
+	}
+}
+
+// unquote's fallback is for paths that start with a quote but are not valid
+// Go string literals. They must come back unchanged rather than truncated.
+func TestUnquoteReturnsMalformedPathsUnchanged(t *testing.T) {
+	for _, p := range []string{
+		`"unclosed`, // no closing quote
+		`"\q"`,      // \q is not a valid escape sequence
+		`"\8"`,      // 8 is not an octal digit
+		`"a"b"c"`,   // trailing junk
+	} {
+		if got := unquote(p); got != p {
+			t.Errorf("unquote(%q) = %q, want it unchanged", p, got)
+		}
+	}
+}
+
 func find(files []string, want string) (string, bool) {
 	for _, f := range files {
 		if f == want {
