@@ -620,3 +620,36 @@ func TestMapSortByBytes(t *testing.T) {
 		t.Errorf("output missing Repository header with --sort bytes:\n%s", out)
 	}
 }
+
+// --- map --depth ---
+
+func TestMapDepthLimitsTraversal(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	// With --depth 0 (unlimited), we should see all files.
+	code := cmdMap([]string{src, "--depth", "0"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing Repository header with --depth 0:\n%s", out)
+	}
+}
+
+func TestMapDepthPositive(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--depth", "1"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing Repository header with --depth 1:\n%s", out)
+	}
+}

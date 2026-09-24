@@ -41,6 +41,10 @@ type Options struct {
 	// ReadContent controls whether FileEntry.Content is populated. When false,
 	// only metadata (path, size, binary) is collected — used by the repo map.
 	ReadContent bool
+	// MaxDepth limits how deep the walk goes below root. Depth 0 means only
+	// files directly in root; depth 1 means one subdirectory, etc. <=0 means
+	// unlimited. Directories at or below the limit are skipped entirely.
+	MaxDepth int
 }
 
 // FileEntry describes one collected file.
@@ -119,6 +123,11 @@ func Walk(root string, opts Options) (*Result, error) {
 		}
 
 		if d.IsDir() {
+			// Depth limit: skip directories at or below MaxDepth. The root
+			// itself is depth 0; a directory at depth 1 is one level below.
+			if opts.MaxDepth > 0 && strings.Count(rel, "/") >= opts.MaxDepth && rel != "." {
+				return filepath.SkipDir
+			}
 			// Load nested .gitignore.
 			if opts.RespectGitignore {
 				gi := filepath.Join(path, ".gitignore")

@@ -92,6 +92,7 @@ FLAGS (diff)
 
 FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
+  --depth N           Limit traversal to N levels below root (0 = unlimited)
   --sort BY           (map only) Sort children by: name (default), tokens, bytes
   --model NAME        (tokens only) Show fit for one model instead of all
   --vendor NAME       (models only) Show only models from this vendor
@@ -130,6 +131,7 @@ func cmdPack(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		budget   = fs.Int("budget", envInt("CTXPACK_BUDGET"), "cap output to ~N tokens")
 		model    = fs.String("model", os.Getenv("CTXPACK_MODEL"), "annotate fit for a model")
 		output   = fs.String("output", "", "write to FILE (default stdout)")
@@ -159,6 +161,7 @@ func cmdPack(args []string) int {
 			Include:          []string(includes),
 			Exclude:          []string(excludes),
 			MaxFileSize:      *maxSize,
+			MaxDepth:         *depth,
 			RespectGitignore: !*noGit,
 			IncludeHidden:    *hidden,
 			ReadContent:      true,
@@ -221,6 +224,7 @@ func cmdDiff(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		ref      = fs.String("ref", "WORKTREE", "base git ref")
 		budget   = fs.Int("budget", 0, "cap output to ~N tokens")
 		model    = fs.String("model", "", "annotate fit for a model")
@@ -264,6 +268,7 @@ func cmdDiff(args []string) int {
 			Include:          []string(includes),
 			Exclude:          []string(excludes),
 			MaxFileSize:      *maxSize,
+			MaxDepth:         *depth,
 			RespectGitignore: !*noGit,
 			IncludeHidden:    *hidden,
 			ReadContent:      true,
@@ -309,6 +314,7 @@ func cmdMap(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		jsonOut  = fs.Bool("json", false, "print the tree as JSON instead of the text outline")
 		sortBy   = fs.String("sort", "name", "sort children by: name, tokens, bytes")
 	)
@@ -326,6 +332,7 @@ func cmdMap(args []string) int {
 			Include:          []string(includes),
 			Exclude:          []string(excludes),
 			MaxFileSize:      *maxSize,
+			MaxDepth:         *depth,
 			RespectGitignore: !*noGit,
 			IncludeHidden:    *hidden,
 			ReadContent:      true,
@@ -357,6 +364,7 @@ func cmdTokens(args []string) int {
 		maxSize  = fs.Int64("max-size", 0, "read no more than N bytes of a file (larger files are still listed)")
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
+		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
 		model    = fs.String("model", "", "show fit for one model only")
 	)
@@ -374,6 +382,7 @@ func cmdTokens(args []string) int {
 			Include:          []string(includes),
 			Exclude:          []string(excludes),
 			MaxFileSize:      *maxSize,
+			MaxDepth:         *depth,
 			RespectGitignore: !*noGit,
 			IncludeHidden:    *hidden,
 			ReadContent:      true,

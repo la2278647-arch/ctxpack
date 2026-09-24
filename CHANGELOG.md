@@ -38,6 +38,12 @@ to follow [Semantic Versioning](https://semver.org/).
   now takes an `Options` struct carrying `Walker` and `SortBy`; the MCP
   `repo_map` tool gains a `sort` parameter.
 
+- **`--depth N` for `pack`, `map`, `tokens`, and `diff`.**
+  Limit traversal to N levels below root. `0` = unlimited (default).
+  Directories at or below the limit are skipped entirely. `MaxDepth` is a new
+  `walker.Options` field; the MCP `pack_repo` and `repo_map` tools gain a
+  `max_depth` parameter.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

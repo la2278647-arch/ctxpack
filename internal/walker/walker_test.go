@@ -109,3 +109,46 @@ func equal(a, b []string) bool {
 	}
 	return true
 }
+
+func TestWalkMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	// Files at various depths.
+	mustWrite(t, filepath.Join(dir, "root.go"), []byte("package main\n"))
+	mustWrite(t, filepath.Join(dir, "sub"), nil)
+	mustWrite(t, filepath.Join(dir, "sub", "a.go"), []byte("package sub\n"))
+	mustWrite(t, filepath.Join(dir, "sub", "deep"), nil)
+	mustWrite(t, filepath.Join(dir, "sub", "deep", "b.go"), []byte("package deep\n"))
+
+	// MaxDepth 1: skip directories at depth >= 1 (i.e. sub/deep is skipped).
+	res, err := Walk(dir, Options{MaxDepth: 1, ReadContent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range res.Files {
+		got = append(got, f.RelPath)
+	}
+	sort.Strings(got)
+	want := []string{"root.go", "sub/a.go"}
+	if !equal(got, want) {
+		t.Errorf("MaxDepth 1: got %v, want %v", got, want)
+	}
+
+	// MaxDepth 2: all directories visited, all files included.
+	res, err = Walk(dir, Options{MaxDepth: 2, ReadContent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 3 {
+		t.Errorf("MaxDepth 2: got %d files, want 3", len(res.Files))
+	}
+
+	// MaxDepth 0: unlimited (default), all files included.
+	res, err = Walk(dir, Options{MaxDepth: 0, ReadContent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 3 {
+		t.Errorf("MaxDepth 0 (unlimited): got %d files, want 3", len(res.Files))
+	}
+}

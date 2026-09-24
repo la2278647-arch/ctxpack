@@ -292,6 +292,7 @@ Run `ctxpack <command> --help` for details.
 | `--no-gitignore` | Ignore `.gitignore` (the built-in denylist still applies). |
 | `--hidden` | Include dotfiles. `.git`/`.hg`/`.svn` are always skipped. |
 | `--budget N` | Cap output to ~N tokens; selects by priority. |
+| `--depth N` | Limit traversal to N levels below root. `0` = unlimited (default). |
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 19. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
