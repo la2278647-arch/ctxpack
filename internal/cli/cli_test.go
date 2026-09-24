@@ -653,3 +653,53 @@ func TestMapDepthPositive(t *testing.T) {
 		t.Errorf("output missing Repository header with --depth 1:\n%s", out)
 	}
 }
+
+// --- map --top ---
+
+func TestMapTopShowsFlatList(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--top", "5"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Top ") {
+		t.Errorf("output missing 'Top' header:\n%s", out)
+	}
+	if !strings.Contains(out, "TOKENS") || !strings.Contains(out, "BYTES") {
+		t.Errorf("output missing column headers:\n%s", out)
+	}
+}
+
+func TestMapTopFewerThanAvailable(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--top", "100"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Top ") {
+		t.Errorf("output missing 'Top' header:\n%s", out)
+	}
+}
+
+func TestMapTopByBytes(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--top", "3", "--sort", "bytes"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "by bytes") {
+		t.Errorf("output missing 'by bytes':\n%s", out)
+	}
+}

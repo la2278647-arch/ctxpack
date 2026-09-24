@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -94,6 +95,7 @@ FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
   --depth N           Limit traversal to N levels below root (0 = unlimited)
   --sort BY           (map only) Sort children by: name (default), tokens, bytes
+  --top N             (map only) Flat list of the N largest files
   --model NAME        (tokens only) Show fit for one model instead of all
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
@@ -317,6 +319,7 @@ func cmdMap(args []string) int {
 		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		jsonOut  = fs.Bool("json", false, "print the tree as JSON instead of the text outline")
 		sortBy   = fs.String("sort", "name", "sort children by: name, tokens, bytes")
+		topN     = fs.Int("top", 0, "show only the N largest files (flat list, ignores tree)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -347,6 +350,27 @@ func cmdMap(args []string) int {
 		return writeEnvelope(os.Stdout, mapEnvelope{
 			Root: root.Name, TotalTokens: tokens, TotalBytes: bytes, Tree: toJSONNode(root),
 		})
+	}
+	if *topN > 0 {
+		files := collectFiles(root, "")
+		sort.Slice(files, func(i, j int) bool {
+			switch *sortBy {
+			case "bytes":
+				return files[i].Bytes > files[j].Bytes
+			default:
+				return files[i].Tokens > files[j].Tokens
+			}
+		})
+		if *topN < len(files) {
+			files = files[:*topN]
+		}
+		fmt.Printf("Top %d files by %s (of %d total):\n\n", len(files), *sortBy, countFiles(root))
+		fmt.Printf("%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
+		fmt.Printf("%-45s %10s %10s\n", strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
+		for _, f := range files {
+			fmt.Printf("%-45s %10d %10d\n", f.RelPath, f.Tokens, f.Bytes)
+		}
+		return 0
 	}
 	fmt.Printf("Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))
 	fmt.Print(repomap.Render(root))
@@ -789,4 +813,36 @@ func envInt(k string) int {
 		}
 	}
 	return 0
+}
+
+type flatFile struct {
+	RelPath string
+	Tokens  int
+	Bytes   int
+}
+
+func collectFiles(n *repomap.Node, prefix string) []flatFile {
+	if n == nil || n.IsDir {
+		var out []flatFile
+		prefix += n.Name + "/"
+		for _, c := range n.Children {
+			out = append(out, collectFiles(c, prefix)...)
+		}
+		return out
+	}
+	return []flatFile{{RelPath: prefix + n.Name, Tokens: n.Tokens, Bytes: n.Bytes}}
+}
+
+func countFiles(n *repomap.Node) int {
+	if n == nil {
+		return 0
+	}
+	if !n.IsDir {
+		return 1
+	}
+	count := 0
+	for _, c := range n.Children {
+		count += countFiles(c)
+	}
+	return count
 }

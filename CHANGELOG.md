@@ -44,6 +44,12 @@ to follow [Semantic Versioning](https://semver.org/).
   `walker.Options` field; the MCP `pack_repo` and `repo_map` tools gain a
   `max_depth` parameter.
 
+- **`--top N` for `map`.**
+  Show a flat list of the N largest files across the entire tree, sorted by
+  tokens (default) or bytes (`--sort bytes`). Ignores the tree structure and
+  the `--sort` child-ordering. Useful for finding the biggest files at a
+  glance. Output is a table with path, tokens, and bytes columns.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
