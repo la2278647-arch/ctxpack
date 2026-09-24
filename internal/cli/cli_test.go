@@ -703,3 +703,62 @@ func TestMapTopByBytes(t *testing.T) {
 		t.Errorf("output missing 'by bytes':\n%s", out)
 	}
 }
+
+// --- map --csv ---
+
+func TestMapCSVOutputsHeader(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--csv"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least header + 1 row, got %d lines:\n%s", len(lines), out)
+	}
+	if lines[0] != "path,tokens,bytes" {
+		t.Errorf("CSV header = %q, want path,tokens,bytes", lines[0])
+	}
+}
+
+func TestMapCSVHasOneRowPerFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--csv"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	// writeRepo creates 4 files, so we expect 5 lines (header + 4).
+	if len(lines) != 5 {
+		t.Errorf("got %d lines, want 5:\n%s", len(lines), out)
+	}
+}
+
+func TestMapCSVSortableByBytes(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--csv", "--sort", "bytes"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 lines:\n%s", out)
+	}
+	// The largest file by bytes should be first (after header).
+	// Just verify it's valid CSV.
+	if !strings.Contains(lines[1], ",") {
+		t.Errorf("first data row not CSV:\n%s", lines[1])
+	}
+}

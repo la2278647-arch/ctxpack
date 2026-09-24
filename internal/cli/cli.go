@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -96,6 +97,7 @@ FLAGS (map / tokens / models)
   --depth N           Limit traversal to N levels below root (0 = unlimited)
   --sort BY           (map only) Sort children by: name (default), tokens, bytes
   --top N             (map only) Flat list of the N largest files
+  --csv               (map only) Flat CSV list of all files
   --model NAME        (tokens only) Show fit for one model instead of all
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
@@ -320,6 +322,7 @@ func cmdMap(args []string) int {
 		jsonOut  = fs.Bool("json", false, "print the tree as JSON instead of the text outline")
 		sortBy   = fs.String("sort", "name", "sort children by: name, tokens, bytes")
 		topN     = fs.Int("top", 0, "show only the N largest files (flat list, ignores tree)")
+		csvOut   = fs.Bool("csv", false, "output a flat CSV list of all files (path, tokens, bytes)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -370,6 +373,24 @@ func cmdMap(args []string) int {
 		for _, f := range files {
 			fmt.Printf("%-45s %10d %10d\n", f.RelPath, f.Tokens, f.Bytes)
 		}
+		return 0
+	}
+	if *csvOut {
+		files := collectFiles(root, "")
+		sort.Slice(files, func(i, j int) bool {
+			switch *sortBy {
+			case "bytes":
+				return files[i].Bytes > files[j].Bytes
+			default:
+				return files[i].Tokens > files[j].Tokens
+			}
+		})
+		w := csv.NewWriter(os.Stdout)
+		w.Write([]string{"path", "tokens", "bytes"})
+		for _, f := range files {
+			w.Write([]string{f.RelPath, strconv.Itoa(f.Tokens), strconv.Itoa(f.Bytes)})
+		}
+		w.Flush()
 		return 0
 	}
 	fmt.Printf("Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))

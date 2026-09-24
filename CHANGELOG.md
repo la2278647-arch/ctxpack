@@ -50,6 +50,11 @@ to follow [Semantic Versioning](https://semver.org/).
   the `--sort` child-ordering. Useful for finding the biggest files at a
   glance. Output is a table with path, tokens, and bytes columns.
 
+- **`--csv` for `map`.**
+  Output a flat CSV list of all files (path, tokens, bytes), sorted by tokens
+  (default) or bytes (`--sort bytes`). Header row included. Ready for
+  spreadsheet import or `csvkit` pipelines.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
