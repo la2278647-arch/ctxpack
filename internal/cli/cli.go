@@ -104,6 +104,7 @@ FLAGS (map / tokens / models)
   --sort BY           (map only) Sort children by: name (default), tokens, bytes
   --top N             (map only) Flat list of the N largest files
   --csv               (map only) Flat CSV list of all files
+  --format F          (map only) text (default), json, csv
   --model NAME        (tokens only) Show fit for one model instead of all
   --sort BY           (tokens only) Sort fit table by: name (default), pct, window
   --vendor NAME       (models only) Show only models from this vendor
@@ -333,11 +334,24 @@ func cmdMap(args []string) int {
 		topN     = fs.Int("top", 0, "show only the N largest files (flat list, ignores tree)")
 		csvOut   = fs.Bool("csv", false, "output a flat CSV list of all files (path, tokens, bytes)")
 		output   = fs.String("output", "", "write to FILE instead of stdout")
+		formatF  = fs.String("format", "", "output format: text (default), json, csv (alias for --json/--csv)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
+		return 2
+	}
+	// --format sets json/csv flags for backward compatibility.
+	switch strings.ToLower(*formatF) {
+	case "json":
+		*jsonOut = true
+	case "csv":
+		*csvOut = true
+	case "text", "":
+		// default
+	default:
+		fmt.Fprintln(os.Stderr, "ctxpack: unknown format", *formatF)
 		return 2
 	}
 	path := "."

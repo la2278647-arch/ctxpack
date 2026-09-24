@@ -76,6 +76,11 @@ to follow [Semantic Versioning](https://semver.org/).
   Write output to a file instead of stdout, matching the existing `--output`
   flag on `pack` and `diff`. All four commands now support writing to a file.
 
+- **`--format F` for `map`.**
+  Select output format: `text` (default), `json`, `csv`. The existing
+  `--json` and `--csv` flags still work as aliases. Unknown formats exit
+  with code 2 and a stderr message.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

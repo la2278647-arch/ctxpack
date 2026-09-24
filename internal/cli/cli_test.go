@@ -984,3 +984,81 @@ func TestMapOutputShortFlag(t *testing.T) {
 		t.Fatalf("output file not created: %v", err)
 	}
 }
+
+// --- map --format ---
+
+func TestMapFormatText(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--format", "text"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing 'Repository:'\n%s", out)
+	}
+}
+
+func TestMapFormatJSON(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if env.Root == "" {
+		t.Error("JSON root is empty")
+	}
+}
+
+func TestMapFormatCSV(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--format", "csv"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.HasPrefix(out, "path,tokens,bytes") {
+		t.Errorf("CSV output missing header:\n%s", out)
+	}
+}
+
+func TestMapFormatUnknown(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	code := cmdMap([]string{src, "--format", "xml"})
+	if code != 2 {
+		t.Fatalf("cmdMap exit = %d, want 2", code)
+	}
+}
+
+func TestMapFormatAlias(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	// --format json should be equivalent to --json
+	code := cmdMap([]string{src, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("--format json did not produce JSON: %v\n%s", err, out)
+	}
+}
