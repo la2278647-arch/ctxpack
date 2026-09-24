@@ -131,6 +131,7 @@ var models = []Model{
 	{"gpt-4-turbo", 128000, "openai"},
 	{"gpt-4o", 128000, "openai"},
 	{"gpt-4o-mini", 128000, "openai"},
+	{"gpt-4.1", 128000, "openai"},
 	{"o1", 200000, "openai"},
 	{"o3", 200000, "openai"},
 	{"claude-3-haiku", 200000, "anthropic"},
@@ -138,12 +139,15 @@ var models = []Model{
 	{"claude-3-opus", 200000, "anthropic"},
 	{"claude-3.5-sonnet", 200000, "anthropic"},
 	{"claude-3.5-haiku", 200000, "anthropic"},
+	{"claude-4-sonnet", 200000, "anthropic"},
 	{"gemini-1.5-pro", 2000000, "google"},
 	{"gemini-1.5-flash", 1000000, "google"},
 	{"gemini-2.0-flash", 1048576, "google"},
+	{"gemini-2.5-pro", 2000000, "google"},
 	{"llama-3.1-405b", 128000, "meta"},
 	{"mistral-large", 128000, "mistral"},
 	{"deepseek-v3", 128000, "deepseek"},
+	{"deepseek-r1", 128000, "deepseek"},
 	{"qwen2.5", 128000, "alibaba"},
 }
 

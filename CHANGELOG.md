@@ -55,6 +55,11 @@ to follow [Semantic Versioning](https://semver.org/).
   (default) or bytes (`--sort bytes`). Header row included. Ready for
   spreadsheet import or `csvkit` pipelines.
 
+- **4 new models in the model table.**
+  `gpt-4.1` (OpenAI), `claude-4-sonnet` (Anthropic), `gemini-2.5-pro` (Google),
+  `deepseek-r1` (DeepSeek). The table now has 23 models across 7 vendors.
+  Prefix matching works for all new models.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

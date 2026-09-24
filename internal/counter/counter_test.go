@@ -45,6 +45,19 @@ func TestLookupModel(t *testing.T) {
 	if _, ok := LookupModel("does-not-exist"); ok {
 		t.Fatal("unknown model should not match")
 	}
+	// New models (R35).
+	if _, ok := LookupModel("gpt-4.1"); !ok {
+		t.Fatal("expected gpt-4.1 to be known")
+	}
+	if _, ok := LookupModel("claude-4-sonnet"); !ok {
+		t.Fatal("expected claude-4-sonnet to be known")
+	}
+	if _, ok := LookupModel("gemini-2.5-pro"); !ok {
+		t.Fatal("expected gemini-2.5-pro to be known")
+	}
+	if _, ok := LookupModel("deepseek-r1"); !ok {
+		t.Fatal("expected deepseek-r1 to be known")
+	}
 }
 
 func TestLookupModelPrefix(t *testing.T) {
@@ -58,6 +71,10 @@ func TestLookupModelPrefix(t *testing.T) {
 		{"claude-3.5-sonnet-2024", "claude-3.5-sonnet"}, // query longer than a known name
 		{"deepseek", "deepseek-v3"},
 		{"llama", "llama-3.1-405b"},
+		{"gpt-4.1", "gpt-4.1"},           // new model
+		{"claude-4", "claude-4-sonnet"},  // new model prefix
+		{"gemini-2.5", "gemini-2.5-pro"}, // new model prefix
+		{"deepseek-r", "deepseek-r1"},    // new model prefix
 	}
 	for _, tc := range cases {
 		got, ok := LookupModel(tc.query)
@@ -85,8 +102,8 @@ func TestLookupModelEmptyAndWhitespace(t *testing.T) {
 
 func TestModelsIsCopy(t *testing.T) {
 	all := Models()
-	if len(all) != 19 {
-		t.Fatalf("Models() returned %d entries, want 19", len(all))
+	if len(all) != 23 {
+		t.Fatalf("Models() returned %d entries, want 23", len(all))
 	}
 	seen := map[string]bool{}
 	for _, m := range all {

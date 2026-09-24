@@ -295,7 +295,7 @@ Run `ctxpack <command> --help` for details.
 | `--depth N` | Limit traversal to N levels below root. `0` = unlimited (default). |
 | `--top N` | `map`: show a flat list of the N largest files (by tokens or bytes). |
 | `--csv` | `map`: output a flat CSV list of all files (path, tokens, bytes). |
-| `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 19. |
+| `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 23. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
 | `-o, --output FILE` | Write to FILE instead of stdout. |
