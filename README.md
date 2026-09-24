@@ -299,7 +299,7 @@ Run `ctxpack <command> --help` for details.
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 23. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
-| `-o, --output FILE` | Write to FILE instead of stdout. |
+| `-o, --output FILE` | Write to FILE instead of stdout (pack, diff, map, tokens). |
 | `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.

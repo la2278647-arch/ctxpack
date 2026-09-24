@@ -910,3 +910,77 @@ func TestTokensSortJSON(t *testing.T) {
 		t.Error("JSON fits array is empty")
 	}
 }
+
+// --- map/tokens --output ---
+
+func TestMapOutputWritesFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	dst := filepath.Join(t.TempDir(), "out.txt")
+
+	code := cmdMap([]string{src, "--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "Repository:") {
+		t.Errorf("output file missing 'Repository:'\n%s", string(data))
+	}
+}
+
+func TestTokensOutputWritesFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	dst := filepath.Join(t.TempDir(), "out.txt")
+
+	code := cmdTokens([]string{src, "--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "Path:") {
+		t.Errorf("output file missing 'Path:'\n%s", string(data))
+	}
+}
+
+func TestMapOutputJSON(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	dst := filepath.Join(t.TempDir(), "out.json")
+
+	code := cmdMap([]string{src, "--json", "--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	var env mapEnvelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
+	}
+	if env.Root == "" {
+		t.Error("JSON root is empty")
+	}
+}
+
+func TestMapOutputShortFlag(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	dst := filepath.Join(t.TempDir(), "out.txt")
+
+	code := cmdMap([]string{src, "-o", dst})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if _, err := os.Stat(dst); err != nil {
+		t.Fatalf("output file not created: %v", err)
+	}
+}

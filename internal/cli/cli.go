@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
@@ -107,6 +108,8 @@ FLAGS (map / tokens / models)
   --sort BY           (tokens only) Sort fit table by: name (default), pct, window
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
+  -o, --output FILE   Write to FILE instead of stdout (pack, diff, map, tokens)
+  -q, --quiet         Suppress stderr status messages (pack, diff)
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
@@ -329,9 +332,11 @@ func cmdMap(args []string) int {
 		sortBy   = fs.String("sort", "name", "sort children by: name, tokens, bytes")
 		topN     = fs.Int("top", 0, "show only the N largest files (flat list, ignores tree)")
 		csvOut   = fs.Bool("csv", false, "output a flat CSV list of all files (path, tokens, bytes)")
+		output   = fs.String("output", "", "write to FILE instead of stdout")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
+	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -356,11 +361,17 @@ func cmdMap(args []string) int {
 		return 1
 	}
 	if *jsonOut {
-		return writeEnvelope(os.Stdout, mapEnvelope{
+		w, close := outputWriter(*output)
+		defer close()
+		return writeEnvelope(w, mapEnvelope{
 			Root: root.Name, TotalTokens: tokens, TotalBytes: bytes, Tree: toJSONNode(root),
 		})
 	}
 	if *topN > 0 {
+		out, close := outputWriter(*output)
+		defer close()
+		w := bufio.NewWriter(out)
+		defer w.Flush()
 		files := collectFiles(root, "")
 		sort.Slice(files, func(i, j int) bool {
 			switch *sortBy {
@@ -373,15 +384,17 @@ func cmdMap(args []string) int {
 		if *topN < len(files) {
 			files = files[:*topN]
 		}
-		fmt.Printf("Top %d files by %s (of %d total):\n\n", len(files), *sortBy, countFiles(root))
-		fmt.Printf("%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
-		fmt.Printf("%-45s %10s %10s\n", strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
+		fmt.Fprintf(w, "Top %d files by %s (of %d total):\n\n", len(files), *sortBy, countFiles(root))
+		fmt.Fprintf(w, "%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
+		fmt.Fprintf(w, "%-45s %10s %10s\n", strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
 		for _, f := range files {
-			fmt.Printf("%-45s %10d %10d\n", f.RelPath, f.Tokens, f.Bytes)
+			fmt.Fprintf(w, "%-45s %10d %10d\n", f.RelPath, f.Tokens, f.Bytes)
 		}
 		return 0
 	}
 	if *csvOut {
+		out, close := outputWriter(*output)
+		defer close()
 		files := collectFiles(root, "")
 		sort.Slice(files, func(i, j int) bool {
 			switch *sortBy {
@@ -391,7 +404,7 @@ func cmdMap(args []string) int {
 				return files[i].Tokens > files[j].Tokens
 			}
 		})
-		w := csv.NewWriter(os.Stdout)
+		w := csv.NewWriter(out)
 		w.Write([]string{"path", "tokens", "bytes"})
 		for _, f := range files {
 			w.Write([]string{f.RelPath, strconv.Itoa(f.Tokens), strconv.Itoa(f.Bytes)})
@@ -399,8 +412,10 @@ func cmdMap(args []string) int {
 		w.Flush()
 		return 0
 	}
-	fmt.Printf("Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))
-	fmt.Print(repomap.Render(root))
+	out, close := outputWriter(*output)
+	defer close()
+	fmt.Fprintf(out, "Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))
+	fmt.Fprint(out, repomap.Render(root))
 	return 0
 }
 
@@ -419,9 +434,11 @@ func cmdTokens(args []string) int {
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
 		model    = fs.String("model", "", "show fit for one model only")
 		sortBy   = fs.String("sort", "name", "sort fit table by: name (default), pct, window")
+		output   = fs.String("output", "", "write to FILE instead of stdout")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
+	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -450,7 +467,9 @@ func cmdTokens(args []string) int {
 			fits = filterFits(fits, *model)
 		}
 		sortFits(fits, *sortBy)
-		return writeEnvelope(os.Stdout, tokensEnvelope{
+		w, close := outputWriter(*output)
+		defer close()
+		return writeEnvelope(w, tokensEnvelope{
 			Path:          root.Name,
 			TotalTokens:   tokens,
 			TotalBytes:    bytes,
@@ -464,10 +483,14 @@ func cmdTokens(args []string) int {
 			return 2
 		}
 	}
-	fmt.Printf("Path:       %s\n", root.Name)
-	fmt.Printf("Tokens:     ~%d\n", tokens)
-	fmt.Printf("Bytes:      %s\n", humanBytes(bytes))
-	fmt.Println()
+	out, close := outputWriter(*output)
+	defer close()
+	w := bufio.NewWriter(out)
+	defer w.Flush()
+	fmt.Fprintf(w, "Path:       %s\n", root.Name)
+	fmt.Fprintf(w, "Tokens:     ~%d\n", tokens)
+	fmt.Fprintf(w, "Bytes:      %s\n", humanBytes(bytes))
+	fmt.Fprintln(w)
 	if *model != "" {
 		m, _ := counter.LookupModel(*model)
 		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
@@ -475,7 +498,7 @@ func cmdTokens(args []string) int {
 		if !fit.Fits {
 			mark = "OVERFLOW"
 		}
-		fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
+		fmt.Fprintf(w, "  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
 			humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed)
 	} else {
 		models := counter.Models()
@@ -505,13 +528,13 @@ func cmdTokens(args []string) int {
 				return fits[i].Model.Name < fits[j].Model.Name
 			}
 		})
-		fmt.Println("Per-model fit (est. tokens / context window):")
+		fmt.Fprintln(w, "Per-model fit (est. tokens / context window):")
 		for _, f := range fits {
 			mark := "fits"
 			if !f.Fit.Fits {
 				mark = "OVERFLOW"
 			}
-			fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, f.Model.Name,
+			fmt.Fprintf(w, "  [%s] %-22s %s / %s (%.0f%%)\n", mark, f.Model.Name,
 				humanTokens(f.Fit.Used), humanTokens(f.Fit.Limit), f.Fit.PctUsed)
 		}
 	}
@@ -914,6 +937,20 @@ func annotateFit(tokens int, model string) string {
 }
 
 // writeOutput writes data to dest, or stdout when dest is "" or "-".
+// outputWriter returns a writer for the given output path, or os.Stdout if
+// empty. The caller is responsible for calling the returned close function.
+func outputWriter(dest string) (io.Writer, func()) {
+	if dest == "" || dest == "-" {
+		return os.Stdout, func() {}
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ctxpack:", err)
+		os.Exit(1)
+	}
+	return f, func() { f.Close() }
+}
+
 func writeOutput(dest, data string) error {
 	if dest == "" || dest == "-" {
 		fmt.Print(data)

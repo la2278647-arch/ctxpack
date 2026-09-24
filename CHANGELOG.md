@@ -72,6 +72,10 @@ to follow [Semantic Versioning](https://semver.org/).
   sorts the JSON `fits` array. Useful for finding the most or least
   constrained model at a glance.
 
+- **`--output`/`-o` for `map` and `tokens`.**
+  Write output to a file instead of stdout, matching the existing `--output`
+  flag on `pack` and `diff`. All four commands now support writing to a file.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
