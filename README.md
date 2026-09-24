@@ -297,7 +297,7 @@ Run `ctxpack <command> --help` for details.
 | `--top N` | `map`: show a flat list of the N largest files (by tokens or bytes). |
 | `--csv` | `map`: output a flat CSV list of all files (path, tokens, bytes). |
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 23. |
-| `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). |
+| `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
 | `-o, --output FILE` | Write to FILE instead of stdout. |
 | `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |

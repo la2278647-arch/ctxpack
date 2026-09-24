@@ -1027,22 +1027,26 @@ func TestTokensJSONReportsEveryModel(t *testing.T) {
 	if len(env.Fits) != len(models) {
 		t.Fatalf("fits has %d entries, want %d", len(env.Fits), len(models))
 	}
-	for i, f := range env.Fits {
-		m := models[i]
-		if f.Model != m.Name {
-			t.Errorf("fits[%d].model = %q, want %q", i, f.Model, m.Name)
+	modelByName := make(map[string]counter.Model, len(models))
+	for _, m := range models {
+		modelByName[m.Name] = m
+	}
+	for _, f := range env.Fits {
+		m, ok := modelByName[f.Model]
+		if !ok {
+			t.Errorf("fits has unknown model %q", f.Model)
 			continue
 		}
 		wantLimit := m.ContextWindow - fitReserve
 		if f.Used != env.TotalTokens {
-			t.Errorf("fits[%d].used = %d, want %d", i, f.Used, env.TotalTokens)
+			t.Errorf("fits[%s].used = %d, want %d", f.Model, f.Used, env.TotalTokens)
 		}
 		if f.Limit != wantLimit {
-			t.Errorf("fits[%d].limit = %d, want %d", i, f.Limit, wantLimit)
+			t.Errorf("fits[%s].limit = %d, want %d", f.Model, f.Limit, wantLimit)
 		}
 		wantFits := env.TotalTokens <= wantLimit
 		if f.Fits != wantFits {
-			t.Errorf("fits[%d].fits = %v, want %v", i, f.Fits, wantFits)
+			t.Errorf("fits[%s].fits = %v, want %v", f.Model, f.Fits, wantFits)
 		}
 	}
 }

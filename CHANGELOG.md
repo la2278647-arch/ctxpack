@@ -66,6 +66,12 @@ to follow [Semantic Versioning](https://semver.org/).
   for machine-readable output. Useful for troubleshooting and verifying
   installation health.
 
+- **`--sort BY` for `tokens`.**
+  Sort the per-model fit table by `pct` (most constrained first), `window`
+  (largest context window first), or `name` (default, alphabetical). Also
+  sorts the JSON `fits` array. Useful for finding the most or least
+  constrained model at a glance.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

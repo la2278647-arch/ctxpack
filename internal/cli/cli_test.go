@@ -839,3 +839,74 @@ func TestDoctorRejectsExtraArgs(t *testing.T) {
 	}
 	_ = c.Content() // drain
 }
+
+// --- tokens --sort ---
+
+func TestTokensSortByNameDefault(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Per-model fit") {
+		t.Errorf("output missing 'Per-model fit':\n%s", out)
+	}
+	// Default sort by name should start with 'claude' or 'deepseek' etc.
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) < 5 {
+		t.Fatalf("expected at least 5 lines, got %d", len(lines))
+	}
+}
+
+func TestTokensSortByPct(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--sort", "pct"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Per-model fit") {
+		t.Errorf("output missing 'Per-model fit':\n%s", out)
+	}
+}
+
+func TestTokensSortByWindow(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--sort", "window"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Per-model fit") {
+		t.Errorf("output missing 'Per-model fit':\n%s", out)
+	}
+}
+
+func TestTokensSortJSON(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--json", "--sort", "pct"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	var data tokensEnvelope
+	if err := json.Unmarshal([]byte(out), &data); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if len(data.Fits) == 0 {
+		t.Error("JSON fits array is empty")
+	}
+}

@@ -104,6 +104,7 @@ FLAGS (map / tokens / models)
   --top N             (map only) Flat list of the N largest files
   --csv               (map only) Flat CSV list of all files
   --model NAME        (tokens only) Show fit for one model instead of all
+  --sort BY           (tokens only) Sort fit table by: name (default), pct, window
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
 
@@ -417,6 +418,7 @@ func cmdTokens(args []string) int {
 		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
 		model    = fs.String("model", "", "show fit for one model only")
+		sortBy   = fs.String("sort", "name", "sort fit table by: name (default), pct, window")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -447,6 +449,7 @@ func cmdTokens(args []string) int {
 		if *model != "" {
 			fits = filterFits(fits, *model)
 		}
+		sortFits(fits, *sortBy)
 		return writeEnvelope(os.Stdout, tokensEnvelope{
 			Path:          root.Name,
 			TotalTokens:   tokens,
@@ -475,15 +478,41 @@ func cmdTokens(args []string) int {
 		fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
 			humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed)
 	} else {
+		models := counter.Models()
+		fits := make([]struct {
+			Model counter.Model
+			Fit   counter.Fit
+		}, len(models))
+		for i, m := range models {
+			fits[i] = struct {
+				Model counter.Model
+				Fit   counter.Fit
+			}{Model: m, Fit: counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)}
+		}
+		sort.Slice(fits, func(i, j int) bool {
+			switch *sortBy {
+			case "pct":
+				if fits[i].Fit.PctUsed != fits[j].Fit.PctUsed {
+					return fits[i].Fit.PctUsed > fits[j].Fit.PctUsed
+				}
+				return fits[i].Model.Name < fits[j].Model.Name
+			case "window":
+				if fits[i].Model.ContextWindow != fits[j].Model.ContextWindow {
+					return fits[i].Model.ContextWindow > fits[j].Model.ContextWindow
+				}
+				return fits[i].Model.Name < fits[j].Model.Name
+			default:
+				return fits[i].Model.Name < fits[j].Model.Name
+			}
+		})
 		fmt.Println("Per-model fit (est. tokens / context window):")
-		for _, m := range counter.Models() {
-			fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)
+		for _, f := range fits {
 			mark := "fits"
-			if !fit.Fits {
+			if !f.Fit.Fits {
 				mark = "OVERFLOW"
 			}
-			fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, m.Name,
-				humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed)
+			fmt.Printf("  [%s] %-22s %s / %s (%.0f%%)\n", mark, f.Model.Name,
+				humanTokens(f.Fit.Used), humanTokens(f.Fit.Limit), f.Fit.PctUsed)
 		}
 	}
 	return 0
@@ -815,6 +844,25 @@ func filterFits(fits []fitEntry, name string) []fitEntry {
 		}
 	}
 	return out
+}
+
+func sortFits(fits []fitEntry, sortBy string) {
+	sort.Slice(fits, func(i, j int) bool {
+		switch sortBy {
+		case "pct":
+			if fits[i].PctUsed != fits[j].PctUsed {
+				return fits[i].PctUsed > fits[j].PctUsed
+			}
+			return fits[i].Model < fits[j].Model
+		case "window":
+			if fits[i].Limit != fits[j].Limit {
+				return fits[i].Limit > fits[j].Limit
+			}
+			return fits[i].Model < fits[j].Model
+		default:
+			return fits[i].Model < fits[j].Model
+		}
+	})
 }
 
 // modelJSON converts the registered models into their JSON form.
