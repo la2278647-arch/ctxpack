@@ -92,9 +92,10 @@ FLAGS (diff)
 
 FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
-  --model NAME          (tokens only) Show fit for one model instead of all
-  --vendor NAME         (models only) Show only models from this vendor
-  --json               Emit JSON instead of the text output, for scripting
+  --sort BY           (map only) Sort children by: name (default), tokens, bytes
+  --model NAME        (tokens only) Show fit for one model instead of all
+  --vendor NAME       (models only) Show only models from this vendor
+  --json              Emit JSON instead of the text output, for scripting
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
@@ -309,6 +310,7 @@ func cmdMap(args []string) int {
 		noGit    = fs.Bool("no-gitignore", false, "ignore .gitignore")
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 		jsonOut  = fs.Bool("json", false, "print the tree as JSON instead of the text outline")
+		sortBy   = fs.String("sort", "name", "sort children by: name, tokens, bytes")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -319,13 +321,16 @@ func cmdMap(args []string) int {
 	if fs.NArg() > 0 {
 		path = fs.Arg(0)
 	}
-	root, tokens, bytes, err := repomap.Build(path, walker.Options{
-		Include:          []string(includes),
-		Exclude:          []string(excludes),
-		MaxFileSize:      *maxSize,
-		RespectGitignore: !*noGit,
-		IncludeHidden:    *hidden,
-		ReadContent:      true,
+	root, tokens, bytes, err := repomap.Build(path, repomap.Options{
+		Walker: walker.Options{
+			Include:          []string(includes),
+			Exclude:          []string(excludes),
+			MaxFileSize:      *maxSize,
+			RespectGitignore: !*noGit,
+			IncludeHidden:    *hidden,
+			ReadContent:      true,
+		},
+		SortBy: *sortBy,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -364,13 +369,15 @@ func cmdTokens(args []string) int {
 	if fs.NArg() > 0 {
 		path = fs.Arg(0)
 	}
-	root, tokens, bytes, err := repomap.Build(path, walker.Options{
-		Include:          []string(includes),
-		Exclude:          []string(excludes),
-		MaxFileSize:      *maxSize,
-		RespectGitignore: !*noGit,
-		IncludeHidden:    *hidden,
-		ReadContent:      true,
+	root, tokens, bytes, err := repomap.Build(path, repomap.Options{
+		Walker: walker.Options{
+			Include:          []string(includes),
+			Exclude:          []string(excludes),
+			MaxFileSize:      *maxSize,
+			RespectGitignore: !*noGit,
+			IncludeHidden:    *hidden,
+			ReadContent:      true,
+		},
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)

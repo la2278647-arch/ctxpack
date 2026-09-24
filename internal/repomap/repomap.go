@@ -22,14 +22,26 @@ type Node struct {
 	Children []*Node
 }
 
+// Options controls Build behavior.
+type Options struct {
+	Walker walker.Options
+	// SortBy controls how children within each directory are ordered:
+	//
+	//   - "name"   (default) directories first, then files, each alphabetically
+	//   - "tokens" largest token estimate first (descending)
+	//   - "bytes"  largest byte size first (descending)
+	//
+	SortBy string
+}
+
 // Build walks root and returns the token-annotated tree plus totals.
-func Build(root string, opts walker.Options) (*Node, int, int, error) {
-	res, err := walker.Walk(root, opts)
+func Build(root string, opts Options) (*Node, int, int, error) {
+	res, err := walker.Walk(root, opts.Walker)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 	rootNode := &Node{Name: rootNodeName(res.Root), IsDir: true}
-	tree, totalTokens, totalBytes, err := fold(rootNode, res)
+	tree, totalTokens, totalBytes, err := fold(rootNode, res, opts.SortBy)
 	return tree, totalTokens, totalBytes, nil
 }
 
@@ -42,7 +54,7 @@ func Build(root string, opts walker.Options) (*Node, int, int, error) {
 // result of a successful Walk, so a test that reaches here has already passed
 // every check that could return an error. The extra return is nil so the
 // wrapping call above stays a one-liner.
-func fold(rootNode *Node, res *walker.Result) (*Node, int, int, error) {
+func fold(rootNode *Node, res *walker.Result, sortBy string) (*Node, int, int, error) {
 	cnt := counter.NewDefault()
 	totalTokens, totalBytes := 0, 0
 
@@ -68,7 +80,7 @@ func fold(rootNode *Node, res *walker.Result) (*Node, int, int, error) {
 		totalTokens += e.Tokens
 		totalBytes += int(fe.Size)
 	}
-	sortNodes(rootNode)
+	sortNodes(rootNode, sortBy)
 	return rootNode, totalTokens, totalBytes, nil
 }
 
@@ -97,15 +109,23 @@ func childFor(n *Node, p string, isLeaf bool) *Node {
 	return c
 }
 
-func sortNodes(n *Node) {
+func sortNodes(n *Node, sortBy string) {
 	sort.SliceStable(n.Children, func(i, j int) bool {
-		if n.Children[i].IsDir != n.Children[j].IsDir {
-			return n.Children[i].IsDir
+		ni, nj := n.Children[i], n.Children[j]
+		switch sortBy {
+		case "tokens":
+			return ni.Tokens > nj.Tokens
+		case "bytes":
+			return ni.Bytes > nj.Bytes
+		default: // "name"
+			if ni.IsDir != nj.IsDir {
+				return ni.IsDir
+			}
+			return ni.Name < nj.Name
 		}
-		return n.Children[i].Name < n.Children[j].Name
 	})
 	for _, c := range n.Children {
-		sortNodes(c)
+		sortNodes(c, sortBy)
 	}
 }
 

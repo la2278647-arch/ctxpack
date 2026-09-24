@@ -127,6 +127,7 @@ func tools() []map[string]any {
 					"include":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"exclude":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"max_size": map[string]any{"type": "integer"},
+					"sort":     map[string]any{"type": "string", "enum": []string{"name", "tokens", "bytes"}, "default": "name", "description": "Sort children by: name (default), tokens (largest first), bytes (largest first)."},
 				},
 				"required": []string{"path"},
 			},
@@ -225,12 +226,15 @@ func callRepoMap(args map[string]any) (string, string) {
 	if path == "" {
 		return "", "missing required argument: path"
 	}
-	root, tokens, bytes, err := repomap.Build(path, walker.Options{
-		Include:          toStrSlice(args["include"]),
-		Exclude:          toStrSlice(args["exclude"]),
-		MaxFileSize:      toInt64(args["max_size"]),
-		RespectGitignore: true,
-		ReadContent:      false,
+	root, tokens, bytes, err := repomap.Build(path, repomap.Options{
+		Walker: walker.Options{
+			Include:          toStrSlice(args["include"]),
+			Exclude:          toStrSlice(args["exclude"]),
+			MaxFileSize:      toInt64(args["max_size"]),
+			RespectGitignore: true,
+			ReadContent:      false,
+		},
+		SortBy: toStr(args["sort"]),
 	})
 	if err != nil {
 		return "", "map error: " + err.Error()
@@ -246,9 +250,11 @@ func callCountTokens(args map[string]any) (string, string) {
 	if path == "" {
 		return "", "missing required argument: path"
 	}
-	_, tokens, bytes, err := repomap.Build(path, walker.Options{
-		RespectGitignore: true,
-		ReadContent:      false,
+	_, tokens, bytes, err := repomap.Build(path, repomap.Options{
+		Walker: walker.Options{
+			RespectGitignore: true,
+			ReadContent:      false,
+		},
 	})
 	if err != nil {
 		return "", "map error: " + err.Error()
@@ -323,6 +329,11 @@ func toStrSlice(v any) []string {
 		}
 	}
 	return out
+}
+
+func toStr(v any) string {
+	s, _ := v.(string)
+	return s
 }
 
 func toInt64(v any) int64 {

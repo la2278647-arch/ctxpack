@@ -59,7 +59,7 @@ func TestBuildTotalsAndRollup(t *testing.T) {
 	writeFile(t, dir, filepath.Join("src", "util.go"), "package main\nfunc f() {}\n")
 	writeFile(t, dir, filepath.Join("docs", "guide.md"), "guide\n")
 
-	root, tokens, bytes, err := Build(dir, walker.Options{ReadContent: true})
+	root, tokens, bytes, err := Build(dir, Options{Walker: walker.Options{ReadContent: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,11 +93,11 @@ func TestBuildCountsBySizeWhenContentNotRead(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "x", strings.Repeat("abcdefghij", 4096)) // 40960 bytes
 
-	withTok, _, _, err := Build(dir, walker.Options{ReadContent: true})
+	withTok, _, _, err := Build(dir, Options{Walker: walker.Options{ReadContent: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	withoutTok, _, _, err := Build(dir, walker.Options{ReadContent: false})
+	withoutTok, _, _, err := Build(dir, Options{Walker: walker.Options{ReadContent: false}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestBuildSkipsHiddenAndVCS(t *testing.T) {
 	writeFile(t, dir, filepath.Join(".git", "HEAD"), "ref: refs/heads/main\n")
 	writeFile(t, dir, filepath.Join(".github", "workflow.yml"), "name: ci\n")
 
-	root, _, _, err := Build(dir, walker.Options{ReadContent: true})
+	root, _, _, err := Build(dir, Options{Walker: walker.Options{ReadContent: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestBuildSkipsHiddenAndVCS(t *testing.T) {
 }
 
 func TestBuildMissingRoot(t *testing.T) {
-	if _, _, _, err := Build(filepath.Join(t.TempDir(), "no-such-dir"), walker.Options{}); err == nil {
+	if _, _, _, err := Build(filepath.Join(t.TempDir(), "no-such-dir"), Options{}); err == nil {
 		t.Fatal("expected an error for a missing root")
 	}
 }
@@ -143,13 +143,45 @@ func TestSortDirsBeforeFiles(t *testing.T) {
 			{Name: "gamma", IsDir: true},
 		},
 	}
-	sortNodes(n)
+	sortNodes(n, "name")
 	var got []string
 	for _, c := range n.Children {
 		got = append(got, c.Name)
 	}
 	if strings.Join(got, ",") != "beta,gamma,alpha,zeta" {
 		t.Errorf("sort order = %v", got)
+	}
+}
+
+func TestSortByTokensDescending(t *testing.T) {
+	n := &Node{
+		Name: "root", IsDir: true,
+		Children: []*Node{
+			{Name: "small", IsDir: false, Tokens: 10},
+			{Name: "large", IsDir: false, Tokens: 100},
+			{Name: "medium", IsDir: false, Tokens: 50},
+		},
+	}
+	sortNodes(n, "tokens")
+	got := n.Children[0].Name
+	if got != "large" {
+		t.Errorf("first child = %q, want large", got)
+	}
+}
+
+func TestSortByBytesDescending(t *testing.T) {
+	n := &Node{
+		Name: "root", IsDir: true,
+		Children: []*Node{
+			{Name: "small", IsDir: false, Bytes: 100},
+			{Name: "large", IsDir: false, Bytes: 1000},
+			{Name: "medium", IsDir: false, Bytes: 500},
+		},
+	}
+	sortNodes(n, "bytes")
+	got := n.Children[0].Name
+	if got != "large" {
+		t.Errorf("first child = %q, want large", got)
 	}
 }
 
@@ -179,6 +211,7 @@ func TestFoldFileAndDirShareName(t *testing.T) {
 			root, totalTokens, totalBytes, err := fold(
 				&Node{Name: "repo", IsDir: true},
 				&walker.Result{Root: "/tmp/repo", Files: tc.files},
+				"name",
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -231,6 +264,7 @@ func TestFoldSkipsEmptyPathComponents(t *testing.T) {
 			&walker.Result{Root: "/tmp/repo", Files: []walker.FileEntry{
 				{RelPath: rel, Size: int64(len(b)), Content: b},
 			}},
+			"name",
 		)
 		if err != nil {
 			t.Fatalf("%q: %v", rel, err)
@@ -265,6 +299,7 @@ func TestFoldCountsFromSizeWhenContentAbsent(t *testing.T) {
 			Root:  "/tmp/repo",
 			Files: []walker.FileEntry{{RelPath: "src/large.go", Size: 40000}},
 		},
+		"name",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -297,7 +332,7 @@ func TestFileAndDirShareName(t *testing.T) {
 	writeFile(t, dir, "a", "root-level file named a\n")
 	writeFile(t, dir, filepath.Join("a", "b.go"), "package a\n")
 
-	root, _, _, err := Build(dir, walker.Options{ReadContent: true})
+	root, _, _, err := Build(dir, Options{Walker: walker.Options{ReadContent: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +390,7 @@ func TestBuildRootLabelIsBaseName(t *testing.T) {
 		dir + string(filepath.Separator),
 		dir + string(filepath.Separator) + ".",
 	} {
-		root, _, _, err := Build(arg, walker.Options{ReadContent: true})
+		root, _, _, err := Build(arg, Options{Walker: walker.Options{ReadContent: true}})
 		if err != nil {
 			t.Fatalf("arg %q: %v", arg, err)
 		}

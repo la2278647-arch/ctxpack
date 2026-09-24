@@ -32,6 +32,12 @@ to follow [Semantic Versioning](https://semver.org/).
   vendor exits 2 with a stderr message and writes nothing to stdout. JSON
   output applies the same filter to the `models` array.
 
+- **`--sort BY` for `map`.**
+  Sort children within each directory by `tokens` (largest first) or `bytes`
+  (largest first) instead of the default alphabetical order. `repomap.Build`
+  now takes an `Options` struct carrying `Walker` and `SortBy`; the MCP
+  `repo_map` tool gains a `sort` parameter.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

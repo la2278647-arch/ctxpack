@@ -573,3 +573,50 @@ func TestModelsVendorJSONFilters(t *testing.T) {
 		t.Errorf("vendor = %q, want meta", env.Models[0].Vendor)
 	}
 }
+
+// --- map --sort ---
+
+func TestMapSortByNameDefault(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing Repository header:\n%s", out)
+	}
+}
+
+func TestMapSortByTokens(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--sort", "tokens"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing Repository header with --sort tokens:\n%s", out)
+	}
+}
+
+func TestMapSortByBytes(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdMap([]string{src, "--sort", "bytes"})
+	if code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("output missing Repository header with --sort bytes:\n%s", out)
+	}
+}
