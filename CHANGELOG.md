@@ -60,6 +60,12 @@ to follow [Semantic Versioning](https://semver.org/).
   `deepseek-r1` (DeepSeek). The table now has 23 models across 7 vendors.
   Prefix matching works for all new models.
 
+- **`ctxpack doctor` command.**
+  Prints environment diagnostics: version, Go version, platform, git path
+  and version (or "not found"), and model/vendor count. Supports `--json`
+  for machine-readable output. Useful for troubleshooting and verifying
+  installation health.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

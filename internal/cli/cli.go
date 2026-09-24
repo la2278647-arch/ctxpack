@@ -13,6 +13,8 @@ import (
 	"io"
 	"math"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,6 +54,8 @@ func Run(args []string) int {
 		return cmdModels(args[1:])
 	case "mcp":
 		return runMCP(args[1:])
+	case "doctor":
+		return cmdDoctor(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ctxpack: unknown command %q\n\n", args[0])
 		printHelp(os.Stderr)
@@ -72,6 +76,7 @@ COMMANDS
   tokens <path>        Estimate total tokens and show per-model fit.
   models               List known LLMs and their context windows.
   mcp                  Run as a Model Context Protocol server on stdio.
+  doctor               Print environment diagnostics (version, git, models).
   version              Print the build identity.
   help                 Show this help.
 
@@ -539,6 +544,75 @@ func filterByVendor(models []counter.Model, vendor string) []counter.Model {
 }
 
 // --- mcp ---
+
+// --- doctor ---
+
+func cmdDoctor(args []string) int {
+	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	fs.Usage = func() { printHelp(os.Stderr) }
+	jsonOut := fs.Bool("json", false, "output diagnostics as JSON")
+	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
+		return 2
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintln(os.Stderr, "ctxpack: unexpected argument", fs.Arg(0))
+		return 2
+	}
+
+	info := map[string]any{
+		"version":    version.Info(),
+		"go_version": runtime.Version(),
+		"platform":   runtime.GOOS + "/" + runtime.GOARCH,
+	}
+
+	// Check git availability.
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		info["git"] = "not found"
+		info["git_error"] = err.Error()
+	} else {
+		info["git"] = gitPath
+		out, err := exec.Command("git", "--version").Output()
+		if err != nil {
+			info["git_version"] = "unknown"
+			info["git_version_error"] = err.Error()
+		} else {
+			info["git_version"] = strings.TrimSpace(string(out))
+		}
+	}
+
+	models := counter.Models()
+	info["model_count"] = len(models)
+	info["model_vendors"] = countVendors(models)
+
+	if *jsonOut {
+		return writeEnvelope(os.Stdout, info)
+	}
+
+	fmt.Println("ctxpack diagnostics:")
+	fmt.Printf("  Version:   %s\n", version.Info())
+	fmt.Printf("  Go:        %s\n", runtime.Version())
+	fmt.Printf("  Platform:  %s\n", runtime.GOOS+"/"+runtime.GOARCH)
+	if gitPath != "" {
+		gitVer, _ := info["git_version"].(string)
+		if gitVer == "" {
+			gitVer = "unknown"
+		}
+		fmt.Printf("  Git:       %s (%s)\n", gitPath, gitVer)
+	} else {
+		fmt.Println("  Git:       not found (diff command will not work)")
+	}
+	fmt.Printf("  Models:    %d models, %d vendors\n", len(models), info["model_vendors"])
+	return 0
+}
+
+func countVendors(models []counter.Model) int {
+	seen := make(map[string]bool)
+	for _, m := range models {
+		seen[m.Vendor] = true
+	}
+	return len(seen)
+}
 
 // runMCP runs the Model Context Protocol server on stdio. It is a variable so
 // tests can observe that "ctxpack mcp" dispatches without having to drive a

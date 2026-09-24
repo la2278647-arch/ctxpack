@@ -278,6 +278,7 @@ is omitted — it is gone from the working tree.
 | `tokens` | Total token estimate + per-model fit. |
 | `models` | List known models and context windows. |
 | `mcp`    | Run as an MCP server on stdio. |
+| `doctor` | Print environment diagnostics (version, git, models). |
 
 Run `ctxpack <command> --help` for details.
 

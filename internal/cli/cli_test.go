@@ -762,3 +762,80 @@ func TestMapCSVSortableByBytes(t *testing.T) {
 		t.Errorf("first data row not CSV:\n%s", lines[1])
 	}
 }
+
+// --- doctor ---
+
+func TestDoctorShowsVersion(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "ctxpack diagnostics:") {
+		t.Errorf("output missing 'ctxpack diagnostics:' header:\n%s", out)
+	}
+	if !strings.Contains(out, "Version:") {
+		t.Errorf("output missing 'Version:' line:\n%s", out)
+	}
+}
+
+func TestDoctorShowsPlatform(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Platform:") {
+		t.Errorf("output missing 'Platform:' line:\n%s", out)
+	}
+}
+
+func TestDoctorShowsModelCount(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Models:") {
+		t.Errorf("output missing 'Models:' line:\n%s", out)
+	}
+	if !strings.Contains(out, "23 models") {
+		t.Errorf("output missing '23 models':\n%s", out)
+	}
+}
+
+func TestDoctorJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--json"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	var data map[string]any
+	if err := json.Unmarshal([]byte(out), &data); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if _, ok := data["version"]; !ok {
+		t.Errorf("JSON missing 'version' key")
+	}
+	if data["model_count"].(float64) != 23 {
+		t.Errorf("JSON model_count = %v, want 23", data["model_count"])
+	}
+}
+
+func TestDoctorRejectsExtraArgs(t *testing.T) {
+	c := captureStderr(t)
+
+	code := cmdDoctor([]string{"--bogus"})
+	if code != 2 {
+		t.Fatalf("cmdDoctor exit = %d, want 2", code)
+	}
+	_ = c.Content() // drain
+}
