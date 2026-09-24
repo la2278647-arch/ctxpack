@@ -501,3 +501,75 @@ func TestTokensModelJSONFilters(t *testing.T) {
 		t.Errorf("fit model = %q, want gpt-4o", env.Fits[0].Model)
 	}
 }
+
+// --- models --vendor ---
+
+func TestModelsVendorShowsOnlyThatVendor(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--vendor", "anthropic"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "claude-3-haiku") {
+		t.Errorf("missing anthropic model:\n%s", out)
+	}
+	if strings.Contains(out, "gpt-4o") {
+		t.Errorf("leaked openai model:\n%s", out)
+	}
+	if strings.Contains(out, "gemini") {
+		t.Errorf("leaked google model:\n%s", out)
+	}
+}
+
+func TestModelsVendorCaseInsensitive(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--vendor", "OpenAI"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "gpt-4o") {
+		t.Errorf("missing openai model (case-insensitive):\n%s", out)
+	}
+	if strings.Contains(out, "claude") {
+		t.Errorf("leaked anthropic model:\n%s", out)
+	}
+}
+
+func TestModelsVendorUnknownFails(t *testing.T) {
+	errCap := captureStderr(t)
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--vendor", "nonexistent"})
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 for unknown vendor", code)
+	}
+	if !strings.Contains(errCap.Content(), "no models for vendor") {
+		t.Errorf("stderr missing 'no models for vendor':\n%s", errCap.Content())
+	}
+	if c.Content() != "" {
+		t.Errorf("stdout should be empty on failure:\n%s", c.Content())
+	}
+}
+
+func TestModelsVendorJSONFilters(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--json", "--vendor", "meta"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v\n%s", err, c.Content())
+	}
+	if len(env.Models) != 1 {
+		t.Fatalf("expected 1 model for meta, got %d", len(env.Models))
+	}
+	if env.Models[0].Vendor != "meta" {
+		t.Errorf("vendor = %q, want meta", env.Models[0].Vendor)
+	}
+}

@@ -93,6 +93,7 @@ FLAGS (diff)
 FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
   --model NAME          (tokens only) Show fit for one model instead of all
+  --vendor NAME         (models only) Show only models from this vendor
   --json               Emit JSON instead of the text output, for scripting
 
 EXAMPLES
@@ -434,6 +435,7 @@ func cmdModels(args []string) int {
 	fs := flag.NewFlagSet("models", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
+	vendor := fs.String("vendor", "", "show only models from this vendor")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -446,6 +448,13 @@ func cmdModels(args []string) int {
 		return 2
 	}
 	models := counter.Models()
+	if *vendor != "" {
+		models = filterByVendor(models, *vendor)
+		if len(models) == 0 {
+			fmt.Fprintln(os.Stderr, "ctxpack: no models for vendor", *vendor)
+			return 2
+		}
+	}
 	if *jsonOut {
 		return writeEnvelope(os.Stdout, modelsEnvelope{Models: modelJSON(models)})
 	}
@@ -454,6 +463,18 @@ func cmdModels(args []string) int {
 		fmt.Printf("  %-22s %s (%s)\n", m.Name, humanTokens(m.ContextWindow), m.Vendor)
 	}
 	return 0
+}
+
+// filterByVendor returns only models whose vendor matches (case-insensitive).
+func filterByVendor(models []counter.Model, vendor string) []counter.Model {
+	v := strings.ToLower(vendor)
+	out := make([]counter.Model, 0, len(models))
+	for _, m := range models {
+		if strings.ToLower(m.Vendor) == v {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // --- mcp ---

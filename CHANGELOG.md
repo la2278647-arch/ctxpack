@@ -26,6 +26,12 @@ to follow [Semantic Versioning](https://semver.org/).
   with a stderr message before any output is written. JSON output filters the
   `fits` array to the single entry.
 
+- **`--vendor NAME` for `models`.**
+  Filter the model table to one vendor (case-insensitive): `openai`,
+  `anthropic`, `google`, `meta`, `mistral`, `deepseek`, `alibaba`. An unknown
+  vendor exits 2 with a stderr message and writes nothing to stdout. JSON
+  output applies the same filter to the `models` array.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
