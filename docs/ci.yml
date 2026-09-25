@@ -91,56 +91,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Build into an empty dir: outputting ./ctxpack would collide with
-          # this repo's ./ctxpack/ source directory.
+          # Build into a throwaway dir: outputting ./ctxpack would collide
+          # with this repo's ./ctxpack/ source directory. The script then
+          # drives every command, flag, format, the diff range and deleted-file
+          # cases, and the MCP server against the tree, so this step stays
+          # short and cannot drift from the local `make smoke` target, which
+          # calls the same script.
           B=$(mktemp -d)/ctxpack
           case "$RUNNER_OS" in Windows) B="$B.exe" ;; esac
           go build -o "$B" .
-          "$B" version
-          "$B" models | grep -qi gpt
-          "$B" tokens . | grep -qi tokens
-          "$B" map . | grep -qi repository
-          "$B" pack . > /dev/null
-          # Validity is guaranteed by construction (encoding/json.Marshal) and
-          # asserted in internal/format; no python3 dependency here, because
-          # it is not present on every runner image.
-          "$B" pack . --format json > /tmp/p.json
-          test -s /tmp/p.json && grep -q '"files"' /tmp/p.json
-          "$B" pack . --format markdown | grep -q '^#'
-          "$B" pack . --format text | grep -q '^Repository:'
-          "$B" pack . --format markdown --budget 500 > /dev/null
-          "$B" pack . -o /tmp/out.md && test -s /tmp/out.md
-          # Flag-surface smoke: the sort/top/format/dry-run/list flags exist
-          # and run without error on the repo itself.
-          "$B" map . --sort tokens --top 5 > /dev/null
-          "$B" tokens . --sort window --top 3 > /dev/null
-          "$B" models --sort vendor --top 5 > /dev/null
-          "$B" models --format json | grep -q '"models"'
-          "$B" pack . --dry-run > /dev/null
-          echo x >> README.md
-          "$B" diff --list | grep -q README.md
-          "$B" diff --dry-run > /dev/null
-          git checkout -- README.md
-          # A range ref is pure history, so it must not pick up a working-tree
-          # file that exists in no commit. Use a throwaway repo: the checkout
-          # is a shallow clone, so HEAD~1 is not available here.
-          R=$(mktemp -d)
-          (cd "$R" && git init -q && git config user.email t@t.invalid \
-            && git config user.name t \
-            && echo one > a.txt && git add -A && git commit -qm one \
-            && echo two > a.txt && git add -A && git commit -qm two \
-            && echo three > untracked.txt)
-          RANGE=$("$B" diff --list --ref HEAD~1..HEAD "$R")
-          ! grep -q untracked <<< "$RANGE"
-          # MCP: repo_map and list_models both answer with JSON envelopes.
-          printf '%s\n%s\n' \
-            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":".","format":"json"}}}' \
-            | "$B" mcp | grep -q '"tree"'
-          printf '%s\n%s\n' \
-            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-            '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-            | "$B" mcp | grep -q ctxpack
+          bash scripts/smoke.sh "$B"
 
   packages:
     name: release binaries

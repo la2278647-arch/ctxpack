@@ -456,7 +456,16 @@ make check
 From a source checkout. That runs gofmt cleanliness, `go vet`, the test
 suite, and the stdlib-only assertion — `go.sum` must stay empty and
 `go list -m all` must report exactly one module. `make smoke` additionally
-builds the binary and drives every command against the source tree itself.
+builds the binary and drives every command against the source tree itself,
+including all four output formats, the `--sort`/`--top`/`--format`/
+`--dry-run`/`--list` flags, a `diff --ref A..B` range, a deletion reported in
+each format, and the MCP server over stdio. `make ci` runs both.
+
+The smoke suite is [scripts/smoke.sh](scripts/smoke.sh), a standalone script
+that `make smoke` delegates to rather than duplicating. It finds the
+repository root from its own path, so it runs from any working directory, and
+takes an explicit binary path as an optional first argument — which is how CI
+calls it with a build from a throwaway directory.
 
 Without make, the same four checks are:
 
@@ -473,9 +482,21 @@ token that published this repository does not carry the `workflow` scope
 GitHub requires to create workflow files. Activate it with:
 
 ```sh
+gh auth refresh -h github.com -s workflow
 git mv docs/ci.yml .github/workflows/ci.yml
 git push
 ```
+
+That last step is verified to fail until the scope is added — GitHub rejects
+the push rather than silently accepting it:
+
+```
+ ! [remote rejected] main -> main (refusing to allow an OAuth App to create
+   or update workflow `.github/workflows/ci.yml` without `workflow` scope)
+```
+
+The rejection applies to branches as well as `main`, and refreshing the scope
+needs a browser, so it cannot be done from a headless environment.
 
 ## License
 

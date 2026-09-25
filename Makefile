@@ -11,17 +11,25 @@ COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 DATE     := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -X $(MOD)/internal/version.Version=$(VERSION) -X $(MOD)/internal/version.BuildCommit=$(COMMIT) -X $(MOD)/internal/version.BuildDate=$(DATE)
 
+# A Windows host runs the .exe; everywhere else the extensionless name.
+# OS is make's built-in and is Windows_NT on Windows, including git-bash.
+ifeq ($(OS),Windows_NT)
+  BIN := bin/ctxpack.exe
+else
+  BIN := bin/ctxpack
+endif
+
 OSARCHES := windows-amd64 windows-386 windows-arm64 \
             linux-amd64 linux-386 linux-arm64 \
             darwin-amd64 darwin-arm64
 
-.PHONY: all build test vet fmt tidy check release smoke clean
+.PHONY: all build test vet fmt tidy check smoke ci release clean
 
 all: check
 
 ## Build a binary for the host into ./bin
 build:
-	$(GO) build -trimpath -ldflags '$(LDFLAGS)' -o bin/ctxpack .
+	$(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN) .
 
 ## Run the test suite
 test:
@@ -55,16 +63,14 @@ check:
 	@echo "check passed"
 
 ## Build, then exercise every command against the source tree itself.
+## Delegates to scripts/smoke.sh so the suite has one source of truth that CI
+## calls identically instead of keeping a second copy in this Makefile.
+## Requires bash.
 smoke: build
-	./bin/ctxpack version
-	./bin/ctxpack models
-	./bin/ctxpack tokens .
-	./bin/ctxpack map .
-	./bin/ctxpack pack . --format markdown --budget 3000
-	./bin/ctxpack pack . --format text --model gpt-4o --budget 2000
-	./bin/ctxpack pack . --format json --budget 500 -o /tmp/ctxpack.smoke.json
-	@test -s /tmp/ctxpack.smoke.json
-	@echo "smoke passed"
+	bash scripts/smoke.sh '$(BIN)'
+
+## check plus smoke: the whole CI gate from the command line.
+ci: check smoke
 
 ## Cross-compile the release set into ./dist, then checksum them.
 release:

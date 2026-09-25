@@ -6,6 +6,33 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/smoke.sh`: the smoke suite as a single script.**
+  Builds into `bin/`, then drives every command, all four output formats, the
+  `--sort`/`--top`/`--format`/`--dry-run`/`--list` flags, `diff` with a
+  `--ref A..B` range, a deletion across all four formats, and the MCP server
+  over stdio — against the source tree itself. `make smoke` now delegates to it
+  so there is one copy instead of a Makefile recipe and a CI recipe that could
+  drift apart. The script is self-locating: it finds the repository root from
+  its own path, so it runs from any working directory and accepts an explicit
+  binary path as an optional first argument.
+
+### Changed
+
+- **`--dry-run` writes its report to stderr, and the smoke suite asserts it.**
+  The suite previously discarded dry-run output with `> /dev/null`, which
+  silently failed to silence it — this codebase sends artifacts to stdout and
+  status to stderr, and a dry run produces status, not an artifact. A `> /dev/null`
+  redirect therefore captured nothing at all. The assertions now capture stderr
+  and require the report to be present, so the stream convention is pinned
+  instead of merely tolerated.
+- **The CI smoke test calls `scripts/smoke.sh` instead of inlining its steps.**
+  The inlined copy contained two bugs the script run surfaced: it grepped for
+  `"tree"` in MCP output, where the tool result arrives escaped as `\"tree\"`
+  inside the JSON-RPC envelope string, and it used `> /dev/null` to silence
+  dry-run output that travels on stderr.
+
 ## [0.1.7] - 2026-09-26
 
 ### Added
