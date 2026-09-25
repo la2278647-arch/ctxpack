@@ -14,13 +14,12 @@ import (
 	"io"
 	"math"
 	"os"
-	"os/exec"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
+	"github.com/la2278647-arch/ctxpack/internal/doctor"
 	"github.com/la2278647-arch/ctxpack/internal/format"
 	"github.com/la2278647-arch/ctxpack/internal/gitutil"
 	"github.com/la2278647-arch/ctxpack/internal/mcp"
@@ -775,98 +774,22 @@ func cmdDoctor(args []string) int {
 		return 2
 	}
 
-	info := map[string]any{
-		"version":    version.Info(),
-		"go_version": runtime.Version(),
-		"platform":   runtime.GOOS + "/" + runtime.GOARCH,
-	}
-
-	// Check git availability.
-	gitPath, err := exec.LookPath("git")
-	if err != nil {
-		info["git"] = "not found"
-		info["git_error"] = err.Error()
-	} else {
-		info["git"] = gitPath
-		out, err := exec.Command("git", "--version").Output()
-		if err != nil {
-			info["git_version"] = "unknown"
-			info["git_version_error"] = err.Error()
-		} else {
-			info["git_version"] = strings.TrimSpace(string(out))
-		}
-	}
-
-	models := counter.Models()
-	info["model_count"] = len(models)
-	info["model_vendors"] = countVendors(models)
-
-	// Build the vendor summary for the text output. The summary is sorted by
-	// model count descending, then vendor name ascending for ties. When --top
-	// is positive the summary is truncated; the totals always reflect the full
-	// set so the truncation cannot mislead about the registry's size.
-	byVendor := make(map[string]int)
-	for _, m := range models {
-		byVendor[m.Vendor]++
-	}
-	type vendorCount struct {
-		name string
-		n    int
-	}
-	vcs := make([]vendorCount, 0, len(byVendor))
-	for name, n := range byVendor {
-		vcs = append(vcs, vendorCount{name, n})
-	}
-	sort.Slice(vcs, func(i, j int) bool {
-		if vcs[i].n != vcs[j].n {
-			return vcs[i].n > vcs[j].n
-		}
-		return vcs[i].name < vcs[j].name
-	})
-	if *top > 0 && *top < len(vcs) {
-		vcs = vcs[:*top]
-	}
+	// The report comes from internal/doctor, which the MCP server's `doctor`
+	// tool shares, so the two frontends cannot disagree about this machine.
+	report := doctor.Gather()
 
 	if *jsonOut {
 		w, close := outputWriter(*output)
 		defer close()
-		return writeEnvelope(w, info)
+		return writeEnvelope(w, report)
 	}
 
 	out, close := outputWriter(*output)
 	defer close()
 	w := bufio.NewWriter(out)
 	defer w.Flush()
-
-	fmt.Fprintln(w, "ctxpack diagnostics:")
-	fmt.Fprintf(w, "  Version:   %s\n", version.Info())
-	fmt.Fprintf(w, "  Go:        %s\n", runtime.Version())
-	fmt.Fprintf(w, "  Platform:  %s\n", runtime.GOOS+"/"+runtime.GOARCH)
-	if gitPath != "" {
-		gitVer, _ := info["git_version"].(string)
-		if gitVer == "" {
-			gitVer = "unknown"
-		}
-		fmt.Fprintf(w, "  Git:       %s (%s)\n", gitPath, gitVer)
-	} else {
-		fmt.Fprintln(w, "  Git:       not found (diff command will not work)")
-	}
-	fmt.Fprintf(w, "  Models:    %d models, %d vendors\n", len(models), info["model_vendors"])
-	if len(vcs) > 0 {
-		fmt.Fprintln(w, "  Vendor breakdown:")
-		for _, vc := range vcs {
-			fmt.Fprintf(w, "    %-15s %d model(s)\n", vc.name, vc.n)
-		}
-	}
+	report.Text(w, *top)
 	return 0
-}
-
-func countVendors(models []counter.Model) int {
-	seen := make(map[string]bool)
-	for _, m := range models {
-		seen[m.Vendor] = true
-	}
-	return len(seen)
 }
 
 // runMCP runs the Model Context Protocol server on stdio. It is a variable so

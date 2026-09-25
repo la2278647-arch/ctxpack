@@ -61,10 +61,12 @@ func TestToolsSchema(t *testing.T) {
 		"count_tokens": true,
 		"list_models":  true,
 		"diff_repo":    true,
+		"doctor":       true,
 	}
-	// Every tool but list_models takes a path, so only they require one.
-	// list_models takes nothing: an argument-taking tool that ignored its
-	// arguments would hide typos.
+	// Every tool but list_models and doctor takes a path, so only they require
+	// one. Both take none: list_models reports the model registry and doctor
+	// reports this server's environment, and neither is about a repository. An
+	// argument-taking tool that ignored its arguments would hide typos.
 	takesPath := map[string]bool{
 		"pack_repo":    true,
 		"repo_map":     true,
@@ -115,9 +117,13 @@ func TestToolsSchema(t *testing.T) {
 			continue
 		}
 		if !takesPath[name] {
-			// list_models: only a `format` property (text|json), nothing required.
-			if len(props) != 1 || props["format"] == nil {
-				t.Errorf("%s: expected only a format property, got %v", name, props)
+			// list_models and doctor take no path: each reports on something
+			// other than a repository — the registry, or this server's own
+			// environment. Both offer format, and neither requires an argument,
+			// so an empty argument object works. That empty-call property is
+			// what makes doctor usable when a path cannot be named.
+			if _, ok := props["format"].(map[string]any); !ok {
+				t.Errorf("%s: format property missing", name)
 			}
 			if req, ok := schema["required"].([]any); ok && len(req) != 0 {
 				t.Errorf("%s: expected no required arguments, got %v", name, req)

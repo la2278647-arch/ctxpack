@@ -192,7 +192,7 @@ LIST="$(printf '%s\n%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
   | "$B" mcp | tail -n 1)"
-for t in pack_repo repo_map count_tokens list_models diff_repo; do
+for t in pack_repo repo_map count_tokens list_models diff_repo doctor; do
   grep -q "\"name\":\"$t\"" <<< "$LIST" || fail "tools/list does not advertise $t"
 done
 
@@ -202,6 +202,11 @@ mcp_call repo_map '{"path":".","format":"json"}' | grep -qF '\"tree\"'
 mcp_call pack_repo '{"path":".","format":"json","max_depth":1}' | grep -qF '\"files\"'
 mcp_call count_tokens '{"path":".","model":"gpt-4o"}' | grep -q 'gpt-4o'
 mcp_call list_models '{"format":"json"}' | grep -qF '\"models\"'
+# doctor is the one tool that takes no path, so it must work with an empty
+# argument object: that is its whole purpose, for a client that cannot name a
+# repository. Text mode must state the registry size; json must be structured.
+mcp_call doctor '{}' | grep -q 'ctxpack diagnostics:'
+mcp_call doctor '{"format":"json"}' | grep -qF '\"model_count\"'
 # A range ref is deterministic: it compares two revisions and never touches the
 # working tree, so it cannot pass merely because an untracked file happens to
 # be lying around.
@@ -213,5 +218,8 @@ mcp_call pack_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
 mcp_call diff_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
 mcp_call pack_repo '{"format":"json"}' | grep -q 'missing required argument'
 mcp_call diff_repo '{"path":".","ref":"not-a-ref"}' | grep -q 'isError'
+# doctor offers only text and json, not the xml/markdown the packing tools
+# accept, so a format:xml call must fail rather than quietly returning text.
+mcp_call doctor '{"format":"xml"}' | grep -q 'isError'
 
 echo "smoke passed"

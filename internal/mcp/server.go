@@ -1,7 +1,7 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio.
 //
 // It speaks JSON-RPC 2.0 with newline-delimited messages (the MCP stdio
-// transport) and exposes five tools that any MCP-capable agent (Claude
+// transport) and exposes six tools that any MCP-capable agent (Claude
 // Desktop, Cursor, Codex, ...) can call:
 //
 //   - pack_repo(path, format?, include?, exclude?, max_size?, no_gitignore?,
@@ -10,6 +10,7 @@
 //   - count_tokens(path) -> total tokens + per-model fit
 //   - list_models() -> the model table, with each model's effective limit
 //   - diff_repo(path, ref?, format?, budget?) -> packed diff bundle text
+//   - doctor(format?, top?) -> the environment this server runs in
 //
 // The implementation is stdlib-only and synchronous, which is enough for local
 // single-client use.
@@ -25,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
+	"github.com/la2278647-arch/ctxpack/internal/doctor"
 	"github.com/la2278647-arch/ctxpack/internal/format"
 	"github.com/la2278647-arch/ctxpack/internal/gitutil"
 	"github.com/la2278647-arch/ctxpack/internal/packer"
@@ -193,6 +195,17 @@ func tools() []map[string]any {
 				"required": []string{"path"},
 			},
 		},
+		{
+			"name":        "doctor",
+			"description": "Report the environment this ctxpack server runs in: version, Go version, platform, git availability and version, and the size of the model registry broken down by vendor. Call this when another tool fails with an environment error such as 'git error' to confirm whether git is installed and which version the server sees. Use format:json for machine-readable output.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured report."},
+					"top":    map[string]any{"type": "integer", "description": "In text output only, show just the N vendors with the most models. JSON always reports all of them."},
+				},
+			},
+		},
 	}
 }
 
@@ -220,6 +233,8 @@ func (s *server) handleToolCall(id any, params any) {
 		text, callErr = callListModels(args)
 	case "diff_repo":
 		text, callErr = callDiffRepo(args)
+	case "doctor":
+		text, callErr = callDoctor(args)
 	default:
 		s.writeError(id, -32602, "Unknown tool: "+name)
 		return
@@ -533,6 +548,32 @@ func listModelsJSON(models []counter.Model) string {
 		return fmt.Sprintf("error marshaling JSON: %v", err)
 	}
 	return string(b)
+}
+
+// callDoctor reports the environment this server runs in. Unlike the packing
+// tools it takes no path: an agent that cannot pack a repository may well be
+// unable to name a valid one, so the diagnostic has to work with no argument
+// at all. That is the point of the tool — when something else fails with an
+// environment error, there must still be one call that can answer.
+func callDoctor(args map[string]any) (string, string) {
+	rawFormat := getString(args, "format", "text")
+	if f := strings.ToLower(rawFormat); f != "text" && f != "json" {
+		// doctor offers only text and json. parseFormat would also accept xml
+		// and markdown here, which would advertise formats doctor cannot render,
+		// so the check is local and names the two it actually supports.
+		return "", fmt.Sprintf("unknown format %q (want text or json)", rawFormat)
+	}
+	report := doctor.Gather()
+	if strings.ToLower(rawFormat) == "json" {
+		b, err := json.Marshal(report)
+		if err != nil {
+			return "", "error marshaling JSON: " + err.Error()
+		}
+		return string(b), ""
+	}
+	var sb strings.Builder
+	report.Text(&sb, toInt(args["top"]))
+	return sb.String(), ""
 }
 
 // --- JSON-RPC output helpers ---

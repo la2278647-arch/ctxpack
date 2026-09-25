@@ -38,23 +38,45 @@ to follow [Semantic Versioning](https://semver.org/).
   token total, `--include` and `--exclude` must each shrink it, `--hidden`
   must add files, and `--no-gitignore` can only keep or add.
 
-- **All five MCP tools are now part of the smoke suite.**
+- **`doctor` is now an MCP tool.**
+  An agent that received `git error: exit status 128` from `diff_repo` had no
+  way to tell whether git was missing, on the wrong version, or whether the ref
+  was simply wrong — and the one diagnostic that answers that question required
+  a `path`, which is exactly the thing the agent may be unable to name. The
+  `doctor` tool takes no path at all: it reports the server's version, Go
+  version, platform, git availability and version, and the model registry broken
+  down by vendor. `top` truncates only the text breakdown; the totals and the
+  `format: "json"` payload always stay complete. It offers just `text` and
+  `json` and refuses anything else, so a client cannot request a format it would
+  silently get back as text.
+
+- **All six MCP tools are now part of the smoke suite.**
   The MCP server is the only other frontend to ctxpack, but the smoke suite
   previously called just one tool and one method. It now asserts that
-  `tools/list` advertises all five tools, that each of them is callable with a
-  real argument, and that four failure modes are reported correctly: an unknown
-  `format` on either packing tool, a missing required `path`, and an unresolvable
-  `ref`. Two conventions worth pinning: a tool's result is a JSON *string*
-  inside the envelope, so inner keys arrive escaped (`\"tree\"`, not `"tree"`);
-  and errors come back inside the envelope as `isError` rather than as a
-  JSON-RPC error object, so a client must check `isError`.
+  `tools/list` advertises all six tools, that each of them is callable with a
+  real argument, and that five failure modes are reported correctly: an unknown
+  `format` on either packing tool, an unknown `format` on `doctor`, a missing
+  required `path`, and an unresolvable `ref`. Two conventions worth pinning: a
+  tool's result is a JSON *string* inside the envelope, so inner keys arrive
+  escaped (`\"tree\"`, not `"tree"`); and errors come back inside the envelope
+  as `isError` rather than as a JSON-RPC error object, so a client must check
+  `isError`.
 
 ### Changed
+
+- **`doctor` moved into a shared package.**
+  The CLI's `doctor` command and the new MCP `doctor` tool now both call
+  `internal/doctor` instead of each implementing the checks themselves. That is
+  the same "frontends share an engine" rule the packer and repomap packages
+  already follow, and it removes about a hundred lines of duplicated git
+  probing and vendor sorting from `internal/cli`. The JSON keys the CLI has
+  always emitted are unchanged, so a script that parses
+  `ctxpack doctor --json` keeps working.
 
 - **The README MCP table was missing `pack_repo`'s `max_depth`.**
   `pack_repo` accepts ten arguments but the table listed nine, and the
   introductory sentence implied only `repo_map`, `count_tokens` and
-  `list_models` take a `format` when all five tools do. Both are corrected, and
+  `list_models` take a `format` when all six tools do. Both are corrected, and
   the smoke suite now exercises `max_depth` through the MCP interface so this
   cannot quietly regress again.
 

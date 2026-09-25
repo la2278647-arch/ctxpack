@@ -938,3 +938,178 @@ func TestHumanTokens(t *testing.T) {
 		}
 	}
 }
+
+// --- doctor ---
+
+// An agent that gets "git error: exit status 128" out of diff_repo has no way
+// to tell whether git is missing, on the wrong version, or simply the ref that
+// was wrong. doctor is the call that answers it without a path — and a path is
+// exactly the thing the agent may be unable to name.
+func TestDoctorToolText(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"doctor","arguments":{}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object: %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); isErr {
+		t.Fatalf("doctor reported an error: %v", res)
+	}
+	text := toolText(t, msgs, "1")
+	for _, want := range []string{
+		"ctxpack diagnostics:",
+		"  Version:   ",
+		"  Go:        ",
+		"  Platform:  ",
+		"  Git:       ",
+		"  Vendor breakdown:",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("doctor text is missing %q:\n%s", want, text)
+		}
+	}
+	if want := fmt.Sprintf("%d models, %d vendors", len(counter.Models()), distinctVendors()); !strings.Contains(text, want) {
+		t.Errorf("doctor text does not state the registry size %q:\n%s", want, text)
+	}
+}
+
+func TestDoctorToolJSON(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"doctor","arguments":{"format":"json"}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object: %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); isErr {
+		t.Fatalf("doctor reported an error: %v", res)
+	}
+	text := toolText(t, msgs, "1")
+	var data map[string]any
+	if err := json.Unmarshal([]byte(text), &data); err != nil {
+		t.Fatalf("doctor JSON is not valid JSON: %v\n%s", err, text)
+	}
+	for _, key := range []string{"version", "go_version", "platform", "git", "model_count", "model_vendors", "vendors"} {
+		if _, ok := data[key]; !ok {
+			t.Errorf("doctor JSON is missing key %q: %s", key, text)
+		}
+	}
+	if data["model_count"].(float64) != float64(len(counter.Models())) {
+		t.Errorf("model_count = %v, want %d", data["model_count"], len(counter.Models()))
+	}
+	// The breakdown is always complete: truncation is a text-only concern.
+	if vendors, ok := data["vendors"].([]any); !ok || len(vendors) != distinctVendors() {
+		t.Errorf("vendors has %d entries, want %d: %s",
+			func() int {
+				if v, ok := data["vendors"].([]any); ok {
+					return len(v)
+				}
+				return -1
+			}(),
+			distinctVendors(), text)
+	}
+}
+
+// TestDoctorToolTopTruncatesTextOnly pins the split: top shrinks the text
+// vendor list but must not shrink the JSON, and must not change the totals in
+// either. A report whose counts moved when the reader asked for fewer rows
+// would understate the registry.
+func TestDoctorToolTopTruncatesTextOnly(t *testing.T) {
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"doctor","arguments":{"top":1}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"doctor","arguments":{"format":"json","top":1}}}`,
+	)
+	text := toolText(t, msgs, "1")
+	if got := strings.Count(text, " model(s)"); got != 1 {
+		t.Errorf("text with top=1 has %d vendor lines, want 1:\n%s", got, text)
+	}
+	if want := fmt.Sprintf("%d models, %d vendors", len(counter.Models()), distinctVendors()); !strings.Contains(text, want) {
+		t.Errorf("top=1 changed the totals in text:\n%s", text)
+	}
+	jsonText := toolText(t, msgs, "2")
+	var data map[string]any
+	if err := json.Unmarshal([]byte(jsonText), &data); err != nil {
+		t.Fatalf("JSON unmarshal: %v\n%s", err, jsonText)
+	}
+	if vendors, ok := data["vendors"].([]any); !ok || len(vendors) != distinctVendors() {
+		t.Errorf("JSON dropped vendors under top=1: got %d, want %d",
+			func() int {
+				if v, ok := data["vendors"].([]any); ok {
+					return len(v)
+				}
+				return -1
+			}(),
+			distinctVendors())
+	}
+}
+
+// doctor must reject a format it cannot render. parseFormat also accepts xml
+// and markdown, which doctor does not support, so a format:xml call has to fail
+// rather than quietly returning text.
+func TestDoctorToolUnknownFormat(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"doctor","arguments":{"format":"xml"}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object: %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); !isErr {
+		t.Fatalf("doctor with format:xml did not report an error: %v", res)
+	}
+	if text := toolText(t, msgs, "1"); !strings.Contains(text, "unknown format") {
+		t.Errorf("error text: %q", text)
+	}
+}
+
+// An MCP client discovers a tool by reading its schema, so doctor must
+// advertise both arguments it accepts and must not require either: requiring
+// one would defeat the tool's purpose of working with an empty argument object.
+func TestDoctorSchemaOffersBothAndRequiresNeither(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	tools, _ := msg["result"].(map[string]any)["tools"].([]any)
+	var schema map[string]any
+	for _, tv := range tools {
+		tool := tv.(map[string]any)
+		if tool["name"] == "doctor" {
+			schema = tool["inputSchema"].(map[string]any)
+			break
+		}
+	}
+	if schema == nil {
+		t.Fatal("doctor absent from tools/list")
+	}
+	props, _ := schema["properties"].(map[string]any)
+	if len(props) != 2 {
+		t.Errorf("doctor schema has %d properties, want 2: %v", len(props), props)
+	}
+	for _, name := range []string{"format", "top"} {
+		if _, ok := props[name].(map[string]any); !ok {
+			t.Errorf("doctor schema missing the %s property", name)
+		}
+	}
+	if req, ok := schema["required"].([]any); ok && len(req) != 0 {
+		t.Errorf("doctor schema requires %v, want nothing", req)
+	}
+}
+
+// distinctVendors counts the vendors in the registry, the value doctor's
+// model_vendors field and JSON vendors array must both report.
+func distinctVendors() int {
+	seen := map[string]bool{}
+	for _, m := range counter.Models() {
+		seen[m.Vendor] = true
+	}
+	return len(seen)
+}
