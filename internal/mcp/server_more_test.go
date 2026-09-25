@@ -314,6 +314,152 @@ func TestToolCallDiffRepo(t *testing.T) {
 	}
 }
 
+func TestToolCallDiffRepoNotGit(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] != true {
+		t.Errorf("expected error for non-git dir, got: %v", result["content"])
+	}
+}
+
+func TestToolCallDiffRepoNoChanges(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	// No changes after commit.
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] != true {
+		t.Errorf("expected error for no changes, got: %v", result["content"])
+	}
+}
+
+func TestToolCallDiffRepoModel(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","model":"gpt-4o"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "fit:") {
+		t.Errorf("expected fit annotation:\n%s", text)
+	}
+	if !strings.Contains(text, "gpt-4o") {
+		t.Errorf("expected model name:\n%s", text)
+	}
+}
+
+func TestToolCallCountTokensSortByPct(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","sort":"pct","top":3}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	// Should have exactly 3 model lines.
+	lines := strings.Split(text, "\n")
+	modelLines := 0
+	for _, line := range lines {
+		if strings.Contains(line, " — ") {
+			modelLines++
+		}
+	}
+	if modelLines != 3 {
+		t.Errorf("expected 3 models with top=3, got %d:\n%s", modelLines, text)
+	}
+}
+
+func TestToolCallCountTokensUnknownModel(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","model":"unknown-model"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	// Unknown model returns empty fits (no error).
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if strings.Contains(text, " — ") {
+		t.Errorf("should not list any models for unknown model:\n%s", text)
+	}
+}
+
 func TestToolCallCountTokensJSON(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
