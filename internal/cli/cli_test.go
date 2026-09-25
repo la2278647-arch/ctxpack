@@ -566,8 +566,8 @@ func TestModelsVendorJSONFilters(t *testing.T) {
 	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
 		t.Fatalf("JSON parse: %v\n%s", err, c.Content())
 	}
-	if len(env.Models) != 1 {
-		t.Fatalf("expected 1 model for meta, got %d", len(env.Models))
+	if len(env.Models) != 2 {
+		t.Fatalf("expected 2 models for meta, got %d", len(env.Models))
 	}
 	if env.Models[0].Vendor != "meta" {
 		t.Errorf("vendor = %q, want meta", env.Models[0].Vendor)
@@ -842,8 +842,8 @@ func TestDoctorShowsModelCount(t *testing.T) {
 	if !strings.Contains(out, "Models:") {
 		t.Errorf("output missing 'Models:' line:\n%s", out)
 	}
-	if !strings.Contains(out, "23 models") {
-		t.Errorf("output missing '23 models':\n%s", out)
+	if !strings.Contains(out, "31 models") {
+		t.Errorf("output missing '31 models':\n%s", out)
 	}
 }
 
@@ -862,8 +862,8 @@ func TestDoctorJSON(t *testing.T) {
 	if _, ok := data["version"]; !ok {
 		t.Errorf("JSON missing 'version' key")
 	}
-	if data["model_count"].(float64) != 23 {
-		t.Errorf("JSON model_count = %v, want 23", data["model_count"])
+	if data["model_count"].(float64) != 31 {
+		t.Errorf("JSON model_count = %v, want 31", data["model_count"])
 	}
 }
 

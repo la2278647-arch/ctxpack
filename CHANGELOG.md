@@ -96,6 +96,13 @@ to follow [Semantic Versioning](https://semver.org/).
   flag still works as an alias. Unknown formats exit with code 2 and a
   stderr message.
 
+- **8 new models in the model table.**
+  Added: `gpt-5` (openai, 200k), `o4-mini` (openai, 200k),
+  `claude-3.7-sonnet` (anthropic, 200k), `claude-4-opus` (anthropic, 200k),
+  `gemini-2.5-flash` (google, 1M), `llama-3.3-70b` (meta, 128k),
+  `mistral-large-2` (mistral, 128k), `qwen-2.5-72b` (alibaba, 128k).
+  Total: 31 models across 7 vendors.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

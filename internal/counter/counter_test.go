@@ -58,6 +58,28 @@ func TestLookupModel(t *testing.T) {
 	if _, ok := LookupModel("deepseek-r1"); !ok {
 		t.Fatal("expected deepseek-r1 to be known")
 	}
+	// New models (R43).
+	if _, ok := LookupModel("gpt-5"); !ok {
+		t.Fatal("expected gpt-5 to be known")
+	}
+	if _, ok := LookupModel("claude-4-opus"); !ok {
+		t.Fatal("expected claude-4-opus to be known")
+	}
+	if _, ok := LookupModel("gemini-2.5-flash"); !ok {
+		t.Fatal("expected gemini-2.5-flash to be known")
+	}
+	if _, ok := LookupModel("llama-3.3-70b"); !ok {
+		t.Fatal("expected llama-3.3-70b to be known")
+	}
+	if _, ok := LookupModel("qwen-2.5-72b"); !ok {
+		t.Fatal("expected qwen-2.5-72b to be known")
+	}
+	if _, ok := LookupModel("o4-mini"); !ok {
+		t.Fatal("expected o4-mini to be known")
+	}
+	if _, ok := LookupModel("claude-3.7-sonnet"); !ok {
+		t.Fatal("expected claude-3.7-sonnet to be known")
+	}
 }
 
 func TestLookupModelPrefix(t *testing.T) {
@@ -71,10 +93,15 @@ func TestLookupModelPrefix(t *testing.T) {
 		{"claude-3.5-sonnet-2024", "claude-3.5-sonnet"}, // query longer than a known name
 		{"deepseek", "deepseek-v3"},
 		{"llama", "llama-3.1-405b"},
-		{"gpt-4.1", "gpt-4.1"},           // new model
-		{"claude-4", "claude-4-sonnet"},  // new model prefix
-		{"gemini-2.5", "gemini-2.5-pro"}, // new model prefix
-		{"deepseek-r", "deepseek-r1"},    // new model prefix
+		{"gpt-4.1", "gpt-4.1"},              // new model
+		{"claude-4", "claude-4-sonnet"},     // new model prefix
+		{"gemini-2.5", "gemini-2.5-pro"},    // new model prefix
+		{"deepseek-r", "deepseek-r1"},       // new model prefix
+		{"gpt-5", "gpt-5"},                  // new model
+		{"o4", "o4-mini"},                   // new model prefix
+		{"claude-3.7", "claude-3.7-sonnet"}, // new model prefix
+		{"llama-3.3", "llama-3.3-70b"},      // new model prefix
+		{"qwen-2.5", "qwen-2.5-72b"},        // new model prefix
 	}
 	for _, tc := range cases {
 		got, ok := LookupModel(tc.query)
@@ -102,8 +129,8 @@ func TestLookupModelEmptyAndWhitespace(t *testing.T) {
 
 func TestModelsIsCopy(t *testing.T) {
 	all := Models()
-	if len(all) != 23 {
-		t.Fatalf("Models() returned %d entries, want 23", len(all))
+	if len(all) != 31 {
+		t.Fatalf("Models() returned %d entries, want 31", len(all))
 	}
 	seen := map[string]bool{}
 	for _, m := range all {
