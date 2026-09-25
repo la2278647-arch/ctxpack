@@ -6,7 +6,7 @@
 
 GO       ?= go
 MOD      := github.com/la2278647-arch/ctxpack
-VERSION  ?= 0.1.6
+VERSION  ?= 0.1.7
 COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 DATE     := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -X $(MOD)/internal/version.Version=$(VERSION) -X $(MOD)/internal/version.BuildCommit=$(COMMIT) -X $(MOD)/internal/version.BuildDate=$(DATE)

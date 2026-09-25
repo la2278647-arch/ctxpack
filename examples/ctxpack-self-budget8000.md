@@ -1,7 +1,7 @@
 <!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 0
+- Files: 10  | Tokens: ~7924  | Bytes: 19.2 KB  | Skipped: 0
 
 ---
 
@@ -389,83 +389,14 @@ estimates move as the tree changes, so regenerate before tagging a release.
 
 ---
 
-## `docs/release-notes-v0.1.0.md` (1107 tokens, 2.6 KB)
-
-```markdown
-> **Superseded by [v0.1.1](https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.1).**
-> The binaries on this release were built at commit `5a2017d`, which is five
-> commits after this release's tag, and they predate the fixes for the 1024x
-> byte counts, the unparseable XML output, the token under-count in `mcp`'s
-> `repo_map`, and the flag-parsing drops. Use v0.1.1.
->
-# v0.1.0
-
-First release.
-
-## What it is
-
-`ctxpack` packs a repository into one LLM-ready document that fits a context
-window. Single Go binary, standard library only, zero dependencies, works
-offline, read-only against the trees it reads.
-
-## Commands
-
-| Command          | What it does                                                    |
-| ---------------- | --------------------------------------------------------------- |
-| `ctxpack pack`   | One bundled document: XML / Markdown / JSON / text              |
-| `ctxpack map`    | Token-aware tree map, cheapest orientation                      |
-| `ctxpack diff`   | Pack only the files changed against a git ref                   |
-| `ctxpack tokens` | Estimate the token count of files, a directory, or stdin        |
-| `ctxpack models` | Registry of model context windows                               |
-| `ctxpack mcp`    | Run as a Model Context Protocol server on stdio                 |
-
-## Budget model
-
-Files are ranked by context value — READMEs, licenses and contributing guides
-first, then entry points, then interfaces, docs, source, config, tests — and
-packed greedily until the budget is spent. The rendered bundle lists what did
-not fit and why, so the caller always sees the cut.
-
-## In this release
-
-- `version` printed `gogo1.26.5`; `runtime.Version` already carries the `go`
-  prefix.
-- Flags after a positional were silently ignored — Go's `flag` package stops
-  parsing at the first non-flag token, so the documented
-  `ctxpack pack ./repo --format markdown` returned XML. Positionals now move to
-  the end of the argument list before parsing.
-- Registered the documented `-o` shorthand for `--output`.
-- MCP parse errors were swallowed; JSON-RPC requires a
-  `{"id": null, "error": ...}` response even when the message could not be
-  decoded.
-- Tests for argument reordering, format parsing, the MCP protocol round trip,
-  tool calls, and parse-error framing.
-
-## Install
-
-```sh
-go install github.com/la2278647-arch/ctxpack@v0.1.0
-```
-
-Or take a binary from this release. Binaries are built with `-trimpath` and
-`CGO_ENABLED=0`, so they are statically linked and portable.
-
-## Binaries
-
-`ctxpack_0.1.0_<os>_<arch>` — windows (amd64, 386, arm64), linux
-(amd64, 386, arm64), darwin (amd64, arm64).
-```
-
----
-
-## `examples/README.md` (527 tokens, 1.2 KB)
+## `examples/README.md` (665 tokens, 1.6 KB)
 
 ```markdown
 # Examples
 
 This directory holds **`ctxpack` run on itself** — a show-don't-tell snapshot
-of what the tool produces. Both files are generated artifacts; regenerate them
-with `make`-equivalent commands documented below.
+of what the tool produces. Every snapshot here is a generated artifact;
+regenerate them with the commands documented under each file.
 
 ## `ctxpack-self.map.txt`
 
@@ -490,12 +421,88 @@ ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
   -o examples/ctxpack-self-budget8000.md
 ```
 
+## `diff-demo/`
+
+A generated `ctxpack diff` output over a two-commit range that contains a
+deletion — the smallest example that shows range syntax, packed changes and the
+`Deleted` section together. See [`diff-demo/README.md`](diff-demo/README.md).
+
+```sh
+cd examples/diff-demo && ./make.sh /path/to/ctxpack
+```
+
 ## Notes
 
 - Token counts are estimates (a tiktoken-style pre-tokenization + calibrated
   heuristic), not real-BPE output. See the main README's "Limitations" section.
 - These snapshots reflect the tree at the commit they were generated; the
   numbers move as the repo changes. Regenerate before tagging a release.
+```
+
+---
+
+## `examples/diff-demo/README.md` (1002 tokens, 2.4 KB)
+
+```markdown
+# diff demo — a range with a deletion
+
+`diff.xml` shows `ctxpack diff` run over a range of two commits, where that
+range contains **one modification, one addition and one deletion**. It is the
+smallest output that exercises three features at once:
+
+| Feature | Where it appears |
+| ------- | ---------------- |
+| Range syntax | the header comment, `diff vs "HEAD~1..HEAD"` |
+| Modified + added files | `<files>`, `src/app.go` and `src/util.go` |
+| Deleted files | the `<deleted>` element, `src/legacy.go` |
+
+A deletion has no content to pack — the file is gone. But a diff that silently
+omitted it would make the removal look like it never happened, so the bundle
+names the path in a `Deleted` section and leaves it out of `<files>`. The same
+section appears in every format: `<deleted>` in XML, `## Deleted` in Markdown,
+`==== deleted (N files) ====` in text, and a `deleted` array in JSON.
+
+## Reproduce
+
+```sh
+cd examples/diff-demo
+./make.sh /path/to/ctxpack      # rewrites diff.xml
+```
+
+`make.sh` builds a throwaway git repository in a temp directory, commits two
+revisions apart, and runs `ctxpack diff` over the range. The scratch repo is
+deleted when the script exits, so nothing it creates is checked in and the
+output is byte-identical on every machine.
+
+The demo repository's own directory name is `diffdemo`, which is why the bundle
+reads `<root>diffdemo</root>` — a bundle is labelled with the walked directory's
+base name, never the absolute path of the machine that produced it.
+
+## The range is history, not the working tree
+
+`HEAD~1..HEAD` compares two revisions. Because neither side of a range is the
+working tree, the diff never picks up uncommitted or untracked files — they
+exist in no revision. Pass a plain ref instead (`--ref HEAD~1`, or nothing for
+the default `WORKTREE`) to include them.
+
+## `--list` deliberately hides deletions
+
+```sh
+ctxpack diff <repo> --list --ref HEAD~1..HEAD
+# src/app.go
+# src/util.go
+```
+
+`--list` prints the packable paths and nothing else, so a shell loop such as
+`ctxpack diff . --list | while read f; do ...; do` keeps receiving one real,
+existing path per line. Deletions are reported by the packed bundle and by
+`--dry-run` (which prints `... N files deleted` followed by each path prefixed
+with `D `), not by `--list`.
+
+## Files
+
+- `make.sh` — regenerates `diff.xml`; idempotent and self-cleaning.
+- `diff.xml` — the generated output.
 ```
 
 ---
@@ -527,7 +534,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.6"
+var Version = "0.1.7"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -586,7 +593,7 @@ func main() {
 
 ---
 
-## Omitted by budget (40 files, ~213350 tokens)
+## Omitted by budget (44 files, ~226383 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -594,14 +601,18 @@ func main() {
 - `README.md`
 - `docs/ci.yml`
 - `docs/promote.md`
+- `docs/release-notes-v0.1.0.md`
 - `docs/release-notes-v0.1.1.md`
 - `docs/release-notes-v0.1.2.md`
 - `docs/release-notes-v0.1.3.md`
 - `docs/release-notes-v0.1.4.md`
 - `docs/release-notes-v0.1.5.md`
 - `docs/release-notes-v0.1.6.md`
+- `docs/release-notes-v0.1.7.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
+- `examples/diff-demo/diff.xml`
+- `examples/diff-demo/make.sh`
 - `install.ps1`
 - `install.sh`
 - `internal/cli/cli.go`

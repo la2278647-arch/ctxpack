@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-09-26
+
 ### Added
 
 - **`examples/diff-demo`: a reproducible diff snapshot.**

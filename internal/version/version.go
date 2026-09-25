@@ -12,7 +12,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.6"
+var Version = "0.1.7"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
