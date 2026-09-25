@@ -12,7 +12,8 @@ to follow [Semantic Versioning](https://semver.org/).
   `ctxpack diff . --list` prints only the changed file paths, one per line,
   without packing them or reading their content. Faster than `--dry-run`
   (which packs to count tokens) and useful for scripting or piping into other
-  tools.
+  tools. The MCP `diff_repo` tool now accepts a `list` parameter for the same
+  behaviour.
 
 - **More parameters for MCP `diff_repo`.**
   The `diff_repo` tool now accepts `no_gitignore`, `hidden`, and `max_depth`

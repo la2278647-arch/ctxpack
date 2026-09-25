@@ -185,6 +185,7 @@ func tools() []map[string]any {
 					"no_gitignore": map[string]any{"type": "boolean", "default": false},
 					"hidden":       map[string]any{"type": "boolean", "default": false},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
+					"list":         map[string]any{"type": "boolean", "default": false, "description": "List changed file paths only (no packing, no token counts)."},
 				},
 				"required": []string{"path"},
 			},
@@ -424,6 +425,9 @@ func callDiffRepo(args map[string]any) (string, string) {
 	}
 	if len(changed) == 0 {
 		return "", "no changed files vs " + ref
+	}
+	if toBool(args["list"]) {
+		return strings.Join(changed, "\n"), ""
 	}
 	bundle, err := packer.Pack(path, packer.Options{
 		Walker: walker.Options{
