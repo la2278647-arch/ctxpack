@@ -300,7 +300,7 @@ Run `ctxpack <command> --help` for details.
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
 | `-o, --output FILE` | Write to FILE instead of stdout (all commands). |
-| `--dry-run` | `pack`: show what would be packed without writing output. |
+| `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
 | `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.

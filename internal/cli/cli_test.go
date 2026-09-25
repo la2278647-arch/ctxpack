@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,6 +29,33 @@ func testFlagSet() *flag.FlagSet {
 }
 
 // --- reorderArgs ---
+
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+}
+
+func gitAddAll(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "add", "-A")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git add: %v", err)
+	}
+}
+
+func gitCommit(t *testing.T, dir, msg string) {
+	t.Helper()
+	cmd := exec.Command("git", "commit", "-m", msg)
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git commit: %v", err)
+	}
+}
 
 func TestReorderArgs(t *testing.T) {
 	fs := testFlagSet()
@@ -386,6 +414,49 @@ func TestDiffOutsideRepo(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
 	if code := cmdDiff([]string{dir}); code != 1 {
 		t.Errorf("exit = %d, want 1 outside a git repo", code)
+	}
+}
+
+func TestDiffDryRunShowsFiles(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	// Make a change so there are changed files.
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	errCap := captureStderr(t)
+	code := cmdDiff([]string{src, "--dry-run"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "dry run") {
+		t.Errorf("stderr missing 'dry run'\n%s", out)
+	}
+	if !strings.Contains(out, "files") {
+		t.Errorf("stderr missing 'files'\n%s", out)
+	}
+}
+
+func TestDiffDryRunNoOutputFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	out := filepath.Join(t.TempDir(), "diff.json")
+	code := cmdDiff([]string{src, "--dry-run", "-o", out})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Errorf("dry run should not create output file, but %s exists", out)
 	}
 }
 

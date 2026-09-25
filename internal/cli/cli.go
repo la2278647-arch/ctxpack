@@ -113,7 +113,7 @@ FLAGS (map / tokens / models)
   --format F          (doctor only) text (default), json
   --format F          (models only) text (default), json
   -o, --output FILE   Write to FILE instead of stdout (all commands)
-  --dry-run           (pack only) Show what would be packed without writing
+  --dry-run           (pack/diff) Show what would be packed without writing
   -q, --quiet         Suppress stderr status messages (pack, diff)
 
 EXAMPLES
@@ -262,6 +262,7 @@ func cmdDiff(args []string) int {
 		model    = fs.String("model", "", "annotate fit for a model")
 		output   = fs.String("output", "", "write to FILE")
 		quiet    = fs.Bool("quiet", false, "suppress stderr status messages")
+		dryRun   = fs.Bool("dry-run", false, "show changed files without writing output")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -312,6 +313,19 @@ func cmdDiff(args []string) int {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
 	}
+	if *dryRun {
+		fmt.Fprintf(os.Stderr, "dry run vs %q: %d files, ~%d tokens, %s\n",
+			*ref, len(bundle.Files), bundle.TotalTokens, humanBytes(bundle.TotalBytes))
+		for _, f := range bundle.Files {
+			fmt.Fprintf(os.Stderr, "  %s (~%d tokens, %s)\n", f.Path, f.Tokens, humanBytes(f.Bytes))
+		}
+		if len(bundle.Omitted) > 0 {
+			fmt.Fprintf(os.Stderr, "  ... %d files, ~%d tokens omitted by the budget\n",
+				len(bundle.Omitted), bundle.OmittedTokens)
+		}
+		return 0
+	}
+
 	out := format.Render(bundle, outFmt)
 	// A JSON bundle must parse as JSON, so the diff header (and the fit note)
 	// cannot be prepended as an HTML comment. For other formats the comment is
