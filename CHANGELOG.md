@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`diff` ranges (`--ref A..B`).**
+  `ctxpack diff --ref HEAD~5..HEAD` compares two revisions as history. A range
+  never includes the working tree's untracked files, because those belong to
+  neither side of the range. A plain ref (`--ref main`) still diffs against
+  the working tree, so uncommitted changes remain included. The MCP
+  `diff_repo` tool accepts the same range syntax for its `ref` argument.
+
 ## [0.1.6] - 2026-09-25
 
 ### Added

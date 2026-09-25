@@ -155,6 +155,9 @@ ctxpack pack ./myrepo --model gpt-4o --format markdown -o repo.md
 # Only what you changed since main.
 ctxpack diff ./myrepo --ref main
 
+# The last five commits, as history — not including your working tree.
+ctxpack diff ./myrepo --ref HEAD~5..HEAD
+
 # Squeeze into a small window.
 ctxpack pack ./myrepo --budget 20000
 ```
@@ -307,8 +310,10 @@ Run `ctxpack <command> --help` for details.
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.
 
-`diff` additionally takes `--ref REF` (default: working tree, uncommitted
-changes included).
+`diff` additionally takes `--ref REF`. With no `..`, it diffs `<ref>` against
+the working tree, so uncommitted and untracked changes are included. A range
+(`main..origin/main`, `HEAD~5..HEAD`) compares two revisions purely as history
+and never includes working-tree files, since those belong to neither side.
 
 ---
 
@@ -439,7 +444,6 @@ the two cannot drift apart.
 - Binary files are listed with sizes but their content is never read, so a
   bundle is text-only.
 - `--budget` drops whole files; there is no partial-file truncation.
-- Git ranges are two revisions only (`--ref main`), not arbitrary `A..B`.
 - The MCP server is single-client and synchronous.
 
 ## Development

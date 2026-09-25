@@ -19,8 +19,13 @@ var ErrNotARepo = errors.New("not a git repository")
 //
 //   - ref == "" or "HEAD" or "WORKTREE": returns the working-tree changes
 //     (staged + unstaged + untracked, excluding deleted).
+//   - ref contains ".." (a range, e.g. "main..origin/main"): returns files
+//     differing across the range (git diff <range>), excluding deletions.
+//     This is a pure historical comparison; it never adds the working tree's
+//     untracked files, because those exist in neither side of the range.
 //   - otherwise: returns files differing between <ref> and the working tree
-//     (git diff --name-status <ref>), excluding deletions.
+//     (git diff --name-status <ref>), excluding deletions. Untracked files are
+//     appended so that a dirty tree is not silently ignored.
 //
 // Paths are returned slash-separated and relative to root.
 func ChangedFiles(root, ref string) ([]string, error) {
@@ -42,11 +47,16 @@ func ChangedFiles(root, ref string) ([]string, error) {
 	}
 	files := parseNameStatus(out)
 
-	if extra, err := git(root, "ls-files", "--others", "--exclude-standard"); err == nil {
-		for _, line := range strings.Split(extra, "\n") {
-			line = strings.TrimSpace(line)
-			if line != "" {
-				files = append(files, filepath.ToSlash(line))
+	// A..B compares two revisions, not a revision against the working tree.
+	// Appending untracked files here would report paths present in neither
+	// side of the range.
+	if !strings.Contains(ref, "..") {
+		if extra, err := git(root, "ls-files", "--others", "--exclude-standard"); err == nil {
+			for _, line := range strings.Split(extra, "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" {
+					files = append(files, filepath.ToSlash(line))
+				}
 			}
 		}
 	}

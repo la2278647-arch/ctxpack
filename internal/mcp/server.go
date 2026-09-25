@@ -178,7 +178,7 @@ func tools() []map[string]any {
 				"type": "object",
 				"properties": map[string]any{
 					"path":         map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
-					"ref":          map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0). Default is WORKTREE for uncommitted changes."},
+					"ref":          map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0) or range (HEAD~5..HEAD). Default is WORKTREE for uncommitted changes; a range compares two revisions and excludes working-tree files."},
 					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
 					"budget":       map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
 					"model":        map[string]any{"type": "string", "description": "Annotate fit for a named model."},

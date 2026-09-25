@@ -250,6 +250,49 @@ func TestUnquoteReturnsMalformedPathsUnchanged(t *testing.T) {
 	}
 }
 
+// A range compares two revisions, so the working tree's untracked files must
+// not leak into the result — they exist in neither side of the range.
+func TestChangedFilesRangeExcludesUntracked(t *testing.T) {
+	dir := newRepo(t)
+	put(t, dir, "a.go", "package a\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+
+	put(t, dir, "b.go", "package b\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "second")
+
+	// Dirty the working tree with a file that is tracked in no commit at all.
+	put(t, dir, "untracked.go", "package u\n")
+
+	got, err := ChangedFiles(dir, "HEAD~1..HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eqWant(t, got, "b.go")
+}
+
+// A plain ref is a comparison against the working tree, so untracked files
+// belong in the result there. This pins the asymmetry with the range case.
+func TestChangedFilesSingleRefIncludesUntracked(t *testing.T) {
+	dir := newRepo(t)
+	put(t, dir, "a.go", "package a\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+
+	put(t, dir, "b.go", "package b\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "second")
+
+	put(t, dir, "untracked.go", "package u\n")
+
+	got, err := ChangedFiles(dir, "HEAD~1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eqWant(t, got, "b.go", "untracked.go")
+}
+
 func find(files []string, want string) (string, bool) {
 	for _, f := range files {
 		if f == want {

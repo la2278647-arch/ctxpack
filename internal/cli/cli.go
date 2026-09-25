@@ -73,7 +73,7 @@ USAGE
 COMMANDS
   pack <path>          Pack all (or selected) files into one bundle (default: XML).
   map  <path>          Print a token-aware tree outline of the repo.
-  diff <path>          Pack only files changed vs a git ref (default: working tree).
+  diff <path>          Pack only files changed vs a git ref or range (default: working tree).
   tokens <path>        Estimate total tokens and show per-model fit.
   models               List known LLMs and their context windows.
   mcp                  Run as a Model Context Protocol server on stdio.
@@ -124,6 +124,7 @@ EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
   ctxpack pack . --include "*.go" --exclude "*_test.go" --model gpt-4o
   ctxpack diff . --ref main            # what changed since main
+  ctxpack diff . --ref HEAD~5..HEAD    # the last 5 commits, as history
   ctxpack pack . --budget 60000 --model gpt-4o
   ctxpack map . --json                 # the tree as JSON, for scripting
   ctxpack tokens . --json              # per-model fit as JSON
