@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
@@ -144,12 +145,17 @@ func tools() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":      map[string]any{"type": "string"},
-					"format":    map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
-					"include":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
-					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
-					"max_size":  map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
-					"max_depth": map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
+					"path":         map[string]any{"type": "string"},
+					"format":       map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+					"include":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
+					"exclude":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
+					"max_size":     map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
+					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
+					"no_gitignore": map[string]any{"type": "boolean", "default": false},
+					"hidden":       map[string]any{"type": "boolean", "default": false},
+					"model":        map[string]any{"type": "string", "description": "Show fit for one model only (by name)."},
+					"top":          map[string]any{"type": "integer", "description": "Show only the N largest models by context window."},
+					"sort":         map[string]any{"type": "string", "enum": []string{"name", "pct", "window"}, "default": "name", "description": "Sort fit table by name, pct_used, or window size."},
 				},
 				"required": []string{"path"},
 			},
@@ -288,25 +294,33 @@ func callCountTokens(args map[string]any) (string, string) {
 		return "", "missing required argument: path"
 	}
 	outFmt := getString(args, "format", "text")
+	modelFilter := getString(args, "model", "")
+	topN := toInt(args["top"])
+	sortBy := getString(args, "sort", "name")
+
 	_, tokens, bytes, err := repomap.Build(path, repomap.Options{
 		Walker: walker.Options{
 			Include:          toStrSlice(args["include"]),
 			Exclude:          toStrSlice(args["exclude"]),
 			MaxFileSize:      toInt64(args["max_size"]),
 			MaxDepth:         toInt(args["max_depth"]),
-			RespectGitignore: true,
+			RespectGitignore: !toBool(args["no_gitignore"]),
+			IncludeHidden:    toBool(args["hidden"]),
 			ReadContent:      false,
 		},
 	})
 	if err != nil {
 		return "", "map error: " + err.Error()
 	}
+
+	models := filterAndSortModels(counter.Models(), modelFilter, topN, sortBy)
+
 	if outFmt == "json" {
-		return countTokensJSON(path, tokens, bytes), ""
+		return countTokensJSON(path, tokens, bytes, models), ""
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Path: %s\nTokens: ~%d\nBytes: %d\n\nPer-model fit:\n", path, tokens, bytes)
-	for _, m := range counter.Models() {
+	for _, m := range models {
 		fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
 		mark := "fits"
 		if !fit.Fits {
@@ -318,9 +332,9 @@ func callCountTokens(args map[string]any) (string, string) {
 }
 
 // countTokensJSON returns the JSON envelope for count_tokens.
-func countTokensJSON(path string, tokens, bytes int) string {
-	fits := make([]map[string]any, 0, len(counter.Models()))
-	for _, m := range counter.Models() {
+func countTokensJSON(path string, tokens, bytes int, models []counter.Model) string {
+	fits := make([]map[string]any, 0, len(models))
+	for _, m := range models {
 		f := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
 		fits = append(fits, map[string]any{
 			"name":     m.Name,
@@ -344,6 +358,47 @@ func countTokensJSON(path string, tokens, bytes int) string {
 		return fmt.Sprintf("error marshaling JSON: %v", err)
 	}
 	return string(b)
+}
+
+// filterAndSortModels filters models by name (if filter is non-empty), truncates
+// to top N by context window (if top > 0), and sorts by the given field.
+func filterAndSortModels(models []counter.Model, filter string, top int, sortBy string) []counter.Model {
+	if filter != "" {
+		m, ok := counter.LookupModel(filter)
+		if !ok {
+			return nil
+		}
+		models = []counter.Model{m}
+	}
+	if top > 0 && top < len(models) {
+		sort.Slice(models, func(i, j int) bool {
+			return models[i].ContextWindow > models[j].ContextWindow
+		})
+		models = models[:top]
+	}
+	switch strings.ToLower(sortBy) {
+	case "pct":
+		sort.Slice(models, func(i, j int) bool {
+			pi := float64(models[i].ContextWindow) / float64(counter.ReplyReserve+models[i].ContextWindow)
+			pj := float64(models[j].ContextWindow) / float64(counter.ReplyReserve+models[j].ContextWindow)
+			if pi != pj {
+				return pi > pj
+			}
+			return models[i].Name < models[j].Name
+		})
+	case "window":
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+	default:
+		sort.Slice(models, func(i, j int) bool {
+			return strings.ToLower(models[i].Name) < strings.ToLower(models[j].Name)
+		})
+	}
+	return models
 }
 
 // callDiffRepo packs only the files changed against a git ref.
