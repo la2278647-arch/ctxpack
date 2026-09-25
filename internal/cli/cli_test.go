@@ -1062,3 +1062,66 @@ func TestMapFormatAlias(t *testing.T) {
 		t.Fatalf("--format json did not produce JSON: %v\n%s", err, out)
 	}
 }
+
+// --- tokens --format ---
+
+func TestTokensFormatText(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--format", "text"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Path:") {
+		t.Errorf("output missing 'Path:'\n%s", out)
+	}
+}
+
+func TestTokensFormatJSON(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if env.Path == "" {
+		t.Error("JSON path is empty")
+	}
+}
+
+func TestTokensFormatUnknown(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	code := cmdTokens([]string{src, "--format", "xml"})
+	if code != 2 {
+		t.Fatalf("cmdTokens exit = %d, want 2", code)
+	}
+}
+
+func TestTokensFormatAlias(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	// --format json should be equivalent to --json
+	code := cmdTokens([]string{src, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("--format json did not produce JSON: %v\n%s", err, out)
+	}
+}

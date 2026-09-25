@@ -107,6 +107,7 @@ FLAGS (map / tokens / models)
   --format F          (map only) text (default), json, csv
   --model NAME        (tokens only) Show fit for one model instead of all
   --sort BY           (tokens only) Sort fit table by: name (default), pct, window
+  --format F          (tokens only) text (default), json
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
   -o, --output FILE   Write to FILE instead of stdout (pack, diff, map, tokens)
@@ -449,11 +450,22 @@ func cmdTokens(args []string) int {
 		model    = fs.String("model", "", "show fit for one model only")
 		sortBy   = fs.String("sort", "name", "sort fit table by: name (default), pct, window")
 		output   = fs.String("output", "", "write to FILE instead of stdout")
+		formatF  = fs.String("format", "", "output format: text (default), json")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
 	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
+		return 2
+	}
+	// --format sets json flag for backward compatibility.
+	switch strings.ToLower(*formatF) {
+	case "json":
+		*jsonOut = true
+	case "text", "":
+		// default
+	default:
+		fmt.Fprintln(os.Stderr, "ctxpack: unknown format", *formatF)
 		return 2
 	}
 	path := "."
