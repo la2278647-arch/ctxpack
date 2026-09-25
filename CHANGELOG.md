@@ -130,6 +130,12 @@ to follow [Semantic Versioning](https://semver.org/).
   so the truncation is display-only and cannot mislead about the
   registry's total size.
 
+- **`--sort BY` for `models`.**
+  Sort the model table by `name` (default, alphabetical), `window`
+  (largest context window first), or `vendor` (group by vendor, then
+  by window within each group). Only applied when `--sort` is explicitly
+  provided; without it the registration order is preserved.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

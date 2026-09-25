@@ -825,6 +825,92 @@ func TestModelsTopAll(t *testing.T) {
 	}
 }
 
+func TestModelsSortByName(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--sort", "name"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	// With --sort name, the first model should start with "claude" (alphabetical).
+	if !strings.Contains(out, "claude-3-haiku") {
+		t.Errorf("expected claude-3-haiku first with --sort name:\n%s", out)
+	}
+	// Check it's not the original registration order (gpt-3.5-turbo first).
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) > 1 {
+		firstLine := strings.TrimSpace(lines[1])
+		if strings.HasPrefix(firstLine, "gpt-3.5") {
+			t.Errorf("--sort name should not start with gpt-3.5-turbo:\n%s", out)
+		}
+	}
+}
+
+func TestModelsSortByWindow(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--sort", "window"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) <= 1 {
+		t.Fatalf("expected model lines, got:\n%s", out)
+	}
+	// With --sort window, the largest window model should come first.
+	// gemini-1.5-pro has 2000000, the largest.
+	firstLine := strings.TrimSpace(lines[1])
+	if !strings.HasPrefix(firstLine, "gemini-1.5-pro") {
+		t.Errorf("expected gemini-1.5-pro first with --sort window, got:\n%s", out)
+	}
+}
+
+func TestModelsSortByVendor(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--sort", "vendor"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) <= 1 {
+		t.Fatalf("expected model lines, got:\n%s", out)
+	}
+	// With --sort vendor, alibaba comes first alphabetically (a-l-i < a-n-t).
+	firstLine := strings.TrimSpace(lines[1])
+	if !strings.Contains(firstLine, "alibaba") {
+		t.Errorf("expected alibaba vendor first with --sort vendor:\n%s", out)
+	}
+}
+
+func TestModelsSortJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--json", "--sort", "window"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env struct {
+		Models []struct {
+			Name          string `json:"name"`
+			ContextWindow int    `json:"context_window"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+	if len(env.Models) == 0 {
+		t.Fatal("no models returned")
+	}
+	// First model should have the largest context window.
+	if env.Models[0].Name != "gemini-1.5-pro" {
+		t.Errorf("first model = %q, want gemini-1.5-pro", env.Models[0].Name)
+	}
+}
+
 // --- map --sort ---
 
 func TestMapSortByNameDefault(t *testing.T) {

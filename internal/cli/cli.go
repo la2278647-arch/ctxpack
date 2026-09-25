@@ -102,6 +102,7 @@ FLAGS (map / tokens / models)
   --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
   --depth N           Limit traversal to N levels below root (0 = unlimited)
   --sort BY           (map only) Sort children by: name (default), tokens, bytes
+  --sort BY           (models only) Sort by: name (default), window, vendor
   --top N             (map only) Flat list of the N largest files
   --csv               (map only) Flat CSV list of all files
   --format F          (map only) text (default), json, csv
@@ -621,6 +622,7 @@ func cmdModels(args []string) int {
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
 	vendor := fs.String("vendor", "", "show only models from this vendor")
 	topN := fs.Int("top", 0, "show only the N largest models by context window")
+	sortBy := fs.String("sort", "", "sort by: name (default), window (largest first), vendor")
 	formatF := fs.String("format", "", "output format: text (default), json")
 	output := fs.String("output", "", "write to FILE instead of stdout")
 	fs.StringVar(output, "o", "", "shorthand for --output")
@@ -663,6 +665,8 @@ func cmdModels(args []string) int {
 		if *topN < len(models) {
 			models = models[:*topN]
 		}
+	} else if *sortBy != "" {
+		sortModels(models, *sortBy)
 	}
 	if *jsonOut {
 		w, close := outputWriter(*output)
@@ -690,6 +694,39 @@ func filterByVendor(models []counter.Model, vendor string) []counter.Model {
 		}
 	}
 	return out
+}
+
+// sortModels sorts the model slice in-place by the given field. Unknown values
+// fall back to the default (name). When sortBy is empty the default sort is
+// also applied (name ascending, then window descending for ties).
+func sortModels(models []counter.Model, sortBy string) {
+	switch strings.ToLower(sortBy) {
+	case "window":
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+	case "vendor":
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].Vendor != models[j].Vendor {
+				return strings.ToLower(models[i].Vendor) < strings.ToLower(models[j].Vendor)
+			}
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+	default:
+		// name (default)
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].Name != models[j].Name {
+				return strings.ToLower(models[i].Name) < strings.ToLower(models[j].Name)
+			}
+			return models[i].ContextWindow > models[j].ContextWindow
+		})
+	}
 }
 
 // --- mcp ---
