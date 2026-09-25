@@ -124,6 +124,12 @@ to follow [Semantic Versioning](https://semver.org/).
   Show only the N largest models by context window size. Useful for
   quickly finding the most capable models in the registry.
 
+- **`--top N` for `doctor`.**
+  Show only the top N vendors by model count in the vendor summary.
+  The "Total: X models, Y vendors" line still reflects the full count,
+  so the truncation is display-only and cannot mislead about the
+  registry's total size.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

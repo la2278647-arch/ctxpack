@@ -1061,6 +1061,74 @@ func TestDoctorShowsModelCount(t *testing.T) {
 	}
 }
 
+func TestDoctorTopShowsFewerVendors(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--top", "2"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Vendor breakdown:") {
+		t.Errorf("output missing 'Vendor breakdown:':\n%s", out)
+	}
+	// With --top 2, exactly 2 vendor lines should appear.
+	lines := strings.Split(out, "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "-") {
+			continue
+		}
+		if strings.Contains(line, " model(s)") {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 vendor lines with --top 2, got %d:\n%s", count, out)
+	}
+}
+
+func TestDoctorTopJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--json", "--top", "2"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	var info map[string]any
+	if err := json.Unmarshal([]byte(c.Content()), &info); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+	// --top only affects text output; JSON always shows full data.
+	if info["model_count"] != float64(31) {
+		t.Errorf("model_count = %v, want 31", info["model_count"])
+	}
+	if info["model_vendors"] != float64(7) {
+		t.Errorf("model_vendors = %v, want 7", info["model_vendors"])
+	}
+}
+
+func TestDoctorTopAll(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--top", "10"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	// With --top 10 (and only 7 vendors), all vendors should appear.
+	lines := strings.Split(out, "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.Contains(line, " model(s)") {
+			count++
+		}
+	}
+	if count != 7 {
+		t.Errorf("expected 7 vendor lines with --top 10, got %d:\n%s", count, out)
+	}
+}
+
 func TestDoctorJSON(t *testing.T) {
 	c := captureStdout(t)
 

@@ -110,7 +110,7 @@ FLAGS (map / tokens / models)
   --top N             (tokens only) Show only the N largest models by window
   --format F          (tokens only) text (default), json
   --vendor NAME       (models only) Show only models from this vendor
-  --top N             (models only) Show only the N largest models by window
+  --top N             (map/tokens/models/doctor) Top N results by size/count
   --json              Emit JSON instead of the text output, for scripting
   --format F          (doctor only) text (default), json
   --format F          (models only) text (default), json
@@ -702,6 +702,7 @@ func cmdDoctor(args []string) int {
 	jsonOut := fs.Bool("json", false, "output diagnostics as JSON")
 	formatF := fs.String("format", "", "output format: text (default), json")
 	output := fs.String("output", "", "write to FILE instead of stdout")
+	top := fs.Int("top", 0, "show only top N vendors by model count")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -746,6 +747,32 @@ func cmdDoctor(args []string) int {
 	info["model_count"] = len(models)
 	info["model_vendors"] = countVendors(models)
 
+	// Build the vendor summary for the text output. The summary is sorted by
+	// model count descending, then vendor name ascending for ties. When --top
+	// is positive the summary is truncated; the totals always reflect the full
+	// set so the truncation cannot mislead about the registry's size.
+	byVendor := make(map[string]int)
+	for _, m := range models {
+		byVendor[m.Vendor]++
+	}
+	type vendorCount struct {
+		name string
+		n    int
+	}
+	vcs := make([]vendorCount, 0, len(byVendor))
+	for name, n := range byVendor {
+		vcs = append(vcs, vendorCount{name, n})
+	}
+	sort.Slice(vcs, func(i, j int) bool {
+		if vcs[i].n != vcs[j].n {
+			return vcs[i].n > vcs[j].n
+		}
+		return vcs[i].name < vcs[j].name
+	})
+	if *top > 0 && *top < len(vcs) {
+		vcs = vcs[:*top]
+	}
+
 	if *jsonOut {
 		w, close := outputWriter(*output)
 		defer close()
@@ -771,6 +798,12 @@ func cmdDoctor(args []string) int {
 		fmt.Fprintln(w, "  Git:       not found (diff command will not work)")
 	}
 	fmt.Fprintf(w, "  Models:    %d models, %d vendors\n", len(models), info["model_vendors"])
+	if len(vcs) > 0 {
+		fmt.Fprintln(w, "  Vendor breakdown:")
+		for _, vc := range vcs {
+			fmt.Fprintf(w, "    %-15s %d model(s)\n", vc.name, vc.n)
+		}
+	}
 	return 0
 }
 
