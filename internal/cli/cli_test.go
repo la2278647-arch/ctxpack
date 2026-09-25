@@ -762,6 +762,69 @@ func TestModelsOutputJSON(t *testing.T) {
 	}
 }
 
+func TestModelsTopShowsFewer(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--top", "5"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	// Skip the header line "Known models..."
+	modelLines := 0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) != "" {
+			modelLines++
+		}
+	}
+	if modelLines != 5 {
+		t.Errorf("expected 5 model lines, got %d\n%s", modelLines, out)
+	}
+}
+
+func TestModelsTopJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--top", "3", "--json"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if len(env.Models) != 3 {
+		t.Errorf("expected 3 models, got %d", len(env.Models))
+	}
+	// The first model should have the largest context window.
+	if env.Models[0].ContextWindow < env.Models[2].ContextWindow {
+		t.Errorf("models not sorted by context window: %d < %d",
+			env.Models[0].ContextWindow, env.Models[2].ContextWindow)
+	}
+}
+
+func TestModelsTopAll(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--top", "100"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	modelLines := 0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) != "" {
+			modelLines++
+		}
+	}
+	if modelLines != 31 {
+		t.Errorf("expected 31 model lines (all models), got %d", modelLines)
+	}
+}
+
 // --- map --sort ---
 
 func TestMapSortByNameDefault(t *testing.T) {

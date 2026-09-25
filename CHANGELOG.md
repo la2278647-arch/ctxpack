@@ -120,6 +120,10 @@ to follow [Semantic Versioning](https://semver.org/).
   finding the models with the biggest context windows that can fit
   your repository.
 
+- **`--top N` for `models`.**
+  Show only the N largest models by context window size. Useful for
+  quickly finding the most capable models in the registry.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

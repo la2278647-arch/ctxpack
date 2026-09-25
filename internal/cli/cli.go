@@ -110,6 +110,7 @@ FLAGS (map / tokens / models)
   --top N             (tokens only) Show only the N largest models by window
   --format F          (tokens only) text (default), json
   --vendor NAME       (models only) Show only models from this vendor
+  --top N             (models only) Show only the N largest models by window
   --json              Emit JSON instead of the text output, for scripting
   --format F          (doctor only) text (default), json
   --format F          (models only) text (default), json
@@ -619,6 +620,7 @@ func cmdModels(args []string) int {
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
 	vendor := fs.String("vendor", "", "show only models from this vendor")
+	topN := fs.Int("top", 0, "show only the N largest models by context window")
 	formatF := fs.String("format", "", "output format: text (default), json")
 	output := fs.String("output", "", "write to FILE instead of stdout")
 	fs.StringVar(output, "o", "", "shorthand for --output")
@@ -649,6 +651,17 @@ func cmdModels(args []string) int {
 		if len(models) == 0 {
 			fmt.Fprintln(os.Stderr, "ctxpack: no models for vendor", *vendor)
 			return 2
+		}
+	}
+	if *topN > 0 {
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+		if *topN < len(models) {
+			models = models[:*topN]
 		}
 	}
 	if *jsonOut {
