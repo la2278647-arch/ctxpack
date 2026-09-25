@@ -456,10 +456,11 @@ make check
 From a source checkout. That runs gofmt cleanliness, `go vet`, the test
 suite, and the stdlib-only assertion — `go.sum` must stay empty and
 `go list -m all` must report exactly one module. `make smoke` additionally
-builds the binary and drives every command against the source tree itself,
-including all four output formats, the `--sort`/`--top`/`--format`/
-`--dry-run`/`--list` flags, a `diff --ref A..B` range, a deletion reported in
-each format, and the MCP server over stdio. `make ci` runs both.
+builds the binary and drives the whole command surface against the source tree
+itself: every command including `doctor`, all four output formats, the
+`--sort`/`--top`/`--format`/`--dry-run`/`--list` flags, a `diff --ref A..B`
+range, a deletion reported in each format, and the MCP server over stdio.
+`make ci` runs both.
 
 The smoke suite is [scripts/smoke.sh](scripts/smoke.sh), a standalone script
 that `make smoke` delegates to rather than duplicating. It finds the
