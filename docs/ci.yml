@@ -121,6 +121,17 @@ jobs:
           "$B" diff --list | grep -q README.md
           "$B" diff --dry-run > /dev/null
           git checkout -- README.md
+          # A range ref is pure history, so it must not pick up a working-tree
+          # file that exists in no commit. Use a throwaway repo: the checkout
+          # is a shallow clone, so HEAD~1 is not available here.
+          R=$(mktemp -d)
+          (cd "$R" && git init -q && git config user.email t@t.invalid \
+            && git config user.name t \
+            && echo one > a.txt && git add -A && git commit -qm one \
+            && echo two > a.txt && git add -A && git commit -qm two \
+            && echo three > untracked.txt)
+          RANGE=$("$B" diff --list --ref HEAD~1..HEAD "$R")
+          ! grep -q untracked <<< "$RANGE"
           # MCP: repo_map and list_models both answer with JSON envelopes.
           printf '%s\n%s\n' \
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \

@@ -479,6 +479,49 @@ func TestToolCallDiffRepoList(t *testing.T) {
 	}
 }
 
+// A range ref compares two revisions as history, so the working tree's
+// untracked file must not leak in — it exists in neither side of the range.
+// This pins the gitutil range semantics at the MCP layer.
+func TestToolCallDiffRepoRangeExcludesWorktree(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "second")
+	// Untracked in no commit, but present in the working tree.
+	os.WriteFile(filepath.Join(dir, "untracked.txt"), []byte("not committed"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","ref":"HEAD~1..HEAD","list":true}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "a.txt") {
+		t.Errorf("range should include a.txt, which differs across the range:\n%s", text)
+	}
+	if strings.Contains(text, "untracked") {
+		t.Errorf("range must not include the working tree's untracked files:\n%s", text)
+	}
+}
+
 func TestToolCallDiffRepoMissingPath(t *testing.T) {
 	msgs := serveLines(t,
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
