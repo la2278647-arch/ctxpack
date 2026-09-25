@@ -574,6 +574,43 @@ func TestModelsVendorJSONFilters(t *testing.T) {
 	}
 }
 
+func TestModelsFormatText(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--format", "text"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Known models") {
+		t.Errorf("output missing 'Known models'\n%s", out)
+	}
+}
+
+func TestModelsFormatJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdModels([]string{"--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := c.Content()
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if len(env.Models) == 0 {
+		t.Error("JSON models array is empty")
+	}
+}
+
+func TestModelsFormatUnknown(t *testing.T) {
+	code := cmdModels([]string{"--format", "xml"})
+	if code != 2 {
+		t.Fatalf("cmdModels exit = %d, want 2", code)
+	}
+}
+
 // --- map --sort ---
 
 func TestMapSortByNameDefault(t *testing.T) {

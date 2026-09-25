@@ -111,6 +111,7 @@ FLAGS (map / tokens / models)
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
   --format F          (doctor only) text (default), json
+  --format F          (models only) text (default), json
   -o, --output FILE   Write to FILE instead of stdout (pack, diff, map, tokens)
   -q, --quiet         Suppress stderr status messages (pack, diff)
 
@@ -581,7 +582,18 @@ func cmdModels(args []string) int {
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
 	vendor := fs.String("vendor", "", "show only models from this vendor")
+	formatF := fs.String("format", "", "output format: text (default), json")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
+		return 2
+	}
+	// --format sets json flag for backward compatibility.
+	switch strings.ToLower(*formatF) {
+	case "json":
+		*jsonOut = true
+	case "text", "":
+		// default
+	default:
+		fmt.Fprintln(os.Stderr, "ctxpack: unknown format", *formatF)
 		return 2
 	}
 	// Before this used a manual args[0] check and silently ignored everything

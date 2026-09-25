@@ -286,7 +286,7 @@ Run `ctxpack <command> --help` for details.
 
 | Flag | Meaning |
 | ---- | ------- |
-| `--format F` | `pack`/`diff`: `xml` (default), `markdown`, `json`, `text`. `map`: `text` (default), `json`, `csv`. `tokens`/`doctor`: `text` (default), `json`. |
+| `--format F` | `pack`/`diff`: `xml` (default), `markdown`, `json`, `text`. `map`: `text` (default), `json`, `csv`. `tokens`/`doctor`/`models`: `text` (default), `json`. |
 | `--include GLOB` | Restrict to matching paths. Repeatable; basename globs like `*.go` work. |
 | `--exclude GLOB` | Drop matching paths. Repeatable. |
 | `--max-size N` | Read no more than N bytes of a file. Larger files are still listed — without content — so the pack shows the name but not the body. `0` = unlimited. |
