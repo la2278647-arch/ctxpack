@@ -8,6 +8,12 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`--list` flag for `diff`.**
+  `ctxpack diff . --list` prints only the changed file paths, one per line,
+  without packing them or reading their content. Faster than `--dry-run`
+  (which packs to count tokens) and useful for scripting or piping into other
+  tools.
+
 - **More parameters for MCP `diff_repo`.**
   The `diff_repo` tool now accepts `no_gitignore`, `hidden`, and `max_depth`
   arguments, matching the CLI's `diff` command. With these, an MCP client can

@@ -460,6 +460,29 @@ func TestDiffDryRunNoOutputFile(t *testing.T) {
 	}
 }
 
+func TestDiffListOnly(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--list"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "modified.go") {
+		t.Errorf("stdout missing modified.go:\n%s", out)
+	}
+	if strings.Contains(out, "tokens") {
+		t.Errorf("list mode should not show tokens:\n%s", out)
+	}
+}
+
 // --- quiet ---
 
 func TestPackQuietSuppressesWrote(t *testing.T) {

@@ -117,6 +117,7 @@ FLAGS (map / tokens / models)
   --format F          (models only) text (default), json
   -o, --output FILE   Write to FILE instead of stdout (all commands)
   --dry-run           (pack/diff) Show what would be packed without writing
+  --list              (diff) List changed file paths only (no packing)
   -q, --quiet         Suppress stderr status messages (pack, diff)
 
 EXAMPLES
@@ -266,6 +267,7 @@ func cmdDiff(args []string) int {
 		output   = fs.String("output", "", "write to FILE")
 		quiet    = fs.Bool("quiet", false, "suppress stderr status messages")
 		dryRun   = fs.Bool("dry-run", false, "show changed files without writing output")
+		listOnly = fs.Bool("list", false, "list changed file paths only (no packing)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -296,6 +298,12 @@ func cmdDiff(args []string) int {
 	}
 	if len(changed) == 0 {
 		fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+		return 0
+	}
+	if *listOnly {
+		for _, f := range changed {
+			fmt.Println(f)
+		}
 		return 0
 	}
 

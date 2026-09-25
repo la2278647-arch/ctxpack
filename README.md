@@ -264,7 +264,8 @@ Three invariants worth relying on:
 
 Packs only files changed against a git ref, so a reviewer (human or model)
 sees the change set. Deleted files are listed in the header but their content
-is omitted — it is gone from the working tree.
+is omitted — it is gone from the working tree. Use `--list` to show only the
+changed file paths without packing.
 
 ---
 
@@ -301,6 +302,7 @@ Run `ctxpack <command> --help` for details.
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
 | `-o, --output FILE` | Write to FILE instead of stdout (all commands). |
 | `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
+| `--list` | `diff`: list changed file paths only (no packing, no token counts). |
 | `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.
