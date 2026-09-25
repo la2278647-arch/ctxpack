@@ -173,7 +173,7 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "diff_repo",
-			"description": "Pack only the files changed against a git ref into a context bundle. Deleted files are listed but their content is omitted. Requires a git repository.",
+			"description": "Pack only the files changed against a git ref into a context bundle. Deleted files are named in a Deleted section, without content. Requires a git repository.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -460,14 +460,15 @@ func callDiffRepo(args map[string]any) (string, string) {
 	if err != nil {
 		return "", err.Error()
 	}
-	changed, err := gitutil.ChangedFiles(path, ref)
+	d, err := gitutil.DiffFiles(path, ref)
 	if err != nil {
 		if err == gitutil.ErrNotARepo {
 			return "", "not a git repository; 'diff_repo' requires git"
 		}
 		return "", "git error: " + err.Error()
 	}
-	if len(changed) == 0 {
+	changed := d.Changed
+	if len(changed) == 0 && len(d.Deleted) == 0 {
 		return "", "no changed files vs " + ref
 	}
 	if toBool(args["list"]) {
@@ -483,8 +484,9 @@ func callDiffRepo(args map[string]any) (string, string) {
 			IncludeHidden:    toBool(args["hidden"]),
 			ReadContent:      true,
 		},
-		Budget: toInt(args["budget"]),
-		Files:  changed,
+		Budget:  toInt(args["budget"]),
+		Files:   changed,
+		Deleted: d.Deleted,
 	})
 	if err != nil {
 		return "", "pack error: " + err.Error()

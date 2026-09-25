@@ -32,6 +32,11 @@ type Bundle struct {
 	// so a caller always sees the cut instead of an unexplained shortfall.
 	Omitted       []string `json:"omitted,omitempty"`
 	OmittedTokens int      `json:"omitted_tokens,omitempty"`
+	// Deleted lists paths removed from the side being packed. Only a diff
+	// populates it: their content is gone, so there is nothing to show the
+	// model — but a silent omission would make a deletion look like it never
+	// happened.
+	Deleted []string `json:"deleted,omitempty"`
 }
 
 // Format is the output style.
@@ -104,6 +109,7 @@ func renderXML(b *Bundle) string {
 	}
 	sb.WriteString("  </files>\n")
 	writeOmittedXML(&sb, b)
+	writeDeletedXML(&sb, b)
 	sb.WriteString("</repository>\n")
 	return sb.String()
 }
@@ -119,6 +125,20 @@ func writeOmittedXML(sb *strings.Builder, b *Bundle) {
 		fmt.Fprintf(sb, "    <path>%s</path>\n", xmlEscape(p))
 	}
 	sb.WriteString("  </omitted>\n")
+}
+
+// writeDeletedXML reports the paths a diff removed. Their content is gone, so
+// only the names are listed; left out entirely when nothing was deleted, so a
+// pack of a whole tree keeps its current shape.
+func writeDeletedXML(sb *strings.Builder, b *Bundle) {
+	if len(b.Deleted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "  <deleted count=\"%d\">\n", len(b.Deleted))
+	for _, p := range b.Deleted {
+		fmt.Fprintf(sb, "    <path>%s</path>\n", xmlEscape(p))
+	}
+	sb.WriteString("  </deleted>\n")
 }
 
 func renderMarkdown(b *Bundle) string {
@@ -144,6 +164,7 @@ func renderMarkdown(b *Bundle) string {
 		sb.WriteString("---\n\n")
 	}
 	writeOmittedMarkdown(&sb, b)
+	writeDeletedMarkdown(&sb, b)
 	return sb.String()
 }
 
@@ -157,6 +178,19 @@ func writeOmittedMarkdown(sb *strings.Builder, b *Bundle) {
 	fmt.Fprintf(sb, "## Omitted by budget (%d files, ~%d tokens)\n\n",
 		len(b.Omitted), b.OmittedTokens)
 	for _, p := range b.Omitted {
+		fmt.Fprintf(sb, "- `%s`\n", p)
+	}
+	sb.WriteString("\n")
+}
+
+// writeDeletedMarkdown reports the paths a diff removed. Left empty when
+// nothing was deleted.
+func writeDeletedMarkdown(sb *strings.Builder, b *Bundle) {
+	if len(b.Deleted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "## Deleted (%d files)\n\n", len(b.Deleted))
+	for _, p := range b.Deleted {
 		fmt.Fprintf(sb, "- `%s`\n", p)
 	}
 	sb.WriteString("\n")
@@ -191,6 +225,7 @@ func renderText(b *Bundle) string {
 		sb.WriteString("\n")
 	}
 	writeOmittedText(&sb, b)
+	writeDeletedText(&sb, b)
 	return sb.String()
 }
 
@@ -203,6 +238,20 @@ func writeOmittedText(sb *strings.Builder, b *Bundle) {
 	fmt.Fprintf(sb, "==== omitted by budget (%d files, ~%d tokens) ====\n",
 		len(b.Omitted), b.OmittedTokens)
 	for _, p := range b.Omitted {
+		sb.WriteString(p)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+}
+
+// writeDeletedText reports the paths a diff removed. Left empty when nothing
+// was deleted.
+func writeDeletedText(sb *strings.Builder, b *Bundle) {
+	if len(b.Deleted) == 0 {
+		return
+	}
+	fmt.Fprintf(sb, "==== deleted (%d files) ====\n", len(b.Deleted))
+	for _, p := range b.Deleted {
 		sb.WriteString(p)
 		sb.WriteString("\n")
 	}

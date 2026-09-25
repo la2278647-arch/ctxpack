@@ -8,12 +8,28 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`diff` reports deleted files.**
+  A deletion has no content to pack, so before this release the bundle simply
+  never mentioned it — a removed file looked like it had never existed. `diff`
+  now lists removed paths in a `Deleted` section: XML adds a `<deleted>`
+  element, Markdown a `## Deleted` heading, text a `==== deleted ====` block,
+  and JSON a `deleted` array. `--dry-run` prints the count and each path. The
+  MCP `diff_repo` tool reports them the same way. Paths are reported by name
+  only, never content.
+
 - **`diff` ranges (`--ref A..B`).**
   `ctxpack diff --ref HEAD~5..HEAD` compares two revisions as history. A range
   never includes the working tree's untracked files, because those belong to
   neither side of the range. A plain ref (`--ref main`) still diffs against
   the working tree, so uncommitted changes remain included. The MCP
   `diff_repo` tool accepts the same range syntax for its `ref` argument.
+
+### Changed
+
+- **`gitutil.DiffFiles` splits deletions from changes.**
+  `ChangedFiles` keeps its signature and behaviour, now returning only the
+  packable set; callers that need to report removals use the new
+  `DiffFiles`, which returns both lists.
 
 ## [0.1.6] - 2026-09-25
 

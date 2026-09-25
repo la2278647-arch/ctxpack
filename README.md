@@ -266,9 +266,10 @@ Three invariants worth relying on:
 ### `diff` — the delta, not the tree
 
 Packs only files changed against a git ref, so a reviewer (human or model)
-sees the change set. Deleted files are listed in the header but their content
-is omitted — it is gone from the working tree. Use `--list` to show only the
-changed file paths without packing.
+sees the change set. Deleted files are reported by name in a `Deleted` section
+— their content is gone, so there is nothing to show, but a silent omission
+would make a deletion look like it never happened. Use `--list` to show only
+the changed file paths without packing.
 
 ---
 

@@ -514,3 +514,84 @@ func TestRenderJSONOmitted(t *testing.T) {
 		t.Error("empty omitted lists must be omitted from the JSON")
 	}
 }
+
+func deletedSample() *Bundle {
+	b := sample()
+	b.Deleted = []string{"pkg/gone.go", "a <b>&c.md"}
+	return b
+}
+
+func TestRenderXMLDeleted(t *testing.T) {
+	var node struct {
+		XMLName xml.Name `xml:"repository"`
+		Deleted struct {
+			Count int      `xml:"count,attr"`
+			Paths []string `xml:"path"`
+		} `xml:"deleted"`
+	}
+	out := Render(deletedSample(), XML)
+	if err := xml.Unmarshal([]byte(out), &node); err != nil {
+		t.Fatalf("rendered XML is not well-formed: %v\n%s", err, out)
+	}
+	if node.Deleted.Count != 2 {
+		t.Errorf("deleted count = %d, want 2", node.Deleted.Count)
+	}
+	if len(node.Deleted.Paths) != 2 {
+		t.Fatalf("deleted paths = %v", node.Deleted.Paths)
+	}
+	// Markup in a path must be escaped, and come back unescaped on parse.
+	if node.Deleted.Paths[1] != "a <b>&c.md" {
+		t.Errorf("path[1] = %q, want %q", node.Deleted.Paths[1], "a <b>&c.md")
+	}
+}
+
+func TestRenderXMLDeletedAbsentWhenEmpty(t *testing.T) {
+	out := Render(sample(), XML)
+	if strings.Contains(out, "<deleted") {
+		t.Errorf("a pack with no deletions must not emit a deleted element:\n%s", out)
+	}
+}
+
+func TestRenderMarkdownDeleted(t *testing.T) {
+	out := Render(deletedSample(), Markdown)
+	want := "## Deleted (2 files)\n\n" +
+		"- `pkg/gone.go`\n- `a <b>&c.md`\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("markdown missing the deleted section:\n%s", out)
+	}
+	if i := strings.Index(out, want); i < strings.Index(out, "## `README.md`") {
+		t.Error("the deleted section must come after the packed files")
+	}
+}
+
+func TestRenderMarkdownDeletedAbsentWhenEmpty(t *testing.T) {
+	if strings.Contains(Render(sample(), Markdown), "## Deleted") {
+		t.Error("a pack with no deletions must not mention deleted files")
+	}
+}
+
+func TestRenderTextDeleted(t *testing.T) {
+	want := "==== deleted (2 files) ====\npkg/gone.go\n"
+	if got := Render(deletedSample(), Text); !strings.Contains(got, want) {
+		t.Errorf("text missing the deleted section:\n%s", got)
+	}
+	if strings.Contains(Render(sample(), Text), "deleted (") {
+		t.Error("a pack with no deletions must not mention deleted files")
+	}
+}
+
+func TestRenderJSONDeleted(t *testing.T) {
+	var got struct {
+		Deleted []string `json:"deleted"`
+	}
+	if err := json.Unmarshal([]byte(Render(deletedSample(), JSON)), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Deleted) != 2 {
+		t.Errorf("json deleted = %v", got.Deleted)
+	}
+	// omitempty: a pack with no deletions must not carry the key at all.
+	if strings.Contains(Render(sample(), JSON), "deleted") {
+		t.Error("empty deleted lists must be omitted from the JSON")
+	}
+}

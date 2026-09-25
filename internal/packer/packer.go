@@ -22,6 +22,9 @@ type Options struct {
 	// Files overrides selection: when non-empty, only these relative paths are
 	// packed (used by diff mode). Ignored when empty.
 	Files []string
+	// Deleted carries paths a diff removed. Their content is unavailable, so
+	// they are reported by name only; ignored when empty.
+	Deleted []string
 }
 
 // policyDocs are the project-level documents a reader reaches for first. The
@@ -92,6 +95,7 @@ func Pack(root string, opts Options) (*format.Bundle, error) {
 		Skipped:       res.Skipped,
 		Omitted:       omittedPaths(omitted),
 		OmittedTokens: omittedTokens(omitted),
+		Deleted:       opts.Deleted,
 	}
 	for _, f := range files {
 		bundle.TotalTokens += f.Tokens

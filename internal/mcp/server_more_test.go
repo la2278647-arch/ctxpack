@@ -522,6 +522,47 @@ func TestToolCallDiffRepoRangeExcludesWorktree(t *testing.T) {
 	}
 }
 
+// A deletion has no content to pack, but the tool must still say so.
+func TestToolCallDiffRepoReportsDeletions(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "gone.txt"), []byte("bye"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+	os.Remove(filepath.Join(dir, "gone.txt"))
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"markdown"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "a.txt") {
+		t.Errorf("diff_repo should still include a.txt:\n%s", text)
+	}
+	if !strings.Contains(text, "## Deleted (1 files)") {
+		t.Errorf("expected a deleted section:\n%s", text)
+	}
+	if !strings.Contains(text, "`gone.txt`") {
+		t.Errorf("deleted section missing gone.txt:\n%s", text)
+	}
+}
+
 func TestToolCallDiffRepoMissingPath(t *testing.T) {
 	msgs := serveLines(t,
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,

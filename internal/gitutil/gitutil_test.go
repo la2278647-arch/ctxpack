@@ -56,46 +56,55 @@ func eqWant(t *testing.T, got []string, want ...string) {
 
 func TestParsePorcelain(t *testing.T) {
 	for _, tc := range []struct {
-		in   string
-		want []string
+		in      string
+		want    []string
+		wantDel []string
 	}{
-		{"", nil},
-		{"\n", nil},
-		{"?? new.go", []string{"new.go"}},
-		{" M tracked.go", []string{"tracked.go"}},
-		{"M  a/b/c.go", []string{"a/b/c.go"}},
-		{"A  added.go", []string{"added.go"}},
-		{"R  old.go -> new.go", []string{"new.go"}},
-		{"?? a", []string{"a"}},
-		// Deletions are dropped: callers fall back to full-tree packing.
-		{"D  gone.go", nil},
-		{"AD staged-then-deleted", nil},
+		{"", nil, nil},
+		{"\n", nil, nil},
+		{"?? new.go", []string{"new.go"}, nil},
+		{" M tracked.go", []string{"tracked.go"}, nil},
+		{"M  a/b/c.go", []string{"a/b/c.go"}, nil},
+		{"A  added.go", []string{"added.go"}, nil},
+		{"R  old.go -> new.go", []string{"new.go"}, nil},
+		{"?? a", []string{"a"}, nil},
+		// Deletions move to the deleted list rather than being dropped.
+		{"D  gone.go", nil, []string{"gone.go"}},
+		{"AD staged-then-deleted", nil, []string{"staged-then-deleted"}},
 		// Empty paths are dropped.
-		{"?? ", nil},
-		{"?? \n M a.go", []string{"a.go"}},
+		{"?? ", nil, nil},
+		{"?? \n M a.go", []string{"a.go"}, nil},
+		{"M  a.go\nD  b.go", []string{"a.go"}, []string{"b.go"}},
 	} {
-		got := parsePorcelain(tc.in)
+		got, gotDel := parsePorcelain(tc.in)
 		eqWant(t, got, tc.want...)
+		eqWant(t, gotDel, tc.wantDel...)
 	}
 }
 
 func TestParseNameStatus(t *testing.T) {
 	for _, tc := range []struct {
-		in   string
-		want []string
+		in      string
+		want    []string
+		wantDel []string
 	}{
-		{"", nil},
-		{"M\ttracked.go", []string{"tracked.go"}},
-		{"A\tadded.go", []string{"added.go"}},
-		{"D\tgone.go", nil},
-		{"T\ta.go", []string{"a.go"}},
+		{"", nil, nil},
+		{"M\ttracked.go", []string{"tracked.go"}, nil},
+		{"A\tadded.go", []string{"added.go"}, nil},
+		{"D\tgone.go", nil, []string{"gone.go"}},
+		{"T\ta.go", []string{"a.go"}, nil},
 		// Renames and copies: the meaningful path is the NEW one.
-		{"R100\told/path.go\tnew/path.go", []string{"new/path.go"}},
-		{"C075\tsrc/a.go\tdst/a.go", []string{"dst/a.go"}},
-		{"M\ta.go\nR090\told/b.go\tnew/b.go", []string{"a.go", "new/b.go"}},
+		{"R100\told/path.go\tnew/path.go", []string{"new/path.go"}, nil},
+		{"C075\tsrc/a.go\tdst/a.go", []string{"dst/a.go"}, nil},
+		{"M\ta.go\nR090\told/b.go\tnew/b.go", []string{"a.go", "new/b.go"}, nil},
+		{"M\ta.go\nD\tpkg/gone.go", []string{"a.go"}, []string{"pkg/gone.go"}},
+		// Empty paths are dropped.
+		{"M\t", nil, nil},
+		{"M\ta.go\nM\t", []string{"a.go"}, nil},
 	} {
-		got := parseNameStatus(tc.in)
+		got, gotDel := parseNameStatus(tc.in)
 		eqWant(t, got, tc.want...)
+		eqWant(t, gotDel, tc.wantDel...)
 	}
 }
 
@@ -111,9 +120,9 @@ func TestParseQuotedPaths(t *testing.T) {
 	} {
 		var got []string
 		if tc.name == "porcelain" {
-			got = parsePorcelain(tc.in)
+			got, _ = parsePorcelain(tc.in)
 		} else {
-			got = parseNameStatus(tc.in)
+			got, _ = parseNameStatus(tc.in)
 		}
 		eqWant(t, got, tc.want)
 	}
@@ -169,6 +178,46 @@ func TestChangedFilesAgainstRefIncludesRenames(t *testing.T) {
 		t.Fatal(err)
 	}
 	eqWant(t, got, filepath.ToSlash(filepath.Join("pkg", "newname.go")))
+}
+
+func TestDiffFilesReportsDeletions(t *testing.T) {
+	dir := newRepo(t)
+	put(t, dir, "tracked.go", "one\n")
+	put(t, dir, "deleted.go", "x\n")
+	put(t, dir, "kept.go", "k\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "init")
+
+	// Working tree: a modified file, a removed file and an untracked one.
+	put(t, dir, "tracked.go", "two\n")
+	os.Remove(filepath.Join(dir, "deleted.go"))
+	put(t, dir, filepath.Join("sub", "untracked.go"), "u\n")
+
+	d, err := DiffFiles(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eqWant(t, d.Changed, "tracked.go", filepath.ToSlash(filepath.Join("sub", "untracked.go")))
+	eqWant(t, d.Deleted, "deleted.go")
+
+	// Range: delete a second file in the next commit, then read the range.
+	put(t, dir, "second.go", "s\n")
+	put(t, dir, "gone.go", "g\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "second")
+	os.Remove(filepath.Join(dir, "gone.go"))
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-q", "-m", "delete")
+
+	d, err = DiffFiles(dir, "HEAD~1..HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The range contains only a deletion, so nothing is left to pack.
+	if len(d.Changed) != 0 {
+		t.Errorf("range with only a deletion reported packable files: %v", d.Changed)
+	}
+	eqWant(t, d.Deleted, "gone.go")
 }
 
 func TestChangedFilesCleanTree(t *testing.T) {

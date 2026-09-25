@@ -485,6 +485,86 @@ func TestDiffListOnly(t *testing.T) {
 	}
 }
 
+// A deletion has no content to pack, but a diff must still report it: a removed
+// file that the bundle never mentions would look like it never existed.
+func TestDiffReportsDeletions(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+	os.Remove(filepath.Join(src, "new.go"))
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--format", "markdown"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "modified.go") {
+		t.Errorf("stdout missing the modified file:\n%s", out)
+	}
+	if !strings.Contains(out, "## Deleted (1 files)") {
+		t.Errorf("stdout missing the deleted section:\n%s", out)
+	}
+	if !strings.Contains(out, "`new.go`") {
+		t.Errorf("deleted section missing new.go:\n%s", out)
+	}
+}
+
+func TestDiffJSONCarriesDeletions(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "gone.go"), []byte("package gone\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+	os.Remove(filepath.Join(src, "gone.go"))
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var bundle struct {
+		Files   []struct{ Path string } `json:"files"`
+		Deleted []string                `json:"deleted"`
+	}
+	if err := json.Unmarshal([]byte(outCap.Content()), &bundle); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	if len(bundle.Deleted) != 1 || bundle.Deleted[0] != "gone.go" {
+		t.Errorf("deleted = %v, want [gone.go]", bundle.Deleted)
+	}
+}
+
+func TestDiffDryRunListsDeletions(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "gone.go"), []byte("package gone\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+	os.Remove(filepath.Join(src, "gone.go"))
+
+	errCap := captureStderr(t)
+	code := cmdDiff([]string{src, "--dry-run"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "1 files deleted") {
+		t.Errorf("dry run missing the deletion count:\n%s", out)
+	}
+	if !strings.Contains(out, "D gone.go") {
+		t.Errorf("dry run missing the deleted path:\n%s", out)
+	}
+}
+
 // --- quiet ---
 
 func TestPackQuietSuppressesWrote(t *testing.T) {

@@ -288,7 +288,7 @@ func cmdDiff(args []string) int {
 		return 2
 	}
 
-	changed, err := gitutil.ChangedFiles(path, *ref)
+	d, err := gitutil.DiffFiles(path, *ref)
 	if err != nil {
 		if err == gitutil.ErrNotARepo {
 			fmt.Fprintln(os.Stderr, "ctxpack: not a git repository; 'diff' requires git")
@@ -297,7 +297,8 @@ func cmdDiff(args []string) int {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
 	}
-	if len(changed) == 0 {
+	changed := d.Changed
+	if len(changed) == 0 && len(d.Deleted) == 0 {
 		fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
 		return 0
 	}
@@ -318,8 +319,9 @@ func cmdDiff(args []string) int {
 			IncludeHidden:    *hidden,
 			ReadContent:      true,
 		},
-		Budget: *budget,
-		Files:  changed,
+		Budget:  *budget,
+		Files:   changed,
+		Deleted: d.Deleted,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
@@ -334,6 +336,12 @@ func cmdDiff(args []string) int {
 		if len(bundle.Omitted) > 0 {
 			fmt.Fprintf(os.Stderr, "  ... %d files, ~%d tokens omitted by the budget\n",
 				len(bundle.Omitted), bundle.OmittedTokens)
+		}
+		if len(bundle.Deleted) > 0 {
+			fmt.Fprintf(os.Stderr, "  ... %d files deleted\n", len(bundle.Deleted))
+			for _, p := range bundle.Deleted {
+				fmt.Fprintf(os.Stderr, "    D %s\n", p)
+			}
 		}
 		return 0
 	}
