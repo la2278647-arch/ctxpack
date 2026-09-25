@@ -3,6 +3,7 @@ package doctor
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -136,7 +137,7 @@ func assertVendorLine(t *testing.T, out, vendor string, n int) {
 // the report is a dead end.
 func TestTextGitMissing(t *testing.T) {
 	r := report()
-	r.Git = ""
+	r.Git = "not found"
 	r.GitError = "exec: \"git\": executable file not found"
 	r.GitVersion = ""
 	var sb bytes.Buffer
@@ -296,5 +297,77 @@ func TestReportTextIsDeterministic(t *testing.T) {
 	r.Text(&b, 2)
 	if a.String() != b.String() {
 		t.Error("text output differs between identical calls")
+	}
+}
+
+// restoreLookups pins the git probes to whatever a test sets them to, then puts
+// the real ones back. Without it the two error branches of Gather could only be
+// exercised on a machine that happened to lack git — exactly the machine nobody
+// running the suite has.
+func restoreLookups(t *testing.T) {
+	t.Helper()
+	origPath, origVer := lookupGit, lookupVersion
+	t.Cleanup(func() { lookupGit, lookupVersion = origPath, origVer })
+}
+
+// TestGatherReportsAMissingGit is the whole reason doctor exists as a tool: on
+// a machine without git, `diff` cannot work, and the report has to say so in
+// both fields rather than leave the reader guessing.
+func TestGatherReportsAMissingGit(t *testing.T) {
+	restoreLookups(t)
+	lookupGit = func() (string, error) {
+		return "", errors.New("exec: \"git\": executable file not found")
+	}
+	r := Gather()
+	if r.Git != "not found" {
+		t.Errorf("git = %q, want \"not found\"", r.Git)
+	}
+	if r.GitError == "" {
+		t.Error("git_error is empty for a missing git")
+	}
+	if r.GitVersion != "" || r.GitVersionError != "" {
+		t.Errorf("git_version fields set for a missing git: %q %q", r.GitVersion, r.GitVersionError)
+	}
+	// The registry half is unaffected by git: a user still has to learn how many
+	// models there are even when diff is unusable.
+	if r.ModelCount != len(counter.Models()) {
+		t.Errorf("model_count = %d, want %d", r.ModelCount, len(counter.Models()))
+	}
+}
+
+// TestGatherReportsABrokenGit covers the split case: git is on PATH but cannot
+// report its version. The path must still be reported, because hiding it would
+// make the user believe git is missing when it is present.
+func TestGatherReportsABrokenGit(t *testing.T) {
+	restoreLookups(t)
+	lookupGit = func() (string, error) { return "C:/tools/git/cmd/git.exe", nil }
+	lookupVersion = func() (string, error) { return "", errors.New("git --version: exit status 1") }
+	r := Gather()
+	if r.Git != "C:/tools/git/cmd/git.exe" {
+		t.Errorf("git = %q, want the real path", r.Git)
+	}
+	if r.GitVersion != "unknown" {
+		t.Errorf("git_version = %q, want \"unknown\"", r.GitVersion)
+	}
+	if r.GitVersionError == "" {
+		t.Error("git_version_error is empty")
+	}
+	if r.GitError != "" {
+		t.Errorf("git_error set for a present git: %q", r.GitError)
+	}
+}
+
+// TestGatherReportsAGoodGit pins the happy path against fixed strings rather
+// than this machine's git, so the test stays deterministic across machines.
+func TestGatherReportsAGoodGit(t *testing.T) {
+	restoreLookups(t)
+	lookupGit = func() (string, error) { return "C:/tools/git/cmd/git.exe", nil }
+	lookupVersion = func() (string, error) { return "git version 2.39.0.windows.1", nil }
+	r := Gather()
+	if r.Git != "C:/tools/git/cmd/git.exe" || r.GitVersion != "git version 2.39.0.windows.1" {
+		t.Errorf("git = %q, git_version = %q", r.Git, r.GitVersion)
+	}
+	if r.GitError != "" || r.GitVersionError != "" {
+		t.Errorf("unexpected errors: %q %q", r.GitError, r.GitVersionError)
 	}
 }

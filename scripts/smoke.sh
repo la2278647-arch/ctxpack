@@ -198,28 +198,46 @@ done
 
 # The tool result is a JSON *string* inside the envelope, so the inner keys
 # arrive escaped as \"tree\" rather than "tree". Match the escaped form.
-mcp_call repo_map '{"path":".","format":"json"}' | grep -qF '\"tree\"'
-mcp_call pack_repo '{"path":".","format":"json","max_depth":1}' | grep -qF '\"files\"'
-mcp_call count_tokens '{"path":".","model":"gpt-4o"}' | grep -q 'gpt-4o'
-mcp_call list_models '{"format":"json"}' | grep -qF '\"models\"'
+# Every assertion goes through `|| fail`: under `set -e` a bare grep that
+# fails aborts the script with no message, which is the worst possible CI
+# failure — a wall of green sections followed by silence.
+mcp_call repo_map '{"path":".","format":"json"}' \
+  | grep -qF '\"tree\"' || fail "repo_map json reported no tree"
+mcp_call pack_repo '{"path":".","format":"json","max_depth":1}' \
+  | grep -qF '\"files\"' || fail "pack_repo json reported no files"
+mcp_call count_tokens '{"path":".","model":"gpt-4o"}' \
+  | grep -q 'gpt-4o' || fail "count_tokens did not name the model"
+mcp_call list_models '{"format":"json"}' \
+  | grep -qF '\"models\"' || fail "list_models json reported no models"
 # doctor is the one tool that takes no path, so it must work with an empty
 # argument object: that is its whole purpose, for a client that cannot name a
 # repository. Text mode must state the registry size; json must be structured.
-mcp_call doctor '{}' | grep -q 'ctxpack diagnostics:'
-mcp_call doctor '{"format":"json"}' | grep -qF '\"model_count\"'
+mcp_call doctor '{}' \
+  | grep -q 'ctxpack diagnostics:' || fail "doctor text has no header"
+mcp_call doctor '{"format":"json"}' \
+  | grep -qF '\"model_count\"' || fail "doctor json has no model_count"
 # A range ref is deterministic: it compares two revisions and never touches the
 # working tree, so it cannot pass merely because an untracked file happens to
-# be lying around.
-mcp_call diff_repo '{"path":".","list":true,"ref":"HEAD~1..HEAD"}' \
-  | grep -qE '"result".*"text":"[A-Za-z]'
+# be lying around. Assert the envelope shape, not the first path character —
+# paths list alphabetically and .gitignore sorts ahead of every source file.
+RANGE="$(mcp_call diff_repo '{"path":".","list":true,"ref":"HEAD~1..HEAD"}')"
+grep -q '"text":"' <<< "$RANGE" || fail "diff_repo range returned no text"
+if grep -q 'isError' <<< "$RANGE"; then
+  fail "diff_repo range reported an error: $RANGE"
+fi
 # Errors come back inside the envelope as isError, not as a JSON-RPC error
 # object, so a client must check isError rather than the top-level shape.
-mcp_call pack_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
-mcp_call diff_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
-mcp_call pack_repo '{"format":"json"}' | grep -q 'missing required argument'
-mcp_call diff_repo '{"path":".","ref":"not-a-ref"}' | grep -q 'isError'
+mcp_call pack_repo '{"path":".","format":"yaml"}' \
+  | grep -q 'isError' || fail "pack_repo accepted an unknown format"
+mcp_call diff_repo '{"path":".","format":"yaml"}' \
+  | grep -q 'isError' || fail "diff_repo accepted an unknown format"
+mcp_call pack_repo '{"format":"json"}' \
+  | grep -q 'missing required argument' || fail "pack_repo did not require a path"
+mcp_call diff_repo '{"path":".","ref":"not-a-ref"}' \
+  | grep -q 'isError' || fail "diff_repo accepted an unresolvable ref"
 # doctor offers only text and json, not the xml/markdown the packing tools
 # accept, so a format:xml call must fail rather than quietly returning text.
-mcp_call doctor '{"format":"xml"}' | grep -q 'isError'
+mcp_call doctor '{"format":"xml"}' \
+  | grep -q 'isError' || fail "doctor accepted an unknown format"
 
 echo "smoke passed"

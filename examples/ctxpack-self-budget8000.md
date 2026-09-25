@@ -412,7 +412,7 @@ ctxpack map . > examples/ctxpack-self.map.txt
 
 `ctxpack` packing **itself** into a single Markdown bundle, capped to an 8000
 token budget and annotated for `gpt-4o`. This is the interesting demo: it
-keeps the 10 highest-priority files (~7.9k tokens) and **lists the 37 files it
+keeps the 10 highest-priority files (~7.9k tokens) and **lists the 44 files it
 omitted and why** — the "what got cut" report that is the whole point of a
 budget.
 
@@ -534,7 +534,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.7"
+var Version = "0.1.8"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -593,7 +593,7 @@ func main() {
 
 ---
 
-## Omitted by budget (44 files, ~226383 tokens)
+## Omitted by budget (48 files, ~246180 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -609,6 +609,7 @@ func main() {
 - `docs/release-notes-v0.1.5.md`
 - `docs/release-notes-v0.1.6.md`
 - `docs/release-notes-v0.1.7.md`
+- `docs/release-notes-v0.1.8.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
 - `examples/diff-demo/diff.xml`
@@ -620,6 +621,8 @@ func main() {
 - `internal/cli/cli_test.go`
 - `internal/counter/counter.go`
 - `internal/counter/counter_test.go`
+- `internal/doctor/doctor.go`
+- `internal/doctor/doctor_test.go`
 - `internal/format/format.go`
 - `internal/format/format_test.go`
 - `internal/gitutil/gitutil.go`
@@ -639,4 +642,5 @@ func main() {
 - `internal/walker/walker.go`
 - `internal/walker/walker_more_test.go`
 - `internal/walker/walker_test.go`
+- `scripts/smoke.sh`
 

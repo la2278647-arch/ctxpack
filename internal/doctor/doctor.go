@@ -40,6 +40,22 @@ type Report struct {
 	Vendors         []VendorCount `json:"vendors,omitempty"`
 }
 
+// lookupGit and lookupVersion are the two probes Gather uses to describe git.
+// They are variables so a test can simulate a machine without git — the case
+// that matters most, because the report has to say "not found (diff command
+// will not work)" rather than guess. A test that swaps them must restore the
+// defaults, or one simulated outage would leak into the rest of the suite.
+var (
+	lookupGit     = func() (string, error) { return exec.LookPath("git") }
+	lookupVersion = func() (string, error) {
+		out, err := exec.Command("git", "--version").Output()
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(out)), nil
+	}
+)
+
 // Gather snapshots the real environment: build identity, runtime, git, and the
 // model registry.
 func Gather() Report {
@@ -48,14 +64,21 @@ func Gather() Report {
 		GoVersion: runtime.Version(),
 		Platform:  runtime.GOOS + "/" + runtime.GOARCH,
 	}
-	r.Git, r.GitError = gitPath()
-	if r.GitError == "" {
-		out, err := exec.Command("git", "--version").Output()
-		if err != nil {
+	p, err := lookupGit()
+	if err != nil {
+		// The CLI has always reported a missing git as the literal string
+		// "not found" in its JSON, so keep that value for existing consumers
+		// and let GitError carry the detail. Text keys off GitError, which is
+		// the one place that has to tell the two cases apart.
+		r.Git = "not found"
+		r.GitError = err.Error()
+	} else {
+		r.Git = p
+		if v, verr := lookupVersion(); verr != nil {
 			r.GitVersion = "unknown"
-			r.GitVersionError = err.Error()
+			r.GitVersionError = verr.Error()
 		} else {
-			r.GitVersion = strings.TrimSpace(string(out))
+			r.GitVersion = v
 		}
 	}
 	models := counter.Models()
@@ -63,17 +86,6 @@ func Gather() Report {
 	r.Vendors = VendorBreakdown(models)
 	r.ModelVendors = len(r.Vendors)
 	return r
-}
-
-// gitPath returns the path of the git executable and an error string when git
-// is missing. A missing git means `diff` cannot run at all, so the absence is
-// worth surfacing rather than hiding.
-func gitPath() (string, string) {
-	p, err := exec.LookPath("git")
-	if err != nil {
-		return "", err.Error()
-	}
-	return p, ""
 }
 
 // VendorBreakdown groups the registered models by vendor, sorted by model
@@ -108,14 +120,14 @@ func (r Report) Text(w io.Writer, top int) {
 	fmt.Fprintf(w, "  Version:   %s\n", r.Version)
 	fmt.Fprintf(w, "  Go:        %s\n", r.GoVersion)
 	fmt.Fprintf(w, "  Platform:  %s\n", r.Platform)
-	if r.Git != "" {
+	if r.GitError != "" {
+		fmt.Fprintln(w, "  Git:       not found (diff command will not work)")
+	} else {
 		gitVer := r.GitVersion
 		if gitVer == "" {
 			gitVer = "unknown"
 		}
 		fmt.Fprintf(w, "  Git:       %s (%s)\n", r.Git, gitVer)
-	} else {
-		fmt.Fprintln(w, "  Git:       not found (diff command will not work)")
 	}
 	fmt.Fprintf(w, "  Models:    %d models, %d vendors\n", r.ModelCount, r.ModelVendors)
 	if len(r.Vendors) > 0 {

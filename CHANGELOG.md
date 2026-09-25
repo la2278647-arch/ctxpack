@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-09-26
+
 ### Added
 
 - **`scripts/smoke.sh`: the smoke suite as a single script.**
@@ -87,6 +89,19 @@ to follow [Semantic Versioning](https://semver.org/).
   redirect therefore captured nothing at all. The assertions now capture stderr
   and require the report to be present, so the stream convention is pinned
   instead of merely tolerated.
+- **A brittle smoke assertion was fixed, and the rest of its section now
+  reports its failures.**
+  The MCP range assertion required the first changed path to begin with an ASCII
+  letter. That held by accident: paths list alphabetically, and `.gitignore`
+  sorts ahead of every source file, so the assertion failed on a real commit
+  range. It now asserts the envelope shape instead — `"text":` present and
+  `isError` absent — which is the contract rather than the ordering. Every
+  assertion in that section also gained `|| fail`: the script runs under
+  `set -e`, so a bare grep that fails aborts with no message at all, which is
+  the worst possible outcome for a gate — a wall of passing sections followed by
+  silence. The rest of the script still has bare greps that behave this way;
+  they pass today, and hardening them is deferred.
+
 - **The CI smoke test calls `scripts/smoke.sh` instead of inlining its steps.**
   The inlined copy contained two bugs the script run surfaced: it grepped for
   `"tree"` in MCP output, where the tool result arrives escaped as `\"tree\"`
