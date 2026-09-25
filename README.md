@@ -458,8 +458,10 @@ suite, and the stdlib-only assertion — `go.sum` must stay empty and
 `go list -m all` must report exactly one module. `make smoke` additionally
 builds the binary and drives the whole command surface against the source tree
 itself: every command including `doctor`, all four output formats, the
-`--sort`/`--top`/`--format`/`--dry-run`/`--list` flags, a `diff --ref A..B`
-range, a deletion reported in each format, and the MCP server over stdio.
+`--sort`/`--top`/`--format`/`--dry-run`/`--list` flags, the file-selection
+flags `--include`/`--exclude`/`--max-size`/`--depth`/`--hidden`/
+`--no-gitignore`/`map --csv`/`models --vendor`, a `diff --ref A..B` range, a
+deletion reported in each format, and the MCP server over stdio.
 `make ci` runs both.
 
 The smoke suite is [scripts/smoke.sh](scripts/smoke.sh), a standalone script
