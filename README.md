@@ -385,6 +385,11 @@ repositories on demand instead of you pasting files.
 Claude Desktop and Cursor read this from their config; Codex and any other MCP
 client work the same way. Exposed tools:
 
+The three analytic tools (`repo_map`, `count_tokens`, `list_models`) accept a
+`format` argument (`text` or `json`, default `text`); with `format: "json"`
+their output matches the corresponding CLI `--json` shape, so scripts can
+consume either interface without a second parser.
+
 | Tool | Arguments |
 | ---- | --------- |
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `budget?`, `model?` |
