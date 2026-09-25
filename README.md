@@ -48,7 +48,7 @@ ctxpack makes all three visible and controllable:
 # Linux / macOS / WSL / git-bash
 curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
 # pin a version:
-curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.5
+curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.6
 ```
 
 ```powershell
@@ -119,7 +119,7 @@ Pin build identity at release time:
 
 ```sh
 go build -ldflags "\
-  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.5 \
+  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.6 \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildCommit=$(git rev-parse --short HEAD) \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildDate=$(date -u +%Y-%m-%d)" \
   -o ctxpack .

@@ -8,6 +8,10 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+## [0.1.6] - 2026-09-25
+
+### Added
+
 - **`format` parameter for MCP `list_models`.**
   The `list_models` tool now accepts `format` (`text` or `json`, default
   `text`). With `format: "json"` it returns `{"models": [{name, vendor,
