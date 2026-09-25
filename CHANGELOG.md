@@ -55,6 +55,10 @@ to follow [Semantic Versioning](https://semver.org/).
   and direct unit tests for `humanTokens` (all three branches). `humanTokens`
   reached 100%; `annotateFit` went from 75% to 87.5%.
 
+- **CLI coverage improved to 96.6%.**
+  Added direct unit tests for `countFiles` (nil node, single file, empty
+  directory, nested recursion). `countFiles` reached 100%.
+
 ## [0.1.5] - 2026-09-25
 
 ### Added

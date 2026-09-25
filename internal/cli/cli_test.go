@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/la2278647-arch/ctxpack/internal/repomap"
 )
 
 // testFlagSet mirrors the flags cmdPack registers, since whether reorderArgs
@@ -1686,5 +1688,41 @@ func TestTokensTopAll(t *testing.T) {
 	}
 	if modelLines != 31 {
 		t.Errorf("expected 31 model lines (all models), got %d", modelLines)
+	}
+}
+
+func TestCountFiles(t *testing.T) {
+	// nil node counts zero.
+	if got := countFiles(nil); got != 0 {
+		t.Errorf("countFiles(nil) = %d, want 0", got)
+	}
+	// A single file counts one.
+	if got := countFiles(&repomap.Node{Name: "a.go", IsDir: false}); got != 1 {
+		t.Errorf("countFiles(file) = %d, want 1", got)
+	}
+	// An empty directory counts zero.
+	if got := countFiles(&repomap.Node{Name: "dir", IsDir: true}); got != 0 {
+		t.Errorf("countFiles(empty dir) = %d, want 0", got)
+	}
+	// A directory with two files counts two.
+	dir := &repomap.Node{Name: "dir", IsDir: true, Children: []*repomap.Node{
+		{Name: "a.go", IsDir: false},
+		{Name: "b.go", IsDir: false},
+	}}
+	if got := countFiles(dir); got != 2 {
+		t.Errorf("countFiles(dir with 2 files) = %d, want 2", got)
+	}
+	// Nested directories recurse.
+	root := &repomap.Node{Name: "root", IsDir: true, Children: []*repomap.Node{
+		{Name: "a.go", IsDir: false},
+		{Name: "pkg", IsDir: true, Children: []*repomap.Node{
+			{Name: "b.go", IsDir: false},
+			{Name: "sub", IsDir: true, Children: []*repomap.Node{
+				{Name: "c.go", IsDir: false},
+			}},
+		}},
+	}}
+	if got := countFiles(root); got != 3 {
+		t.Errorf("countFiles(nested) = %d, want 3", got)
 	}
 }
