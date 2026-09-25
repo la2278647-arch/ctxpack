@@ -110,6 +110,22 @@ jobs:
           "$B" pack . --format text | grep -q '^Repository:'
           "$B" pack . --format markdown --budget 500 > /dev/null
           "$B" pack . -o /tmp/out.md && test -s /tmp/out.md
+          # Flag-surface smoke: the sort/top/format/dry-run/list flags exist
+          # and run without error on the repo itself.
+          "$B" map . --sort tokens --top 5 > /dev/null
+          "$B" tokens . --sort window --top 3 > /dev/null
+          "$B" models --sort vendor --top 5 > /dev/null
+          "$B" models --format json | grep -q '"models"'
+          "$B" pack . --dry-run > /dev/null
+          echo x >> README.md
+          "$B" diff --list | grep -q README.md
+          "$B" diff --dry-run > /dev/null
+          git checkout -- README.md
+          # MCP: repo_map and list_models both answer with JSON envelopes.
+          printf '%s\n%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":".","format":"json"}}}' \
+            | "$B" mcp | grep -q '"tree"'
           printf '%s\n%s\n' \
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
