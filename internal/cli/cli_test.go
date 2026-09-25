@@ -840,6 +840,43 @@ func TestDoctorRejectsExtraArgs(t *testing.T) {
 	_ = c.Content() // drain
 }
 
+func TestDoctorFormatText(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--format", "text"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "ctxpack diagnostics:") {
+		t.Errorf("output missing 'ctxpack diagnostics:'\n%s", out)
+	}
+}
+
+func TestDoctorFormatJSON(t *testing.T) {
+	c := captureStdout(t)
+
+	code := cmdDoctor([]string{"--format", "json"})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	var data map[string]any
+	if err := json.Unmarshal([]byte(out), &data); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if _, ok := data["version"]; !ok {
+		t.Error("JSON missing 'version' key")
+	}
+}
+
+func TestDoctorFormatUnknown(t *testing.T) {
+	code := cmdDoctor([]string{"--format", "xml"})
+	if code != 2 {
+		t.Fatalf("cmdDoctor exit = %d, want 2", code)
+	}
+}
+
 // --- tokens --sort ---
 
 func TestTokensSortByNameDefault(t *testing.T) {

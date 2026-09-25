@@ -86,6 +86,11 @@ to follow [Semantic Versioning](https://semver.org/).
   flag still works as an alias. Unknown formats exit with code 2 and a
   stderr message.
 
+- **`--format F` for `doctor`.**
+  Select output format: `text` (default), `json`. The existing `--json`
+  flag still works as an alias. Unknown formats exit with code 2 and a
+  stderr message.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
