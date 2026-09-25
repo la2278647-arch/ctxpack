@@ -1,7 +1,7 @@
 <!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
 # Repository: D:\垃圾\ctxpack
 
-- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 0
+- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 2
 
 ---
 
@@ -341,12 +341,12 @@ makes the token budget bite.
 The demo's README embeds ctxpack's own output captured on that project, which
 is a more useful illustration than any hand-written sample:
 
-- `ctxpack tokens .` reports 35545 estimated tokens and marks two small-window
-  models `[OVERFLOW]` — `gpt-3.5-turbo` at 289% of its window, `gpt-4` at 868%.
-- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 73.6% of the whole
+- `ctxpack tokens .` reports 39212 estimated tokens and marks two small-window
+  models `[OVERFLOW]` — `gpt-3.5-turbo` at 319% of its window, `gpt-4` at 957%.
+- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 66.8% of the whole
   tree, so the ranking problem is visible at a glance.
-- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 16 files at
-  ~4938 tokens, then lists the six files it cut with their individual token
+- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 13 files at
+  ~4973 tokens, then lists the twelve files it cut with their individual token
   counts.
 
 That last list is the feature. A budget that truncates mid-file hides what it
@@ -481,7 +481,7 @@ ctxpack map . > examples/ctxpack-self.map.txt
 
 `ctxpack` packing **itself** into a single Markdown bundle, capped to an 8000
 token budget and annotated for `gpt-4o`. This is the interesting demo: it
-keeps the 9 highest-priority files (~7.5k tokens) and **lists the 33 files it
+keeps the 10 highest-priority files (~7.9k tokens) and **lists the 37 files it
 omitted and why** — the "what got cut" report that is the whole point of a
 budget.
 
@@ -527,7 +527,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.4"
+var Version = "0.1.5"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -586,9 +586,10 @@ func main() {
 
 ---
 
-## Omitted by budget (37 files, ~165953 tokens)
+## Omitted by budget (39 files, ~206297 tokens)
 
 - `CHANGELOG.md`
+- `Dockerfile`
 - `Makefile`
 - `README.md`
 - `docs/ci.yml`
@@ -597,6 +598,7 @@ func main() {
 - `docs/release-notes-v0.1.2.md`
 - `docs/release-notes-v0.1.3.md`
 - `docs/release-notes-v0.1.4.md`
+- `docs/release-notes-v0.1.5.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
 - `install.ps1`
