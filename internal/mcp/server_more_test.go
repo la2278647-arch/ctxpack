@@ -659,6 +659,38 @@ func TestToolCallPackRepoModelAnnotates(t *testing.T) {
 	}
 }
 
+func TestToolCallPackRepoUnknownModel(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","model":"not-a-real-model"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "unknown model") {
+		t.Errorf("expected unknown model annotation:\n%s", text)
+	}
+	if !strings.Contains(text, "not-a-real-model") {
+		t.Errorf("expected the unknown model name in annotation:\n%s", text)
+	}
+}
+
 func TestToolCallCountTokensModelFilter(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
@@ -800,5 +832,25 @@ func TestToolCallCountTokensSortJSON(t *testing.T) {
 	fits, _ := env["fits"].([]any)
 	if len(fits) != 2 {
 		t.Errorf("expected 2 fits with top=2, got %d", len(fits))
+	}
+}
+
+func TestHumanTokens(t *testing.T) {
+	cases := []struct {
+		in   int
+		want string
+	}{
+		{0, "0"},
+		{999, "999"},
+		{1000, "1.0k"},
+		{12345, "12.3k"},
+		{999999, "1000.0k"},
+		{1_000_000, "1.0M"},
+		{2_500_000, "2.5M"},
+	}
+	for _, c := range cases {
+		if got := humanTokens(c.in); got != c.want {
+			t.Errorf("humanTokens(%d) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

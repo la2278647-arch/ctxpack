@@ -50,6 +50,11 @@ to follow [Semantic Versioning](https://semver.org/).
   annotation, list mode) and edge-case tests for `count_tokens` (sort by pct,
   unknown model, JSON with filters). `filterAndSortModels` reached 100%.
 
+- **MCP coverage further improved to 97.4%.**
+  Added `list_models` JSON tests, `pack_repo` unknown-model annotation tests,
+  and direct unit tests for `humanTokens` (all three branches). `humanTokens`
+  reached 100%; `annotateFit` went from 75% to 87.5%.
+
 ## [0.1.5] - 2026-09-25
 
 ### Added
