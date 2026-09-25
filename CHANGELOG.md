@@ -38,7 +38,25 @@ to follow [Semantic Versioning](https://semver.org/).
   token total, `--include` and `--exclude` must each shrink it, `--hidden`
   must add files, and `--no-gitignore` can only keep or add.
 
+- **All five MCP tools are now part of the smoke suite.**
+  The MCP server is the only other frontend to ctxpack, but the smoke suite
+  previously called just one tool and one method. It now asserts that
+  `tools/list` advertises all five tools, that each of them is callable with a
+  real argument, and that four failure modes are reported correctly: an unknown
+  `format` on either packing tool, a missing required `path`, and an unresolvable
+  `ref`. Two conventions worth pinning: a tool's result is a JSON *string*
+  inside the envelope, so inner keys arrive escaped (`\"tree\"`, not `"tree"`);
+  and errors come back inside the envelope as `isError` rather than as a
+  JSON-RPC error object, so a client must check `isError`.
+
 ### Changed
+
+- **The README MCP table was missing `pack_repo`'s `max_depth`.**
+  `pack_repo` accepts ten arguments but the table listed nine, and the
+  introductory sentence implied only `repo_map`, `count_tokens` and
+  `list_models` take a `format` when all five tools do. Both are corrected, and
+  the smoke suite now exercises `max_depth` through the MCP interface so this
+  cannot quietly regress again.
 
 - **`--dry-run` writes its report to stderr, and the smoke suite asserts it.**
   The suite previously discarded dry-run output with `> /dev/null`, which

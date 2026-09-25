@@ -178,15 +178,40 @@ N_NOGIT="$(file_count "$("$B" pack . --no-gitignore --format text)")"
 [ "$N_NOGIT" -ge "$N_ALL" ] || fail "--no-gitignore reduced the count ($N_ALL -> $N_NOGIT)"
 
 echo "--- mcp ---"
-# The tool result is a JSON *string* inside the envelope, so the inner keys
-# arrive escaped as \"tree\" rather than "tree". Match the escaped form.
-printf '%s\n%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":".","format":"json"}}}' \
-  | "$B" mcp | grep -qF '\"tree\"'
-printf '%s\n%s\n' \
+# One JSON-RPC conversation per call: initialize, then a single tools/call.
+# The last output line is the response to that call.
+mcp_call() {
+  printf '%s\n%s\n' \
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":$2}}" \
+    | "$B" mcp | tail -n 1
+}
+
+# tools/list must advertise every tool, and each one must actually be callable.
+LIST="$(printf '%s\n%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-  | "$B" mcp | grep -q 'repo_map'
+  | "$B" mcp | tail -n 1)"
+for t in pack_repo repo_map count_tokens list_models diff_repo; do
+  grep -q "\"name\":\"$t\"" <<< "$LIST" || fail "tools/list does not advertise $t"
+done
+
+# The tool result is a JSON *string* inside the envelope, so the inner keys
+# arrive escaped as \"tree\" rather than "tree". Match the escaped form.
+mcp_call repo_map '{"path":".","format":"json"}' | grep -qF '\"tree\"'
+mcp_call pack_repo '{"path":".","format":"json","max_depth":1}' | grep -qF '\"files\"'
+mcp_call count_tokens '{"path":".","model":"gpt-4o"}' | grep -q 'gpt-4o'
+mcp_call list_models '{"format":"json"}' | grep -qF '\"models\"'
+# A range ref is deterministic: it compares two revisions and never touches the
+# working tree, so it cannot pass merely because an untracked file happens to
+# be lying around.
+mcp_call diff_repo '{"path":".","list":true,"ref":"HEAD~1..HEAD"}' \
+  | grep -qE '"result".*"text":"[A-Za-z]'
+# Errors come back inside the envelope as isError, not as a JSON-RPC error
+# object, so a client must check isError rather than the top-level shape.
+mcp_call pack_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
+mcp_call diff_repo '{"path":".","format":"yaml"}' | grep -q 'isError'
+mcp_call pack_repo '{"format":"json"}' | grep -q 'missing required argument'
+mcp_call diff_repo '{"path":".","ref":"not-a-ref"}' | grep -q 'isError'
 
 echo "smoke passed"
