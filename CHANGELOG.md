@@ -18,6 +18,16 @@ to follow [Semantic Versioning](https://semver.org/).
   its own path, so it runs from any working directory and accepts an explicit
   binary path as an optional first argument.
 
+- **`doctor` is now part of the smoke suite.**
+  The diagnostics command was documented and well covered by unit tests, but
+  had never been exercised end to end — it was absent from both the smoke
+  suite and the CI recipe. The suite now asserts its text shape (version,
+  platform, git, model counts, vendor breakdown), both JSON entry points
+  (`--json` and `--format json`), `--output`, and both error paths. It also
+  pins the `--top` contract that matters most: the vendor list may be
+  truncated, but the `N models, M vendors` total must not change, or a
+  truncated report would understate the registry's size.
+
 ### Changed
 
 - **`--dry-run` writes its report to stderr, and the smoke suite asserts it.**

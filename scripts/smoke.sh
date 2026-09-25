@@ -35,6 +35,39 @@ OUT="$(mktemp)"
 "$B" pack . -o "$OUT" >/dev/null 2>&1 && test -s "$OUT"
 rm -f "$OUT"
 
+echo "--- doctor ---"
+# doctor's report IS the artifact, so it goes to stdout — unlike --dry-run,
+# whose status report travels on stderr. Assert the shape, not just that it
+# runs, so a missing diagnostic shows up here instead of in the field.
+DOC="$("$B" doctor)"
+grep -q 'ctxpack diagnostics:' <<< "$DOC"
+grep -q 'Version:' <<< "$DOC"
+grep -q 'Platform:' <<< "$DOC"
+grep -q 'Git:' <<< "$DOC"
+grep -q 'Models:' <<< "$DOC"
+grep -q 'Vendor breakdown:' <<< "$DOC"
+# --top truncates the vendor list but must not touch the totals, or a truncated
+# report would understate the registry's size.
+TOTALS="$(grep -oE '[0-9]+ models, [0-9]+ vendors' <<< "$DOC")"
+[ -n "$TOTALS" ] || { echo "FAIL: doctor reports no totals"; exit 1; }
+DOC_N="$(grep -c 'model(s)' <<< "$DOC")"
+DOC_N="$((DOC_N + 0))"
+TOP="$("$B" doctor --top 1)"
+grep -qF "$TOTALS" <<< "$TOP" || { echo "FAIL: --top changed the totals"; exit 1; }
+TOP_N="$(grep -c 'model(s)' <<< "$TOP")"
+TOP_N="$((TOP_N + 0))"
+if [ "$DOC_N" -le 1 ] || [ "$TOP_N" != "1" ]; then
+  echo "FAIL: --top 1 did not truncate to one vendor ($DOC_N -> $TOP_N)"
+  exit 1
+fi
+# JSON diagnostics and --output.
+"$B" doctor --json | grep -q '"model_count"'
+"$B" doctor --format json | grep -q '"version"'
+"$B" doctor -o "$OUT" >/dev/null 2>&1 && grep -q 'diagnostics' "$OUT" && rm -f "$OUT"
+# Error paths must exit non-zero rather than print a partial report.
+"$B" doctor --format yaml >/dev/null 2>&1 && { echo "FAIL: unknown format accepted"; exit 1; }
+"$B" doctor extraneous >/dev/null 2>&1 && { echo "FAIL: positional argument accepted"; exit 1; }
+
 echo "--- flag surface ---"
 "$B" map . --sort tokens --top 5 > /dev/null
 "$B" tokens . --sort window --top 3 > /dev/null
