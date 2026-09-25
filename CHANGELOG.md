@@ -149,6 +149,12 @@ to follow [Semantic Versioning](https://semver.org/).
   envelope with `total_tokens`, `total_bytes`, `reserve_tokens`, and a
   `fits` array — the same shape as the CLI's `tokens --json` output.
 
+- **`model` parameter for MCP `pack_repo`.**
+  The `pack_repo` tool now accepts a `model` argument. When set, the
+  output is prefixed with an HTML comment annotating whether the packed
+  bundle fits within that model's context window after the reply reserve —
+  the same annotation the CLI's `--model` flag produces.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

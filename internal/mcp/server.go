@@ -117,6 +117,7 @@ func tools() []map[string]any {
 					"hidden":       map[string]any{"type": "boolean", "default": false},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
 					"budget":       map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
+					"model":        map[string]any{"type": "string", "description": "Annotate fit for a named model (e.g. gpt-4o, claude-3.5-sonnet). Shows whether the bundle fits."},
 				},
 				"required": []string{"path"},
 			},
@@ -241,7 +242,11 @@ func callPackRepo(args map[string]any) (string, string) {
 	if err != nil {
 		return "", "pack error: " + err.Error()
 	}
-	return format.Render(bundle, outFmt), ""
+	out := format.Render(bundle, outFmt)
+	if model := getString(args, "model", ""); model != "" {
+		out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+	}
+	return out, ""
 }
 
 func callRepoMap(args map[string]any) (string, string) {
@@ -474,4 +479,30 @@ func parseFormat(s string) (format.Format, error) {
 		return format.Text, nil
 	}
 	return format.XML, fmt.Errorf("unknown format %q (want xml, markdown, json or text)", s)
+}
+
+// annotateFit produces an HTML comment line describing whether tokens fit within
+// a named model's context window after the reply reserve.
+func annotateFit(tokens int, model string) string {
+	m, ok := counter.LookupModel(model)
+	if !ok {
+		return fmt.Sprintf("<!-- unknown model %q; run `ctxpack models` for known models -->", model)
+	}
+	fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
+	mark := "FITS"
+	if !fit.Fits {
+		mark = "OVERFLOW"
+	}
+	return fmt.Sprintf("<!-- fit: %s model=%s used=%s/%s (%.0f%%) %s -->",
+		mark, m.Name, humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed, mark)
+}
+
+func humanTokens(n int) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
+	}
+	if n < 1_000_000 {
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
+	}
+	return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
 }

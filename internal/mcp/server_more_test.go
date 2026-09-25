@@ -354,3 +354,35 @@ func TestToolCallCountTokensJSON(t *testing.T) {
 		t.Error("fits array is empty")
 	}
 }
+
+func TestToolCallPackRepoModelAnnotates(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","model":"gpt-4o"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "fit:") {
+		t.Errorf("expected fit annotation with model:\n%s", text)
+	}
+	if !strings.Contains(text, "gpt-4o") {
+		t.Errorf("expected model name in annotation:\n%s", text)
+	}
+}
