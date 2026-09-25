@@ -386,9 +386,10 @@ client work the same way. Exposed tools:
 | Tool | Arguments |
 | ---- | --------- |
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `budget?` |
-| `repo_map` | `path`, `include?`, `exclude?`, `max_size?` |
+| `repo_map` | `path`, `include?`, `exclude?`, `max_size?`, `sort?` |
 | `count_tokens` | `path` |
 | `list_models` | none — the whole table, so a client can pick a valid model name before calling `count_tokens` |
+| `diff_repo` | `path`, `ref?`, `format?`, `budget?` — packs only changed files vs a git ref |
 
 Conversation:
 

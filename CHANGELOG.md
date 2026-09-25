@@ -136,6 +136,13 @@ to follow [Semantic Versioning](https://semver.org/).
   by window within each group). Only applied when `--sort` is explicitly
   provided; without it the registration order is preserved.
 
+- **`diff_repo` MCP tool.**
+  The MCP server now exposes a fifth tool, `diff_repo`, which packs only
+  the files changed against a git ref. Takes `path`, optional `ref`
+  (default `WORKTREE`), `format` (default `xml`), and `budget`. Deleted
+  files are listed but their content is omitted, matching the CLI's
+  `diff` command.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

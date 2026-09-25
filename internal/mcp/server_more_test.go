@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -249,5 +250,65 @@ func TestListModelsLimitsMatchCountTokensLimits(t *testing.T) {
 			t.Errorf("%s: count_tokens %q != list_models %q",
 				m.Name, fromFit[m.Name], fromTable[m.Name])
 		}
+	}
+}
+
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init: %v", err)
+	}
+}
+
+func gitAddAll(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "add", "-A")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git add: %v", err)
+	}
+}
+
+func gitCommit(t *testing.T, dir, msg string) {
+	t.Helper()
+	cmd := exec.Command("git", "commit", "-m", msg)
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git commit: %v", err)
+	}
+}
+
+func TestToolCallDiffRepo(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "a.txt") {
+		t.Errorf("diff_repo should include a.txt: %s", text)
 	}
 }

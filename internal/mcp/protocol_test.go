@@ -60,6 +60,7 @@ func TestToolsSchema(t *testing.T) {
 		"repo_map":     true,
 		"count_tokens": true,
 		"list_models":  true,
+		"diff_repo":    true,
 	}
 	// Every tool but list_models takes a path, so only they require one.
 	// list_models takes nothing: an argument-taking tool that ignored its
@@ -68,6 +69,7 @@ func TestToolsSchema(t *testing.T) {
 		"pack_repo":    true,
 		"repo_map":     true,
 		"count_tokens": true,
+		"diff_repo":    true,
 	}
 	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
 	msg := respByID(msgs, 1)

@@ -1,7 +1,7 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio.
 //
 // It speaks JSON-RPC 2.0 with newline-delimited messages (the MCP stdio
-// transport) and exposes four tools that any MCP-capable agent (Claude
+// transport) and exposes five tools that any MCP-capable agent (Claude
 // Desktop, Cursor, Codex, ...) can call:
 //
 //   - pack_repo(path, format?, include?, exclude?, max_size?, no_gitignore?,
@@ -9,6 +9,7 @@
 //   - repo_map(path, include?, exclude?, ...) -> token-aware tree text
 //   - count_tokens(path) -> total tokens + per-model fit
 //   - list_models() -> the model table, with each model's effective limit
+//   - diff_repo(path, ref?, format?, budget?) -> packed diff bundle text
 //
 // The implementation is stdlib-only and synchronous, which is enough for local
 // single-client use.
@@ -23,6 +24,7 @@ import (
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
 	"github.com/la2278647-arch/ctxpack/internal/format"
+	"github.com/la2278647-arch/ctxpack/internal/gitutil"
 	"github.com/la2278647-arch/ctxpack/internal/packer"
 	"github.com/la2278647-arch/ctxpack/internal/repomap"
 	"github.com/la2278647-arch/ctxpack/internal/walker"
@@ -153,6 +155,20 @@ func tools() []map[string]any {
 				"properties": map[string]any{},
 			},
 		},
+		{
+			"name":        "diff_repo",
+			"description": "Pack only the files changed against a git ref into a context bundle. Deleted files are listed but their content is omitted. Requires a git repository.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"path":   map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
+					"ref":    map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0). Default is WORKTREE for uncommitted changes."},
+					"format": map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
+					"budget": map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
+				},
+				"required": []string{"path"},
+			},
+		},
 	}
 }
 
@@ -178,6 +194,8 @@ func (s *server) handleToolCall(id any, params any) {
 		text, callErr = callCountTokens(args)
 	case "list_models":
 		text, callErr = callListModels()
+	case "diff_repo":
+		text, callErr = callDiffRepo(args)
 	default:
 		s.writeError(id, -32602, "Unknown tool: "+name)
 		return
@@ -274,6 +292,41 @@ func callCountTokens(args map[string]any) (string, string) {
 		fmt.Fprintf(&sb, "  %s — %d/%d (%.0f%%) %s\n", m.Name, fit.Used, fit.Limit, fit.PctUsed, mark)
 	}
 	return sb.String(), ""
+}
+
+// callDiffRepo packs only the files changed against a git ref.
+func callDiffRepo(args map[string]any) (string, string) {
+	path, _ := args["path"].(string)
+	if path == "" {
+		return "", "missing required argument: path"
+	}
+	ref := getString(args, "ref", "WORKTREE")
+	outFmt, err := parseFormat(getString(args, "format", "xml"))
+	if err != nil {
+		return "", err.Error()
+	}
+	changed, err := gitutil.ChangedFiles(path, ref)
+	if err != nil {
+		if err == gitutil.ErrNotARepo {
+			return "", "not a git repository; 'diff_repo' requires git"
+		}
+		return "", "git error: " + err.Error()
+	}
+	if len(changed) == 0 {
+		return "", "no changed files vs " + ref
+	}
+	bundle, err := packer.Pack(path, packer.Options{
+		Walker: walker.Options{
+			RespectGitignore: true,
+			ReadContent:      true,
+		},
+		Budget: toInt(args["budget"]),
+		Files:  changed,
+	})
+	if err != nil {
+		return "", "pack error: " + err.Error()
+	}
+	return format.Render(bundle, outFmt), ""
 }
 
 // callListModels reports the model table. It deliberately takes no arguments:
