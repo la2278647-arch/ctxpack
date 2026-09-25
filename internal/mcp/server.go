@@ -163,10 +163,12 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "list_models",
-			"description": "List the models ctxpack knows about, with each model's context window and its effective limit after the reply reserve. Call this before count_tokens to learn which model names exist.",
+			"description": "List the models ctxpack knows about, with each model's context window and its effective limit after the reply reserve. Call this before count_tokens to learn which model names exist. Use format:json for machine-readable output.",
 			"inputSchema": map[string]any{
-				"type":       "object",
-				"properties": map[string]any{},
+				"type": "object",
+				"properties": map[string]any{
+					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+				},
 			},
 		},
 		{
@@ -215,7 +217,7 @@ func (s *server) handleToolCall(id any, params any) {
 	case "count_tokens":
 		text, callErr = callCountTokens(args)
 	case "list_models":
-		text, callErr = callListModels()
+		text, callErr = callListModels(args)
 	case "diff_repo":
 		text, callErr = callDiffRepo(args)
 	default:
@@ -494,11 +496,15 @@ func callDiffRepo(args map[string]any) (string, string) {
 	return out, ""
 }
 
-// callListModels reports the model table. It deliberately takes no arguments:
-// there is nothing to filter on, and an argument-taking tool that ignored its
-// arguments would hide typos, as ctxpack models did before it took a FlagSet.
-func callListModels() (string, string) {
+// callListModels reports the model table. It deliberately takes no filtering
+// arguments: there is nothing to filter on, and an argument-taking tool that
+// ignored its arguments would hide typos, as ctxpack models did before it took
+// a FlagSet. It accepts only `format` for text vs JSON output.
+func callListModels(args map[string]any) (string, string) {
 	models := counter.Models()
+	if getString(args, "format", "text") == "json" {
+		return listModelsJSON(models), ""
+	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Models: %d (limit = context_window - %d reply tokens)\n", len(models), counter.ReplyReserve)
 	for _, m := range models {
@@ -506,6 +512,25 @@ func callListModels() (string, string) {
 			m.Name, m.ContextWindow, m.ContextWindow-counter.ReplyReserve, m.Vendor)
 	}
 	return sb.String(), ""
+}
+
+// listModelsJSON returns the model table as JSON, the same shape as the CLI's
+// `models --json` output.
+func listModelsJSON(models []counter.Model) string {
+	entries := make([]map[string]any, 0, len(models))
+	for _, m := range models {
+		entries = append(entries, map[string]any{
+			"name":           m.Name,
+			"vendor":         m.Vendor,
+			"context_window": m.ContextWindow,
+			"limit":          m.ContextWindow - counter.ReplyReserve,
+		})
+	}
+	b, err := json.Marshal(map[string]any{"models": entries})
+	if err != nil {
+		return fmt.Sprintf("error marshaling JSON: %v", err)
+	}
+	return string(b)
 }
 
 // --- JSON-RPC output helpers ---

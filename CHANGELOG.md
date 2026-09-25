@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`format` parameter for MCP `list_models`.**
+  The `list_models` tool now accepts `format` (`text` or `json`, default
+  `text`). With `format: "json"` it returns `{"models": [{name, vendor,
+  context_window, limit}]}` — the same shape as the CLI's `models --json`
+  output, so an agent can pick a valid model name before calling
+  `count_tokens`.
+
 - **`format` parameter for MCP `repo_map`.**
   The `repo_map` tool now accepts `format` (`text` or `json`, default
   `text`). With `format: "json"` it returns the structured envelope with

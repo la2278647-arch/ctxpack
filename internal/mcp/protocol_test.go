@@ -115,9 +115,9 @@ func TestToolsSchema(t *testing.T) {
 			continue
 		}
 		if !takesPath[name] {
-			// list_models: an empty object schema, and nothing required.
-			if len(props) != 0 {
-				t.Errorf("%s: expected no properties, got %v", name, props)
+			// list_models: only a `format` property (text|json), nothing required.
+			if len(props) != 1 || props["format"] == nil {
+				t.Errorf("%s: expected only a format property, got %v", name, props)
 			}
 			if req, ok := schema["required"].([]any); ok && len(req) != 0 {
 				t.Errorf("%s: expected no required arguments, got %v", name, req)

@@ -205,6 +205,49 @@ func TestListModelsToolListsEveryModel(t *testing.T) {
 	}
 }
 
+func TestListModelsJSON(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_models","arguments":{"format":"json"}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object: %v", msg)
+	}
+	if isErr, _ := res["isError"].(bool); isErr {
+		t.Fatalf("list_models reported an error: %v", res)
+	}
+	text := toolText(t, msgs, "1")
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("list_models JSON is not valid JSON: %v\n%s", err, text)
+	}
+	entries, ok := env["models"].([]any)
+	if !ok {
+		t.Fatalf("models missing from JSON: %v", env)
+	}
+	models := counter.Models()
+	if len(entries) != len(models) {
+		t.Errorf("models entries = %d, want %d", len(entries), len(models))
+	}
+	first, ok := entries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("model entry is not an object: %v", entries[0])
+	}
+	for _, field := range []string{"name", "vendor", "context_window", "limit"} {
+		if _, ok := first[field]; !ok {
+			t.Errorf("model entry missing %q: %v", field, first)
+		}
+	}
+	// The limit in JSON must equal context_window - ReplyReserve.
+	if m, ok := counter.LookupModel(first["name"].(string)); ok {
+		if int(first["limit"].(float64)) != m.ContextWindow-counter.ReplyReserve {
+			t.Errorf("limit mismatch for %s", first["name"])
+		}
+	}
+}
+
 // The reserve was a literal in count_tokens and a constant in the CLI, so a
 // change to one would not have shown in the other. Both tools now read
 // counter.ReplyReserve, and this checks that every model's limit really does

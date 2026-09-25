@@ -390,7 +390,7 @@ client work the same way. Exposed tools:
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `budget?`, `model?` |
 | `repo_map` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `sort?` |
 | `count_tokens` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `no_gitignore?`, `hidden?`, `model?`, `top?`, `sort?` |
-| `list_models` | none — the whole table, so a client can pick a valid model name before calling `count_tokens` |
+| `list_models` | `format?` — the whole table, so a client can pick a valid model name before calling `count_tokens` |
 | `diff_repo` | `path`, `ref?`, `format?`, `budget?`, `model?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `list?` |
 
 Conversation:
