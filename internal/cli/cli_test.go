@@ -1383,3 +1383,68 @@ func TestTokensFormatAlias(t *testing.T) {
 		t.Fatalf("--format json did not produce JSON: %v\n%s", err, out)
 	}
 }
+
+// --- tokens --top ---
+
+func TestTokensTopShowsFewerModels(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--top", "3", "--sort", "window"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	modelLines := 0
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			modelLines++
+		}
+	}
+	if modelLines != 3 {
+		t.Errorf("expected 3 model lines, got %d\n%s", modelLines, out)
+	}
+}
+
+func TestTokensTopJSON(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--top", "5", "--json"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, out)
+	}
+	if len(env.Fits) != 5 {
+		t.Errorf("expected 5 fits, got %d", len(env.Fits))
+	}
+}
+
+func TestTokensTopAll(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	code := cmdTokens([]string{src, "--top", "100"})
+	if code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	modelLines := 0
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			modelLines++
+		}
+	}
+	if modelLines != 31 {
+		t.Errorf("expected 31 model lines (all models), got %d", modelLines)
+	}
+}

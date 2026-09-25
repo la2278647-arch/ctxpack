@@ -115,6 +115,11 @@ to follow [Semantic Versioning](https://semver.org/).
   Show the changed files that would be packed without writing any output.
   Useful for checking which files would be included in a diff bundle.
 
+- **`--top N` for `tokens`.**
+  Show only the N largest models by context window size. Useful for
+  finding the models with the biggest context windows that can fit
+  your repository.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

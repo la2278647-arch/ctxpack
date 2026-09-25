@@ -107,6 +107,7 @@ FLAGS (map / tokens / models)
   --format F          (map only) text (default), json, csv
   --model NAME        (tokens only) Show fit for one model instead of all
   --sort BY           (tokens only) Sort fit table by: name (default), pct, window
+  --top N             (tokens only) Show only the N largest models by window
   --format F          (tokens only) text (default), json
   --vendor NAME       (models only) Show only models from this vendor
   --json              Emit JSON instead of the text output, for scripting
@@ -480,6 +481,7 @@ func cmdTokens(args []string) int {
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
 		model    = fs.String("model", "", "show fit for one model only")
 		sortBy   = fs.String("sort", "name", "sort fit table by: name (default), pct, window")
+		topN     = fs.Int("top", 0, "show only the N largest models by context window")
 		output   = fs.String("output", "", "write to FILE instead of stdout")
 		formatF  = fs.String("format", "", "output format: text (default), json")
 	)
@@ -522,6 +524,9 @@ func cmdTokens(args []string) int {
 		fits := tokenFits(tokens)
 		if *model != "" {
 			fits = filterFits(fits, *model)
+		}
+		if *topN > 0 {
+			fits = topFits(fits, *topN)
 		}
 		sortFits(fits, *sortBy)
 		w, close := outputWriter(*output)
@@ -568,6 +573,9 @@ func cmdTokens(args []string) int {
 				Model counter.Model
 				Fit   counter.Fit
 			}{Model: m, Fit: counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)}
+		}
+		if *topN > 0 && *topN < len(fits) {
+			fits = fits[:*topN]
 		}
 		sort.Slice(fits, func(i, j int) bool {
 			switch *sortBy {
@@ -962,6 +970,13 @@ func filterFits(fits []fitEntry, name string) []fitEntry {
 		}
 	}
 	return out
+}
+
+func topFits(fits []fitEntry, n int) []fitEntry {
+	if n <= 0 || n >= len(fits) {
+		return fits
+	}
+	return fits[:n]
 }
 
 func sortFits(fits []fitEntry, sortBy string) {
