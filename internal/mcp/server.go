@@ -125,11 +125,12 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "repo_map",
-			"description": "Return a token-aware tree outline of a repository: each file/directory annotated with a token estimate and byte size.",
+			"description": "Return a token-aware tree outline of a repository: each file/directory annotated with a token estimate and byte size. Use format:json for machine-readable output.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"path":      map[string]any{"type": "string"},
+					"format":    map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
 					"include":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"max_size":  map[string]any{"type": "integer"},
@@ -272,6 +273,7 @@ func callRepoMap(args map[string]any) (string, string) {
 	if path == "" {
 		return "", "missing required argument: path"
 	}
+	outFmt := getString(args, "format", "text")
 	root, tokens, bytes, err := repomap.Build(path, repomap.Options{
 		Walker: walker.Options{
 			Include:          toStrSlice(args["include"]),
@@ -286,10 +288,50 @@ func callRepoMap(args map[string]any) (string, string) {
 	if err != nil {
 		return "", "map error: " + err.Error()
 	}
+	if outFmt == "json" {
+		return repoMapJSON(root, tokens, bytes), ""
+	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Repository: %s\nFiles: ~%d tokens, %d bytes\n\n", root.Name, tokens, bytes)
 	sb.WriteString(repomap.Render(root))
 	return sb.String(), ""
+}
+
+// repoMapJSON returns the JSON envelope for repo_map, the same shape as the
+// CLI's `map --json` output.
+func repoMapJSON(root *repomap.Node, tokens, bytes int) string {
+	env := map[string]any{
+		"root":         root.Name,
+		"total_tokens": tokens,
+		"total_bytes":  bytes,
+		"tree":         toMapNode(root),
+	}
+	b, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Sprintf("error marshaling JSON: %v", err)
+	}
+	return string(b)
+}
+
+// toMapNode mirrors repomap.Node for JSON output. Children is always a slice,
+// never null: a file and an empty directory both get [] and the is_dir field
+// is what distinguishes them.
+func toMapNode(n *repomap.Node) map[string]any {
+	out := map[string]any{
+		"name":     n.Name,
+		"is_dir":   n.IsDir,
+		"tokens":   n.Tokens,
+		"bytes":    n.Bytes,
+		"children": []any{},
+	}
+	if n.Children != nil {
+		kids := make([]any, len(n.Children))
+		for i, c := range n.Children {
+			kids[i] = toMapNode(c)
+		}
+		out["children"] = kids
+	}
+	return out
 }
 
 func callCountTokens(args map[string]any) (string, string) {

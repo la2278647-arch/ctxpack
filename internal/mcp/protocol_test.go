@@ -293,6 +293,44 @@ func TestToolCallRepoMap(t *testing.T) {
 	}
 }
 
+func TestToolCallRepoMapJSON(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json"}}}`, dir))
+	text := toolText(t, msgs, "1")
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("repo_map JSON is not valid JSON: %v\n%s", err, text)
+	}
+	if _, ok := env["root"]; !ok {
+		t.Error("missing root in JSON")
+	}
+	if _, ok := env["total_tokens"]; !ok {
+		t.Error("missing total_tokens in JSON")
+	}
+	tree, ok := env["tree"].(map[string]any)
+	if !ok {
+		t.Fatalf("tree is not an object: %v", env["tree"])
+	}
+	if tree["is_dir"] != true {
+		t.Errorf("root should be a directory: %v", tree["is_dir"])
+	}
+	kids, ok := tree["children"].([]any)
+	if !ok || len(kids) == 0 {
+		t.Fatalf("tree children should include a.go: %v", tree["children"])
+	}
+	first, ok := kids[0].(map[string]any)
+	if !ok {
+		t.Fatalf("child is not an object: %v", kids[0])
+	}
+	if first["name"] != "a.go" {
+		t.Errorf("expected child a.go, got %v", first["name"])
+	}
+}
+
 // --- protocol edges ---
 
 func TestUnknownNotificationGetsNoResponse(t *testing.T) {

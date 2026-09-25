@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`format` parameter for MCP `repo_map`.**
+  The `repo_map` tool now accepts `format` (`text` or `json`, default
+  `text`). With `format: "json"` it returns the structured envelope with
+  `root`, `total_tokens`, `total_bytes`, and a `tree` of `{name, is_dir,
+  tokens, bytes, children}` nodes — the same shape as the CLI's `map --json`
+  output.
+
 - **`--list` flag for `diff`.**
   `ctxpack diff . --list` prints only the changed file paths, one per line,
   without packing them or reading their content. Faster than `--dry-run`
