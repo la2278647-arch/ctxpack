@@ -143,6 +143,12 @@ to follow [Semantic Versioning](https://semver.org/).
   files are listed but their content is omitted, matching the CLI's
   `diff` command.
 
+- **`format` parameter for MCP `count_tokens`.**
+  The `count_tokens` tool now accepts a `format` argument (`text` or
+  `json`, default `text`). With `format: "json"` it returns the structured
+  envelope with `total_tokens`, `total_bytes`, `reserve_tokens`, and a
+  `fits` array — the same shape as the CLI's `tokens --json` output.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

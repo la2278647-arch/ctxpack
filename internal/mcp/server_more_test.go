@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -310,5 +311,46 @@ func TestToolCallDiffRepo(t *testing.T) {
 	text, _ := content[0].(map[string]any)["text"].(string)
 	if !strings.Contains(text, "a.txt") {
 		t.Errorf("diff_repo should include a.txt: %s", text)
+	}
+}
+
+func TestToolCallCountTokensJSON(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	// Should be valid JSON with total_tokens, total_bytes, fits.
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("count_tokens JSON is not valid JSON: %v\n%s", err, text)
+	}
+	if _, ok := env["total_tokens"]; !ok {
+		t.Error("missing total_tokens in JSON")
+	}
+	if _, ok := env["fits"]; !ok {
+		t.Error("missing fits in JSON")
+	}
+	fits, _ := env["fits"].([]any)
+	if len(fits) == 0 {
+		t.Error("fits array is empty")
 	}
 }

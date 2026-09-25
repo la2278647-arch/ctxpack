@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/la2278647-arch/ctxpack/internal/counter"
@@ -138,11 +139,12 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "count_tokens",
-			"description": "Estimate the total token count of a repository and report whether it fits within each supported model's context window.",
+			"description": "Estimate the total token count of a repository and report whether it fits within each supported model's context window. Use format:json for machine-readable output.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path": map[string]any{"type": "string"},
+					"path":   map[string]any{"type": "string"},
+					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
 				},
 				"required": []string{"path"},
 			},
@@ -272,6 +274,7 @@ func callCountTokens(args map[string]any) (string, string) {
 	if path == "" {
 		return "", "missing required argument: path"
 	}
+	outFmt := getString(args, "format", "text")
 	_, tokens, bytes, err := repomap.Build(path, repomap.Options{
 		Walker: walker.Options{
 			RespectGitignore: true,
@@ -280,6 +283,9 @@ func callCountTokens(args map[string]any) (string, string) {
 	})
 	if err != nil {
 		return "", "map error: " + err.Error()
+	}
+	if outFmt == "json" {
+		return countTokensJSON(path, tokens, bytes), ""
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Path: %s\nTokens: ~%d\nBytes: %d\n\nPer-model fit:\n", path, tokens, bytes)
@@ -292,6 +298,35 @@ func callCountTokens(args map[string]any) (string, string) {
 		fmt.Fprintf(&sb, "  %s — %d/%d (%.0f%%) %s\n", m.Name, fit.Used, fit.Limit, fit.PctUsed, mark)
 	}
 	return sb.String(), ""
+}
+
+// countTokensJSON returns the JSON envelope for count_tokens.
+func countTokensJSON(path string, tokens, bytes int) string {
+	fits := make([]map[string]any, 0, len(counter.Models()))
+	for _, m := range counter.Models() {
+		f := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
+		fits = append(fits, map[string]any{
+			"name":     m.Name,
+			"window":   m.ContextWindow,
+			"limit":    f.Limit,
+			"used":     f.Used,
+			"pct_used": math.Round(f.PctUsed*100) / 100,
+			"fits":     f.Fits,
+			"vendor":   m.Vendor,
+		})
+	}
+	env := map[string]any{
+		"path":           path,
+		"total_tokens":   tokens,
+		"total_bytes":    bytes,
+		"reserve_tokens": counter.ReplyReserve,
+		"fits":           fits,
+	}
+	b, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Sprintf("error marshaling JSON: %v", err)
+	}
+	return string(b)
 }
 
 // callDiffRepo packs only the files changed against a git ref.
