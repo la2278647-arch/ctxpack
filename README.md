@@ -389,7 +389,7 @@ client work the same way. Exposed tools:
 | `repo_map` | `path`, `include?`, `exclude?`, `max_size?`, `sort?` |
 | `count_tokens` | `path`, `format?` (text or json) |
 | `list_models` | none — the whole table, so a client can pick a valid model name before calling `count_tokens` |
-| `diff_repo` | `path`, `ref?`, `format?`, `budget?` — packs only changed files vs a git ref |
+| `diff_repo` | `path`, `ref?`, `format?`, `budget?`, `model?`, `include?`, `exclude?`, `max_size?` |
 
 Conversation:
 

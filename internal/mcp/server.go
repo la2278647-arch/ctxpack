@@ -164,10 +164,14 @@ func tools() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":   map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
-					"ref":    map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0). Default is WORKTREE for uncommitted changes."},
-					"format": map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
-					"budget": map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
+					"path":     map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
+					"ref":      map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0). Default is WORKTREE for uncommitted changes."},
+					"format":   map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
+					"budget":   map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
+					"model":    map[string]any{"type": "string", "description": "Annotate fit for a named model."},
+					"include":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
+					"exclude":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
+					"max_size": map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
 				},
 				"required": []string{"path"},
 			},
@@ -357,6 +361,9 @@ func callDiffRepo(args map[string]any) (string, string) {
 	}
 	bundle, err := packer.Pack(path, packer.Options{
 		Walker: walker.Options{
+			Include:          toStrSlice(args["include"]),
+			Exclude:          toStrSlice(args["exclude"]),
+			MaxFileSize:      toInt64(args["max_size"]),
 			RespectGitignore: true,
 			ReadContent:      true,
 		},
@@ -366,7 +373,11 @@ func callDiffRepo(args map[string]any) (string, string) {
 	if err != nil {
 		return "", "pack error: " + err.Error()
 	}
-	return format.Render(bundle, outFmt), ""
+	out := format.Render(bundle, outFmt)
+	if model := getString(args, "model", ""); model != "" {
+		out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+	}
+	return out, ""
 }
 
 // callListModels reports the model table. It deliberately takes no arguments:

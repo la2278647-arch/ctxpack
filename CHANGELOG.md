@@ -155,6 +155,12 @@ to follow [Semantic Versioning](https://semver.org/).
   bundle fits within that model's context window after the reply reserve —
   the same annotation the CLI's `--model` flag produces.
 
+- **More parameters for MCP `diff_repo`.**
+  The `diff_repo` tool now accepts `include`, `exclude`, `max_size`, and
+  `model` arguments, matching the CLI's `diff` command. This lets an MCP
+  client filter which changed files are packed and annotate fit for a
+  specific model.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
