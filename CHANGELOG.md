@@ -4,7 +4,7 @@ All notable changes to ctxpack are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project aims
 to follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.5] - 2026-09-25
 
 ### Added
 
