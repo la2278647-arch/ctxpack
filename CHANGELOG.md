@@ -33,8 +33,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 - **MCP coverage improved from 90.6% to 96.0%.**
   Added error-path tests for `diff_repo` (non-git directory, no changes, model
-  annotation) and edge-case tests for `count_tokens` (sort by pct, unknown
-  model, JSON with filters). `filterAndSortModels` reached 100%.
+  annotation, list mode) and edge-case tests for `count_tokens` (sort by pct,
+  unknown model, JSON with filters). `filterAndSortModels` reached 100%.
 
 ## [0.1.5] - 2026-09-25
 
