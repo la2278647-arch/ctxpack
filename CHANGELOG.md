@@ -6,6 +6,29 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`doctor -o FILE` did not work.**
+  The help text advertises `-o, --output FILE` as available on all commands, but
+  `doctor` only registered the long form. The shorthand failed with
+  `flag provided but not defined: -o` and exited 2, so anyone scripting
+  `ctxpack doctor -o report.txt` got a usage screen instead of a report. Both
+  spellings now write to the file, matching `pack`, `map`, `diff`, `tokens` and
+  `models`. A new test pins the shorthand so it cannot drift again.
+
+### Changed
+
+- **Every smoke assertion now reports what failed.**
+  `scripts/smoke.sh` ran under `set -euo pipefail`, but 23 assertions were bare
+  `grep` calls: when one failed the script aborted with no message at all, which
+  is the worst possible outcome for a gate — a wall of passing sections followed
+  by silence, with no way to tell which check broke. All of them now go through
+  `fail`, which prints a specific reason. The reason the bug stayed hidden was
+  structural: `fail` was defined near the bottom of the script, after the
+  assertions it was meant to serve, so those sections could not have used it. It
+  now sits at the top. Wiring the `doctor --output` assertion up is what
+  surfaced the `-o` bug above, which had been a silent no-op.
+
 ## [0.1.8] - 2026-09-26
 
 ### Added

@@ -1403,6 +1403,26 @@ func TestDoctorOutputWritesFile(t *testing.T) {
 	}
 }
 
+// TestDoctorOutputShortFlag pins the -o shorthand. cmdDoctor was the only
+// command that registered --output without it, so `ctxpack doctor -o file`
+// failed with "flag provided but not defined: -o" even though the help text
+// advertises `-o, --output FILE ... (all commands)`.
+func TestDoctorOutputShortFlag(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "short.txt")
+
+	code := cmdDoctor([]string{"-o", dst})
+	if code != 0 {
+		t.Fatalf("cmdDoctor -o exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "ctxpack diagnostics:") {
+		t.Errorf("output file missing 'ctxpack diagnostics:'\n%s", string(data))
+	}
+}
+
 func TestDoctorOutputJSON(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "out.json")
 

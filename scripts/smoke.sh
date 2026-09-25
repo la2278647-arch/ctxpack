@@ -16,23 +16,34 @@ ROOT="$(pwd)"
 [ -x "$B" ] || { B="$ROOT/bin/ctxpack.exe"; }
 [ -x "$B" ] || { echo "build first: make build"; exit 1; }
 
+# fail reports a message and stops. Every assertion in this script goes through
+# it: under `set -e` a bare grep that fails aborts with no message at all, which
+# is the worst possible outcome for a gate - a wall of passing sections followed
+# by silence, so nobody can tell which check broke. Defined up front so every
+# section, not just the later ones, can use it.
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
 echo "--- commands ---"
-"$B" version
-"$B" models | grep -qi gpt
-"$B" tokens . | grep -qi tokens
-"$B" map . | grep -qi repository
-"$B" pack . > /dev/null 2>&1
+VERSION="$("$B" version)"
+echo "$VERSION"
+grep -qi ctxpack <<< "$VERSION" || fail "version banner does not mention ctxpack"
+"$B" models | grep -qi gpt || fail "models output does not mention gpt"
+"$B" tokens . | grep -qi tokens || fail "tokens output does not mention tokens"
+"$B" map . | grep -qi repository || fail "map output does not mention repository"
+"$B" pack . > /dev/null 2>&1 || fail "pack produced no output"
 
 echo "--- formats ---"
 OUT="$(mktemp)"
-"$B" pack . --format json | grep -q '"files"'
-"$B" pack . --format markdown | grep -q '^#'
-"$B" pack . --format text | grep -q '^Repository:'
-"$B" pack . --format xml | grep -q '<repository>'
-"$B" pack . --format markdown --budget 500 > /dev/null
+"$B" pack . --format json | grep -q '"files"' || fail "pack json has no files"
+"$B" pack . --format markdown | grep -q '^#' || fail "pack markdown has no heading"
+"$B" pack . --format text | grep -q '^Repository:' || fail "pack text has no header"
+"$B" pack . --format xml | grep -q '<repository>' || fail "pack xml has no root element"
+"$B" pack . --format markdown --budget 500 > /dev/null \
+  || fail "pack markdown with a budget failed"
 # -o writes the artifact to stdout-less output; the "wrote" status line is
 # stderr, so discard both and assert the file itself is non-empty.
-"$B" pack . -o "$OUT" >/dev/null 2>&1 && test -s "$OUT"
+"$B" pack . -o "$OUT" >/dev/null 2>&1 && test -s "$OUT" \
+  || fail "--output did not write a non-empty file"
 rm -f "$OUT"
 
 echo "--- doctor ---"
@@ -40,51 +51,53 @@ echo "--- doctor ---"
 # whose status report travels on stderr. Assert the shape, not just that it
 # runs, so a missing diagnostic shows up here instead of in the field.
 DOC="$("$B" doctor)"
-grep -q 'ctxpack diagnostics:' <<< "$DOC"
-grep -q 'Version:' <<< "$DOC"
-grep -q 'Platform:' <<< "$DOC"
-grep -q 'Git:' <<< "$DOC"
-grep -q 'Models:' <<< "$DOC"
-grep -q 'Vendor breakdown:' <<< "$DOC"
+grep -q 'ctxpack diagnostics:' <<< "$DOC" || fail "doctor has no header"
+grep -q 'Version:' <<< "$DOC" || fail "doctor reports no version"
+grep -q 'Platform:' <<< "$DOC" || fail "doctor reports no platform"
+grep -q 'Git:' <<< "$DOC" || fail "doctor reports no git line"
+grep -q 'Models:' <<< "$DOC" || fail "doctor reports no model counts"
+grep -q 'Vendor breakdown:' <<< "$DOC" || fail "doctor reports no vendor breakdown"
 # --top truncates the vendor list but must not touch the totals, or a truncated
 # report would understate the registry's size.
 TOTALS="$(grep -oE '[0-9]+ models, [0-9]+ vendors' <<< "$DOC")"
-[ -n "$TOTALS" ] || { echo "FAIL: doctor reports no totals"; exit 1; }
+[ -n "$TOTALS" ] || fail "doctor reports no totals"
 DOC_N="$(grep -c 'model(s)' <<< "$DOC")"
 DOC_N="$((DOC_N + 0))"
 TOP="$("$B" doctor --top 1)"
-grep -qF "$TOTALS" <<< "$TOP" || { echo "FAIL: --top changed the totals"; exit 1; }
+grep -qF "$TOTALS" <<< "$TOP" || fail "--top changed the totals"
 TOP_N="$(grep -c 'model(s)' <<< "$TOP")"
 TOP_N="$((TOP_N + 0))"
 if [ "$DOC_N" -le 1 ] || [ "$TOP_N" != "1" ]; then
-  echo "FAIL: --top 1 did not truncate to one vendor ($DOC_N -> $TOP_N)"
-  exit 1
+  fail "--top 1 did not truncate to one vendor ($DOC_N -> $TOP_N)"
 fi
 # JSON diagnostics and --output.
-"$B" doctor --json | grep -q '"model_count"'
-"$B" doctor --format json | grep -q '"version"'
-"$B" doctor -o "$OUT" >/dev/null 2>&1 && grep -q 'diagnostics' "$OUT" && rm -f "$OUT"
+"$B" doctor --json | grep -q '"model_count"' || fail "doctor --json has no model_count"
+"$B" doctor --format json | grep -q '"version"' || fail "doctor --format json has no version"
+"$B" doctor -o "$OUT" >/dev/null 2>&1 && grep -q 'diagnostics' "$OUT" && rm -f "$OUT" \
+  || fail "doctor --output did not write the report"
 # Error paths must exit non-zero rather than print a partial report.
-"$B" doctor --format yaml >/dev/null 2>&1 && { echo "FAIL: unknown format accepted"; exit 1; }
-"$B" doctor extraneous >/dev/null 2>&1 && { echo "FAIL: positional argument accepted"; exit 1; }
+"$B" doctor --format yaml >/dev/null 2>&1 && fail "doctor accepted an unknown format"
+"$B" doctor extraneous >/dev/null 2>&1 && fail "doctor accepted a positional argument"
 
 echo "--- flag surface ---"
-"$B" map . --sort tokens --top 5 > /dev/null
-"$B" tokens . --sort window --top 3 > /dev/null
-"$B" models --sort vendor --top 5 > /dev/null
-"$B" models --format json | grep -q '"models"'
+"$B" map . --sort tokens --top 5 > /dev/null || fail "map --sort --top failed"
+"$B" tokens . --sort window --top 3 > /dev/null || fail "tokens --sort --top failed"
+"$B" models --sort vendor --top 5 > /dev/null || fail "models --sort --top failed"
+"$B" models --format json | grep -q '"models"' || fail "models --format json has no models"
 # --dry-run writes its report to stderr by design: this codebase keeps
 # artifacts on stdout and status on stderr, so a dry-run report is unreachable
 # through a pipe. Assert that explicitly rather than silently discarding it.
 DRY="$("$B" pack . --dry-run 2>&1 >/dev/null)"
-grep -q 'dry run:' <<< "$DRY" || { echo "FAIL: pack --dry-run reports nothing"; exit 1; }
+grep -q 'dry run:' <<< "$DRY" || fail "pack --dry-run reports nothing"
 echo x >> README.md
-"$B" diff --list | grep -q README.md
+"$B" diff --list | grep -q README.md || fail "diff --list did not name a changed file"
 DDRY="$("$B" diff --dry-run 2>&1 >/dev/null)"
-grep -q 'dry run' <<< "$DDRY" || { echo "FAIL: diff --dry-run reports nothing"; exit 1; }
-"$B" diff --format json | grep -q '"files"'
-"$B" diff --format text | grep -q '^Repository:'
-git checkout -- README.md
+grep -q 'dry run' <<< "$DDRY" || fail "diff --dry-run reports nothing"
+"$B" diff --format json | grep -q '"files"' || fail "diff json has no files"
+"$B" diff --format text | grep -q '^Repository:' || fail "diff text has no header"
+# A failure here would leave README.md dirty for the rest of the run, so it
+# must not be allowed to pass silently.
+git checkout -- README.md || fail "could not restore README.md after the diff test"
 
 echo "--- diff range excludes the working tree ---"
 R="$(mktemp -d)"
@@ -110,10 +123,14 @@ fi
 
 echo "--- diff reports a deletion ---"
 (cd "$R" && git rm -q a.txt && git commit -qm rm)
-"$B" diff --format xml --ref HEAD~1 "$R" | grep -q '<deleted'
-"$B" diff --format text --ref HEAD~1 "$R" | grep -q 'deleted'
-"$B" diff --format markdown --ref HEAD~1 "$R" | grep -q '^## Deleted'
-"$B" diff --format json --ref HEAD~1 "$R" | grep -q '"deleted"'
+"$B" diff --format xml --ref HEAD~1 "$R" | grep -q '<deleted' \
+  || fail "diff xml has no deleted element"
+"$B" diff --format text --ref HEAD~1 "$R" | grep -q 'deleted' \
+  || fail "diff text has no deleted block"
+"$B" diff --format markdown --ref HEAD~1 "$R" | grep -q '^## Deleted' \
+  || fail "diff markdown has no Deleted heading"
+"$B" diff --format json --ref HEAD~1 "$R" | grep -q '"deleted"' \
+  || fail "diff json has no deleted array"
 # --list must never name a deletion: it feeds `while read f; do` loops that
 # would choke on a path whose content is gone. The untracked.txt still sitting
 # in the worktree IS listed, because a plain ref diffs against the worktree —
@@ -131,17 +148,18 @@ echo "--- filter flags ---"
 # grows instead of pinning a number that will drift.
 file_count() { grep -oE '^Files: [0-9]+' <<< "$1" | head -n 1 | grep -oE '[0-9]+'; }
 tok_count()  { grep -oE 'Tokens: ~[0-9]+' <<< "$1" | head -n 1 | grep -oE '[0-9]+'; }
-fail() { echo "FAIL: $*" >&2; exit 1; }
 
 ALL="$("$B" pack . --format text)"
 N_ALL="$(file_count "$ALL")";  T_ALL="$(tok_count "$ALL")"
 [ "$N_ALL" -gt 0 ] || fail "no file count parsed ($N_ALL)"
 
 # map --csv: a flat, headered list.
-"$B" map . --csv | grep -q '^path,tokens,bytes'
+"$B" map . --csv | grep -q '^path,tokens,bytes' \
+  || fail "map --csv has no header row"
 
 # models --vendor narrows to one vendor and rejects an unknown one.
-"$B" models --vendor anthropic | grep -q claude
+"$B" models --vendor anthropic | grep -q claude \
+  || fail "models --vendor anthropic returned no claude model"
 "$B" models --vendor nonexistent >/dev/null 2>&1 && fail "models accepts an unknown vendor"
 
 # --depth limits traversal strictly: a shallow walk finds fewer files.

@@ -755,6 +755,7 @@ func cmdDoctor(args []string) int {
 	jsonOut := fs.Bool("json", false, "output diagnostics as JSON")
 	formatF := fs.String("format", "", "output format: text (default), json")
 	output := fs.String("output", "", "write to FILE instead of stdout")
+	fs.StringVar(output, "o", "", "shorthand for --output")
 	top := fs.Int("top", 0, "show only top N vendors by model count")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
