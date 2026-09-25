@@ -125,6 +125,58 @@ if grep -q 'a\.txt' <<< "$LISTED"; then
 fi
 echo "PASS: --list names the worktree file, not the deletion"
 
+echo "--- filter flags ---"
+# The text header is "Files: N | Tokens: ~T | Bytes: ...". Both helpers read
+# it, and the assertions below are relative so they stay valid as the tree
+# grows instead of pinning a number that will drift.
+file_count() { grep -oE '^Files: [0-9]+' <<< "$1" | head -n 1 | grep -oE '[0-9]+'; }
+tok_count()  { grep -oE 'Tokens: ~[0-9]+' <<< "$1" | head -n 1 | grep -oE '[0-9]+'; }
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+ALL="$("$B" pack . --format text)"
+N_ALL="$(file_count "$ALL")";  T_ALL="$(tok_count "$ALL")"
+[ "$N_ALL" -gt 0 ] || fail "no file count parsed ($N_ALL)"
+
+# map --csv: a flat, headered list.
+"$B" map . --csv | grep -q '^path,tokens,bytes'
+
+# models --vendor narrows to one vendor and rejects an unknown one.
+"$B" models --vendor anthropic | grep -q claude
+"$B" models --vendor nonexistent >/dev/null 2>&1 && fail "models accepts an unknown vendor"
+
+# --depth limits traversal strictly: a shallow walk finds fewer files.
+N_DEPTH="$(file_count "$("$B" pack . --depth 1 --format text)")"
+[ "$N_DEPTH" -gt 0 ] || fail "--depth 1 produced no files"
+[ "$N_DEPTH" -lt "$N_ALL" ] || fail "--depth 1 ($N_DEPTH) did not reduce the count ($N_ALL)"
+
+# --max-size caps content, not the file list: count holds, tokens collapse.
+SMALL="$("$B" pack . --max-size 10 --format text)"
+N_SMALL="$(file_count "$SMALL")"; T_SMALL="$(tok_count "$SMALL")"
+[ "$N_SMALL" -eq "$N_ALL" ] || fail "--max-size changed the file count ($N_ALL -> $N_SMALL)"
+[ "$T_SMALL" -lt "$T_ALL" ] || fail "--max-size did not reduce tokens ($T_ALL -> $T_SMALL)"
+
+# --include keeps only matches, --exclude drops them; each must shrink the set.
+# Only the "==== path (N tokens) ====" entry headers are authoritative here:
+# the file bodies of README.md and CHANGELOG.md legitimately contain the text
+# "internal/", so grepping the whole bundle would report a false leak.
+entry_paths() { sed -nE 's/^==== (.+) \([0-9]+ tokens\) ====/\1/p' <<< "$1"; }
+INC="$("$B" pack . --include '*.md' --format text)"
+N_INC="$(file_count "$INC")"
+grep -qx README.md <<< "$(entry_paths "$INC")" || fail "--include '*.md' dropped README.md"
+grep -qE 'internal/' <<< "$(entry_paths "$INC")" && fail "--include '*.md' leaked internal/ paths"
+[ "$N_INC" -lt "$N_ALL" ] || fail "--include '*.md' did not reduce ($N_ALL -> $N_INC)"
+
+EXC="$("$B" pack . --exclude 'internal/*' --format text)"
+N_EXC="$(file_count "$EXC")"
+grep -qE 'internal/' <<< "$(entry_paths "$EXC")" && fail "--exclude leaked internal/ paths"
+[ "$N_EXC" -lt "$N_ALL" ] || fail "--exclude did not reduce ($N_ALL -> $N_EXC)"
+
+# --hidden adds dotfiles; --no-gitignore can only keep or add files.
+N_HIDDEN="$(file_count "$("$B" pack . --hidden --format text)")"
+N_NOGIT="$(file_count "$("$B" pack . --no-gitignore --format text)")"
+[ "$N_HIDDEN" -gt "$N_ALL" ] || fail "--hidden found no extra files ($N_ALL -> $N_HIDDEN)"
+[ "$N_NOGIT" -ge "$N_ALL" ] || fail "--no-gitignore reduced the count ($N_ALL -> $N_NOGIT)"
+
 echo "--- mcp ---"
 # The tool result is a JSON *string* inside the envelope, so the inner keys
 # arrive escaped as \"tree\" rather than "tree". Match the escaped form.

@@ -28,6 +28,16 @@ to follow [Semantic Versioning](https://semver.org/).
   truncated, but the `N models, M vendors` total must not change, or a
   truncated report would understate the registry's size.
 
+- **The file-selection flags are now part of the smoke suite.**
+  `--include`, `--exclude`, `--max-size`, `--depth`, `--hidden`,
+  `--no-gitignore`, `map --csv` and `models --vendor` were all documented and
+  unit-tested, but none of them had been exercised end to end. The suite now
+  asserts each one's contract with relative counts rather than pinned
+  numbers, so it keeps passing as the repository grows: `--depth` must shrink
+  the file set, `--max-size` must leave the count alone while collapsing the
+  token total, `--include` and `--exclude` must each shrink it, `--hidden`
+  must add files, and `--no-gitignore` can only keep or add.
+
 ### Changed
 
 - **`--dry-run` writes its report to stderr, and the smoke suite asserts it.**
