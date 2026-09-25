@@ -144,8 +144,12 @@ func tools() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":   map[string]any{"type": "string"},
-					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+					"path":      map[string]any{"type": "string"},
+					"format":    map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+					"include":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
+					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
+					"max_size":  map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
+					"max_depth": map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
 				},
 				"required": []string{"path"},
 			},
@@ -286,6 +290,10 @@ func callCountTokens(args map[string]any) (string, string) {
 	outFmt := getString(args, "format", "text")
 	_, tokens, bytes, err := repomap.Build(path, repomap.Options{
 		Walker: walker.Options{
+			Include:          toStrSlice(args["include"]),
+			Exclude:          toStrSlice(args["exclude"]),
+			MaxFileSize:      toInt64(args["max_size"]),
+			MaxDepth:         toInt(args["max_depth"]),
 			RespectGitignore: true,
 			ReadContent:      false,
 		},
