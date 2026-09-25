@@ -391,14 +391,15 @@ repositories on demand instead of you pasting files.
 Claude Desktop and Cursor read this from their config; Codex and any other MCP
 client work the same way. Exposed tools:
 
-The three analytic tools (`repo_map`, `count_tokens`, `list_models`) accept a
-`format` argument (`text` or `json`, default `text`); with `format: "json"`
-their output matches the corresponding CLI `--json` shape, so scripts can
-consume either interface without a second parser.
+Every tool accepts `format`. The two packing tools (`pack_repo`, `diff_repo`)
+offer `xml` / `markdown` / `json` / `text`; the three analytic tools
+(`repo_map`, `count_tokens`, `list_models`) offer `text` / `json`. With
+`format: "json"` a tool's output matches the corresponding CLI `--format json`
+shape, so scripts can consume either interface without a second parser.
 
 | Tool | Arguments |
 | ---- | --------- |
-| `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `budget?`, `model?` |
+| `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `budget?`, `model?` |
 | `repo_map` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `sort?` |
 | `count_tokens` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `no_gitignore?`, `hidden?`, `model?`, `top?`, `sort?` |
 | `list_models` | `format?` — the whole table, so a client can pick a valid model name before calling `count_tokens` |
@@ -461,7 +462,8 @@ itself: every command including `doctor`, all four output formats, the
 `--sort`/`--top`/`--format`/`--dry-run`/`--list` flags, the file-selection
 flags `--include`/`--exclude`/`--max-size`/`--depth`/`--hidden`/
 `--no-gitignore`/`map --csv`/`models --vendor`, a `diff --ref A..B` range, a
-deletion reported in each format, and the MCP server over stdio.
+deletion reported in each format, and the MCP server over stdio - `tools/list`
+plus all five tools and four error paths.
 `make ci` runs both.
 
 The smoke suite is [scripts/smoke.sh](scripts/smoke.sh), a standalone script
