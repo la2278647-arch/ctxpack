@@ -8,6 +8,20 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **More parameters for MCP `diff_repo`.**
+  The `diff_repo` tool now accepts `no_gitignore`, `hidden`, and `max_depth`
+  arguments, matching the CLI's `diff` command. With these, an MCP client can
+  fully control traversal: ignore `.gitignore`, include dotfiles, and limit
+  depth.
+
+### Changed
+
+- **MCP `count_tokens` now matches the CLI's `tokens` command.**
+  Added `model` (filter to one model), `top` (limit to N largest windows),
+  `sort` (by name, pct, or window), `no_gitignore`, and `hidden`. The `sort`
+  parameter is applied before `top`, so `top: 3, sort: "window"` returns the
+  three largest models.
+
 ## [0.1.5] - 2026-09-25
 
 ### Added
