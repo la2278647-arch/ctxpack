@@ -611,6 +611,39 @@ func TestModelsFormatUnknown(t *testing.T) {
 	}
 }
 
+func TestModelsOutputWritesFile(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "out.txt")
+
+	code := cmdModels([]string{"--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "Known models") {
+		t.Errorf("output file missing 'Known models'\n%s", string(data))
+	}
+}
+
+func TestModelsOutputJSON(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "out.json")
+
+	code := cmdModels([]string{"--json", "--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
+	}
+}
+
 // --- map --sort ---
 
 func TestMapSortByNameDefault(t *testing.T) {
@@ -911,6 +944,39 @@ func TestDoctorFormatUnknown(t *testing.T) {
 	code := cmdDoctor([]string{"--format", "xml"})
 	if code != 2 {
 		t.Fatalf("cmdDoctor exit = %d, want 2", code)
+	}
+}
+
+func TestDoctorOutputWritesFile(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "out.txt")
+
+	code := cmdDoctor([]string{"--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "ctxpack diagnostics:") {
+		t.Errorf("output file missing 'ctxpack diagnostics:'\n%s", string(data))
+	}
+}
+
+func TestDoctorOutputJSON(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "out.json")
+
+	code := cmdDoctor([]string{"--json", "--output", dst})
+	if code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
 	}
 }
 

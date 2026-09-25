@@ -112,7 +112,7 @@ FLAGS (map / tokens / models)
   --json              Emit JSON instead of the text output, for scripting
   --format F          (doctor only) text (default), json
   --format F          (models only) text (default), json
-  -o, --output FILE   Write to FILE instead of stdout (pack, diff, map, tokens)
+  -o, --output FILE   Write to FILE instead of stdout (all commands)
   -q, --quiet         Suppress stderr status messages (pack, diff)
 
 EXAMPLES
@@ -583,6 +583,8 @@ func cmdModels(args []string) int {
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
 	vendor := fs.String("vendor", "", "show only models from this vendor")
 	formatF := fs.String("format", "", "output format: text (default), json")
+	output := fs.String("output", "", "write to FILE instead of stdout")
+	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -613,11 +615,17 @@ func cmdModels(args []string) int {
 		}
 	}
 	if *jsonOut {
-		return writeEnvelope(os.Stdout, modelsEnvelope{Models: modelJSON(models)})
+		w, close := outputWriter(*output)
+		defer close()
+		return writeEnvelope(w, modelsEnvelope{Models: modelJSON(models)})
 	}
-	fmt.Println("Known models (name — context window):")
+	out, close := outputWriter(*output)
+	defer close()
+	w := bufio.NewWriter(out)
+	defer w.Flush()
+	fmt.Fprintln(w, "Known models (name — context window):")
 	for _, m := range models {
-		fmt.Printf("  %-22s %s (%s)\n", m.Name, humanTokens(m.ContextWindow), m.Vendor)
+		fmt.Fprintf(w, "  %-22s %s (%s)\n", m.Name, humanTokens(m.ContextWindow), m.Vendor)
 	}
 	return 0
 }
@@ -643,6 +651,7 @@ func cmdDoctor(args []string) int {
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "output diagnostics as JSON")
 	formatF := fs.String("format", "", "output format: text (default), json")
+	output := fs.String("output", "", "write to FILE instead of stdout")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
@@ -688,23 +697,30 @@ func cmdDoctor(args []string) int {
 	info["model_vendors"] = countVendors(models)
 
 	if *jsonOut {
-		return writeEnvelope(os.Stdout, info)
+		w, close := outputWriter(*output)
+		defer close()
+		return writeEnvelope(w, info)
 	}
 
-	fmt.Println("ctxpack diagnostics:")
-	fmt.Printf("  Version:   %s\n", version.Info())
-	fmt.Printf("  Go:        %s\n", runtime.Version())
-	fmt.Printf("  Platform:  %s\n", runtime.GOOS+"/"+runtime.GOARCH)
+	out, close := outputWriter(*output)
+	defer close()
+	w := bufio.NewWriter(out)
+	defer w.Flush()
+
+	fmt.Fprintln(w, "ctxpack diagnostics:")
+	fmt.Fprintf(w, "  Version:   %s\n", version.Info())
+	fmt.Fprintf(w, "  Go:        %s\n", runtime.Version())
+	fmt.Fprintf(w, "  Platform:  %s\n", runtime.GOOS+"/"+runtime.GOARCH)
 	if gitPath != "" {
 		gitVer, _ := info["git_version"].(string)
 		if gitVer == "" {
 			gitVer = "unknown"
 		}
-		fmt.Printf("  Git:       %s (%s)\n", gitPath, gitVer)
+		fmt.Fprintf(w, "  Git:       %s (%s)\n", gitPath, gitVer)
 	} else {
-		fmt.Println("  Git:       not found (diff command will not work)")
+		fmt.Fprintln(w, "  Git:       not found (diff command will not work)")
 	}
-	fmt.Printf("  Models:    %d models, %d vendors\n", len(models), info["model_vendors"])
+	fmt.Fprintf(w, "  Models:    %d models, %d vendors\n", len(models), info["model_vendors"])
 	return 0
 }
 

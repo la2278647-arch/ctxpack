@@ -103,6 +103,10 @@ to follow [Semantic Versioning](https://semver.org/).
   `mistral-large-2` (mistral, 128k), `qwen-2.5-72b` (alibaba, 128k).
   Total: 31 models across 7 vendors.
 
+- **`--output`/`-o` for `doctor` and `models`.**
+  Write output to a file instead of stdout. All six commands (pack, diff,
+  map, tokens, doctor, models) now support writing to a file.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the
