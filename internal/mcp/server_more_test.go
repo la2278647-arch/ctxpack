@@ -386,3 +386,147 @@ func TestToolCallPackRepoModelAnnotates(t *testing.T) {
 		t.Errorf("expected model name in annotation:\n%s", text)
 	}
 }
+
+func TestToolCallCountTokensModelFilter(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","model":"gpt-4o"}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "gpt-4o") {
+		t.Errorf("expected only gpt-4o in output:\n%s", text)
+	}
+	if strings.Contains(text, "claude") {
+		t.Errorf("should not contain claude when filtered to gpt-4o:\n%s", text)
+	}
+}
+
+func TestToolCallCountTokensTop(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","top":3}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	// Should have exactly 3 model lines after the header.
+	lines := strings.Split(text, "\n")
+	modelLines := 0
+	for _, line := range lines {
+		if strings.Contains(line, " — ") {
+			modelLines++
+		}
+	}
+	if modelLines != 3 {
+		t.Errorf("expected 3 models with top=3, got %d:\n%s", modelLines, text)
+	}
+}
+
+func TestToolCallCountTokensSortByWindow(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","sort":"window","top":3}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	// First model should be gemini-1.5-pro or gemini-2.5-pro (largest window = 2M).
+	lines := strings.Split(text, "\n")
+	firstModel := ""
+	for _, line := range lines {
+		if strings.Contains(line, " — ") {
+			parts := strings.Split(line, " — ")
+			if len(parts) > 0 {
+				firstModel = strings.TrimSpace(parts[0])
+			}
+			break
+		}
+	}
+	if !strings.Contains(firstModel, "gemini") {
+		t.Errorf("expected gemini first when sorting by window, got %q:\n%s", firstModel, text)
+	}
+}
+
+func TestToolCallCountTokensSortJSON(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json","sort":"window","top":2}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, text)
+	}
+	fits, _ := env["fits"].([]any)
+	if len(fits) != 2 {
+		t.Errorf("expected 2 fits with top=2, got %d", len(fits))
+	}
+}
