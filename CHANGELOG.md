@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`examples/diff-demo`: a reproducible diff snapshot.**
+  A generated `ctxpack diff` output over a two-commit range containing a
+  modification, an addition and a deletion — the smallest example that shows
+  range syntax and the new `Deleted` section together. `make.sh` builds the
+  scratch repository in a temp directory and deletes it on exit, so the
+  committed `diff.xml` is byte-identical on any machine.
+
 - **`diff` reports deleted files.**
   A deletion has no content to pack, so before this release the bundle simply
   never mentioned it — a removed file looked like it had never existed. `diff`
@@ -25,6 +32,15 @@ to follow [Semantic Versioning](https://semver.org/).
   `diff_repo` tool accepts the same range syntax for its `ref` argument.
 
 ### Changed
+
+- **Bundles name the directory, not the machine.**
+  `pack` and `diff` now label the bundle with the walked directory's base name
+  (`<root>ctxpack</root>`) instead of its absolute path
+  (`<root>D:\Users\alice\ctxpack</root>`). The machine the bundle was built on
+  is not information a model needs, and an absolute path leaks the username of
+  whoever packed the repository. This matches what `map` already did for its
+  root node; `pack` and `diff` had diverged from it. The JSON `root` field
+  carries the same shortened value.
 
 - **`gitutil.DiffFiles` splits deletions from changes.**
   `ChangedFiles` keeps its signature and behaviour, now returning only the

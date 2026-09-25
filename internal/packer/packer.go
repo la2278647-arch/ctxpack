@@ -5,6 +5,7 @@
 package packer
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -90,7 +91,7 @@ func Pack(root string, opts Options) (*format.Bundle, error) {
 	}
 
 	bundle := &format.Bundle{
-		Root:          res.Root,
+		Root:          rootName(res.Root),
 		Files:         files,
 		Skipped:       res.Skipped,
 		Omitted:       omittedPaths(omitted),
@@ -102,6 +103,22 @@ func Pack(root string, opts Options) (*format.Bundle, error) {
 		bundle.TotalBytes += f.Bytes
 	}
 	return bundle, nil
+}
+
+// rootName labels a bundle with the walked directory's base name rather than
+// its absolute path. The machine the bundle was built on is not information a
+// model needs, and a path like C:\Users\alice leaks the username of whoever
+// packed the repository. `map` does the same via repomap.rootNodeName; this is
+// the pack/diff half of the same rule.
+func rootName(root string) string {
+	if root == "" {
+		return ""
+	}
+	name := strings.TrimRight(filepath.Base(root), string(filepath.Separator))
+	if name == "" {
+		return root
+	}
+	return name
 }
 
 // applyBudget greedily selects files by priority until the token budget is

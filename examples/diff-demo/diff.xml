@@ -1,0 +1,41 @@
+<!-- ctxpack diff vs "HEAD~1..HEAD": 2 files -->
+<repository>
+  <meta>
+    <root>diffdemo</root>
+    <fileCount>2</fileCount>
+    <totalTokens>141</totalTokens>
+    <totalBytes>328</totalBytes>
+    <skipped>0</skipped>
+  </meta>
+  <files>
+    <file path="src/app.go" tokens="72" bytes="167">
+      <content><![CDATA[package app
+
+// Run starts the server.
+func Run() {
+	println("listening")
+}
+
+// Serve handles a single request.
+func Serve(req string) string {
+	return "ok: " + req
+}
+]]></content>
+    </file>
+    <file path="src/util.go" tokens="69" bytes="161">
+      <content><![CDATA[package app
+
+// TitleCase uppercases the first letter of s.
+func TitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return string([]rune(s)[0]) + s[1:]
+}
+]]></content>
+    </file>
+  </files>
+  <deleted count="1">
+    <path>src/legacy.go</path>
+  </deleted>
+</repository>

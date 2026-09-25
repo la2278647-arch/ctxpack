@@ -1,5 +1,5 @@
 <!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
-# Repository: D:\垃圾\ctxpack
+# Repository: ctxpack
 
 - Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 0
 

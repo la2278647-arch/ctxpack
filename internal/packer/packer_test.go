@@ -364,3 +364,42 @@ func mustWrite(t *testing.T, path string, content []byte) {
 		t.Fatal(err)
 	}
 }
+
+func TestRootName(t *testing.T) {
+	for _, tc := range []struct {
+		root string
+		want string
+	}{
+		// Absolute paths reduce to the directory's base name.
+		{"C:\\Users\\alice\\repo", "repo"},
+		{"/home/alice/repo", "repo"},
+		// A trailing separator must not leave an empty label.
+		{"C:\\Users\\alice\\repo\\", "repo"},
+		{"repo", "repo"},
+		// A bare separator resolves to the drive or filesystem root itself.
+		// Trimming it to "" would give a bundle no root at all, so keep it.
+		{string(filepath.Separator), string(filepath.Separator)},
+		{"", ""},
+	} {
+		if got := rootName(tc.root); got != tc.want {
+			t.Errorf("rootName(%q) = %q, want %q", tc.root, got, tc.want)
+		}
+	}
+}
+
+func TestPackRootIsBaseName(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "a.go"), []byte("package a\n"))
+
+	bundle, err := Pack(dir, Options{Walker: walker.Options{ReadContent: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The bundle names the directory, never the machine it was built on.
+	if bundle.Root != filepath.Base(dir) {
+		t.Errorf("root = %q, want %q", bundle.Root, filepath.Base(dir))
+	}
+	if bundle.Root == dir {
+		t.Errorf("root leaked the absolute path: %q", bundle.Root)
+	}
+}

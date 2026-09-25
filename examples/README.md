@@ -1,8 +1,8 @@
 # Examples
 
 This directory holds **`ctxpack` run on itself** — a show-don't-tell snapshot
-of what the tool produces. Both files are generated artifacts; regenerate them
-with `make`-equivalent commands documented below.
+of what the tool produces. Every snapshot here is a generated artifact;
+regenerate them with the commands documented under each file.
 
 ## `ctxpack-self.map.txt`
 
@@ -25,6 +25,16 @@ budget.
 ```sh
 ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
   -o examples/ctxpack-self-budget8000.md
+```
+
+## `diff-demo/`
+
+A generated `ctxpack diff` output over a two-commit range that contains a
+deletion — the smallest example that shows range syntax, packed changes and the
+`Deleted` section together. See [`diff-demo/README.md`](diff-demo/README.md).
+
+```sh
+cd examples/diff-demo && ./make.sh /path/to/ctxpack
 ```
 
 ## Notes
