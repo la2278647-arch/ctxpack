@@ -1,7 +1,7 @@
 <!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
 # Repository: D:\垃圾\ctxpack
 
-- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 2
+- Files: 10  | Tokens: ~7891  | Bytes: 19.1 KB  | Skipped: 0
 
 ---
 
@@ -527,7 +527,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.5"
+var Version = "0.1.6"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -586,7 +586,7 @@ func main() {
 
 ---
 
-## Omitted by budget (39 files, ~206297 tokens)
+## Omitted by budget (40 files, ~213350 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -599,6 +599,7 @@ func main() {
 - `docs/release-notes-v0.1.3.md`
 - `docs/release-notes-v0.1.4.md`
 - `docs/release-notes-v0.1.5.md`
+- `docs/release-notes-v0.1.6.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
 - `install.ps1`
