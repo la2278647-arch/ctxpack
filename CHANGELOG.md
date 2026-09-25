@@ -107,6 +107,10 @@ to follow [Semantic Versioning](https://semver.org/).
   Write output to a file instead of stdout. All six commands (pack, diff,
   map, tokens, doctor, models) now support writing to a file.
 
+- **`--dry-run` for `pack`.**
+  Show what would be packed (files, tokens, bytes) without writing any
+  output. Useful for checking the budget before generating a bundle.
+
 ## [0.1.4] - 2026-09-22
 
 The release that makes the installers trustworthy, and closes out the

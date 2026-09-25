@@ -113,6 +113,7 @@ FLAGS (map / tokens / models)
   --format F          (doctor only) text (default), json
   --format F          (models only) text (default), json
   -o, --output FILE   Write to FILE instead of stdout (all commands)
+  --dry-run           (pack only) Show what would be packed without writing
   -q, --quiet         Suppress stderr status messages (pack, diff)
 
 EXAMPLES
@@ -153,6 +154,7 @@ func cmdPack(args []string) int {
 		model    = fs.String("model", os.Getenv("CTXPACK_MODEL"), "annotate fit for a model")
 		output   = fs.String("output", "", "write to FILE (default stdout)")
 		quiet    = fs.Bool("quiet", false, "suppress the 'wrote' message when --output is set")
+		dryRun   = fs.Bool("dry-run", false, "show what would be packed without writing output")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -188,6 +190,19 @@ func cmdPack(args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ctxpack:", err)
 		return 1
+	}
+
+	if *dryRun {
+		fmt.Fprintf(os.Stderr, "dry run: %d files, ~%d tokens, %s\n",
+			len(bundle.Files), bundle.TotalTokens, humanBytes(bundle.TotalBytes))
+		for _, f := range bundle.Files {
+			fmt.Fprintf(os.Stderr, "  %s (~%d tokens, %s)\n", f.Path, f.Tokens, humanBytes(f.Bytes))
+		}
+		if len(bundle.Omitted) > 0 {
+			fmt.Fprintf(os.Stderr, "  ... %d files, ~%d tokens omitted by the budget\n",
+				len(bundle.Omitted), bundle.OmittedTokens)
+		}
+		return 0
 	}
 
 	out := format.Render(bundle, outFmt)

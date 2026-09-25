@@ -432,6 +432,53 @@ func TestPackQuietShortFlag(t *testing.T) {
 	}
 }
 
+func TestPackDryRunShowsFiles(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	errCap := captureStderr(t)
+
+	code := cmdPack([]string{src, "--dry-run"})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "dry run:") {
+		t.Errorf("stderr missing 'dry run:'\n%s", out)
+	}
+	if !strings.Contains(out, "files,") {
+		t.Errorf("stderr missing file count\n%s", out)
+	}
+}
+
+func TestPackDryRunNoOutputFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.json")
+
+	code := cmdPack([]string{src, "--dry-run", "-o", out})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Errorf("dry run should not create output file, but %s exists", out)
+	}
+}
+
+func TestPackDryRunWithBudget(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	errCap := captureStderr(t)
+
+	code := cmdPack([]string{src, "--dry-run", "--budget", "10"})
+	if code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "omitted") {
+		t.Errorf("stderr missing 'omitted' for budget-constrained dry run\n%s", out)
+	}
+}
+
 // --- tokens --model ---
 
 func TestTokensModelShowsOneModel(t *testing.T) {
