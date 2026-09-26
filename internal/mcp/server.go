@@ -280,7 +280,14 @@ func callPackRepo(args map[string]any) (string, string) {
 	}
 	out := format.Render(bundle, outFmt)
 	if model := getString(args, "model", ""); model != "" {
-		out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+		// JSON stays parseable: the annotation becomes an envelope field.
+		// Prepending the HTML comment the text formats use would make every
+		// annotated json call unparsable. See annotateFitJSON.
+		if outFmt == format.JSON {
+			out = annotateFitJSON(out, bundle.TotalTokens, model)
+		} else {
+			out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+		}
 	}
 	return out, ""
 }
@@ -508,7 +515,14 @@ func callDiffRepo(args map[string]any) (string, string) {
 	}
 	out := format.Render(bundle, outFmt)
 	if model := getString(args, "model", ""); model != "" {
-		out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+		// JSON stays parseable: the annotation becomes an envelope field.
+		// Prepending the HTML comment the text formats use would make every
+		// annotated json call unparsable. See annotateFitJSON.
+		if outFmt == format.JSON {
+			out = annotateFitJSON(out, bundle.TotalTokens, model)
+		} else {
+			out = annotateFit(bundle.TotalTokens, model) + "\n" + out
+		}
 	}
 	return out, ""
 }
@@ -674,20 +688,64 @@ func parseFormat(s string) (format.Format, error) {
 	return format.XML, fmt.Errorf("unknown format %q (want xml, markdown, json or text)", s)
 }
 
-// annotateFit produces an HTML comment line describing whether tokens fit within
-// a named model's context window after the reply reserve.
-func annotateFit(tokens int, model string) string {
+// fitNote computes one model fit and hands back both renderings a caller
+// needs: data is the machine-readable form for JSON output and note is the HTML
+// comment the text formats use. Deriving both from one place keeps them
+// agreeing, the way the CLI's --model note and count_tokens' fit table were
+// written as separate copies before this existed.
+func fitNote(tokens int, model string) (map[string]any, string) {
 	m, ok := counter.LookupModel(model)
 	if !ok {
-		return fmt.Sprintf("<!-- unknown model %q; run `ctxpack models` for known models -->", model)
+		return map[string]any{"model": model, "unknown": true},
+			fmt.Sprintf("<!-- unknown model %q; run `ctxpack models` for known models -->", model)
 	}
 	fit := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
 	mark := "FITS"
 	if !fit.Fits {
 		mark = "OVERFLOW"
 	}
-	return fmt.Sprintf("<!-- fit: %s model=%s used=%s/%s (%.0f%%) %s -->",
+	// The keys match countTokensJSON's per-model fit objects, so the two JSON
+	// envelopes speak one vocabulary.
+	data := map[string]any{
+		"name":     m.Name,
+		"vendor":   m.Vendor,
+		"window":   m.ContextWindow,
+		"limit":    fit.Limit,
+		"used":     fit.Used,
+		"pct_used": math.Round(fit.PctUsed*100) / 100,
+		"fits":     fit.Fits,
+		"reserve":  counter.ReplyReserve,
+	}
+	return data, fmt.Sprintf("<!-- fit: %s model=%s used=%s/%s (%.0f%%) %s -->",
 		mark, m.Name, humanTokens(fit.Used), humanTokens(fit.Limit), fit.PctUsed, mark)
+}
+
+// annotateFit produces an HTML comment line describing whether tokens fit within
+// a named model's context window after the reply reserve.
+func annotateFit(tokens int, model string) string {
+	_, note := fitNote(tokens, model)
+	return note
+}
+
+// annotateFitJSON carries the same annotation inside a JSON envelope instead of
+// prepending it. The HTML comment a text format accepts would leave the JSON
+// unparsable, and format:"json" exists precisely so a client can JSON.parse the
+// tool result — before this, every annotated json call threw. The fit object
+// still tells the caller whether the pack fits, so nothing is lost.
+func annotateFitJSON(out string, tokens int, model string) string {
+	data, _ := fitNote(tokens, model)
+	var env map[string]any
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		// format.Render never returns invalid JSON for format.JSON; keep the
+		// envelope rather than drop the whole result.
+		return out
+	}
+	env["fit"] = data
+	b, err := json.MarshalIndent(env, "", "  ")
+	if err != nil {
+		return out
+	}
+	return string(b)
 }
 
 func humanTokens(n int) string {

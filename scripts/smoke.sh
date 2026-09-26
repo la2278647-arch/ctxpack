@@ -223,6 +223,11 @@ mcp_call repo_map '{"path":".","format":"json"}' \
   | grep -qF '\"tree\"' || fail "repo_map json reported no tree"
 mcp_call pack_repo '{"path":".","format":"json","max_depth":1}' \
   | grep -qF '\"files\"' || fail "pack_repo json reported no files"
+# format:"json" must stay parseable with a model too: the HTML comment the text
+# formats carry would otherwise make every annotated json call throw on
+# JSON.parse, so the annotation travels inside the envelope as a fit object.
+mcp_call pack_repo '{"path":".","format":"json","model":"gpt-4"}' \
+  | grep -qF '\"fit\"' || fail "pack_repo json with a model lost the fit object"
 mcp_call count_tokens '{"path":".","model":"gpt-4o"}' \
   | grep -q 'gpt-4o' || fail "count_tokens did not name the model"
 mcp_call list_models '{"format":"json"}' \

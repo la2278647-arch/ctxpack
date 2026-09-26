@@ -49,6 +49,21 @@ to follow [Semantic Versioning](https://semver.org/).
   spellings now write to the file, matching `pack`, `map`, `diff`, `tokens` and
   `models`.
 
+- **`pack_repo` with `format: "json"` and a `model` returned unparseable JSON.**
+  The MCP tool prepended the HTML comment that the text formats carry —
+  `<!-- fit: OVERFLOW model=gpt-4 used=267.6k/4.1k (6533%) OVERFLOW -->` — in
+  front of the JSON document, so any client that `JSON.parse`s the tool result
+  threw on every annotated call. The CLI sidesteps this by routing the note to
+  stderr, but an MCP client only ever sees the envelope. The annotation now
+  travels inside the envelope as a `fit` object using the same keys
+  `count_tokens --json` already uses for its per-model fit entries (`name`,
+  `vendor`, `window`, `limit`, `used`, `pct_used`, `fits`, `reserve`), so the
+  fit information is still there and the JSON stays valid. `diff_repo` shares the
+  same path and gets the same treatment. Text formats keep the comment, and an
+  unknown model yields `fit: {"model": "...", "unknown": true}` instead of
+  destroying the envelope. `fitNote` now derives both renderings from one place,
+  and `scripts/smoke.sh` asserts the `fit` key survives.
+
 ## [0.1.8] - 2026-09-26
 
 ### Added
