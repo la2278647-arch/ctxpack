@@ -19,6 +19,17 @@ to follow [Semantic Versioning](https://semver.org/).
   while `install.ps1 v0.1.10` ran to completion on the same connection. Both
   downloads now retry 4 times on any error, matching `install.ps1`.
 
+- **`go test ./...` failed in a downloaded source archive.**
+  `TestCommandsAdvertiseTheFlagsTheyAccept` runs every command against every
+  flag and expects the advertised ones to exit 0. `cmd diff` defaults to the
+  process' current directory, which is a checkout in a clone but not in a
+  downloaded tarball, so all 15 of `diff`'s flags reported
+  `cmd diff: --format accept (exit 1, want 0)`. The published archive is a real
+  input — the Homebrew formula builds from it — and so is any directory a
+  contributor unzips to inspect the module. The test now creates a repository
+  of its own and passes it to `diff` explicitly, so the suite no longer depends
+  on the working directory.
+
 ## [0.1.10] - 2026-09-26
 
 ### Fixed

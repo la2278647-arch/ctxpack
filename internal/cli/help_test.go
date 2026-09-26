@@ -145,6 +145,15 @@ func TestCommandsAdvertiseTheFlagsTheyAccept(t *testing.T) {
 
 	tmp := t.TempDir()
 
+	// 'diff' requires a git repository and defaults to the process' current
+	// directory, so this test used to pass in a git clone and fail in a source
+	// archive, where the current directory is not a checkout. The published
+	// source tarball is a real input — Homebrew builds from it — so give
+	// 'diff' an explicit repository instead of relying on cwd. A fresh
+	// repository is enough: --ref HEAD and the WORKTREE default both take the
+	// working-tree path, and every other command ignores the extra argument.
+	repo := newGitRepo(t)
+
 	for _, cmd := range commands {
 		fn := commandFor(cmd)
 		for _, flag := range unionOfFlags() {
@@ -153,7 +162,11 @@ func TestCommandsAdvertiseTheFlagsTheyAccept(t *testing.T) {
 			if !accept {
 				want = 2
 			}
-			got := fn(tokensFor(flag, tmp))
+			toks := tokensFor(flag, tmp)
+			if cmd == "diff" {
+				toks = append(toks, repo)
+			}
+			got := fn(toks)
 			if got != want {
 				verb := "accept"
 				if !accept {
