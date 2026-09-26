@@ -214,14 +214,15 @@ func cmdPack(args []string) int {
 	}
 
 	if *dryRun {
-		fmt.Fprintf(os.Stderr, "dry run: %d files, ~%d tokens, %s\n",
-			len(bundle.Files), bundle.TotalTokens, humanBytes(bundle.TotalBytes))
+		fmt.Fprintf(os.Stderr, "dry run: %s, ~%d tokens, %s\n",
+			format.Plural(len(bundle.Files), "file"),
+			bundle.TotalTokens, humanBytes(bundle.TotalBytes))
 		for _, f := range bundle.Files {
 			fmt.Fprintf(os.Stderr, "  %s (~%d tokens, %s)\n", f.Path, f.Tokens, humanBytes(f.Bytes))
 		}
 		if len(bundle.Omitted) > 0 {
-			fmt.Fprintf(os.Stderr, "  ... %d files, ~%d tokens omitted by the budget\n",
-				len(bundle.Omitted), bundle.OmittedTokens)
+			fmt.Fprintf(os.Stderr, "  ... %s, ~%d tokens omitted by the budget\n",
+				format.Plural(len(bundle.Omitted), "file"), bundle.OmittedTokens)
 		}
 		return 0
 	}
@@ -245,12 +246,12 @@ func cmdPack(args []string) int {
 	if *output != "" && !*quiet {
 		if len(bundle.Omitted) > 0 {
 			fmt.Fprintf(os.Stderr,
-				"wrote %s — %d files, ~%d tokens; %d files, ~%d tokens omitted by the budget\n",
-				*output, len(bundle.Files), bundle.TotalTokens,
-				len(bundle.Omitted), bundle.OmittedTokens)
+				"wrote %s — %s, ~%d tokens; %s, ~%d tokens omitted by the budget\n",
+				*output, format.Plural(len(bundle.Files), "file"), bundle.TotalTokens,
+				format.Plural(len(bundle.Omitted), "file"), bundle.OmittedTokens)
 		} else {
-			fmt.Fprintf(os.Stderr, "wrote %s — %d files, ~%d tokens\n",
-				*output, len(bundle.Files), bundle.TotalTokens)
+			fmt.Fprintf(os.Stderr, "wrote %s — %s, ~%d tokens\n",
+				*output, format.Plural(len(bundle.Files), "file"), bundle.TotalTokens)
 		}
 	}
 	return 0
@@ -284,7 +285,7 @@ func cmdDiff(args []string) int {
 		output   = fs.String("output", "", "write to FILE")
 		quiet    = fs.Bool("quiet", false, "suppress stderr status messages")
 		dryRun   = fs.Bool("dry-run", false, "show changed files without writing output")
-		listOnly = fs.Bool("list", false, "list changed file paths only (no packing)")
+		listOnly = fs.Bool("list", false, "list the changed file paths that would be packed (no packing, no content read)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -318,23 +319,53 @@ func cmdDiff(args []string) int {
 		fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
 		return 0
 	}
+	walkerOpts := walker.Options{
+		Include:          []string(includes),
+		Exclude:          []string(excludes),
+		MaxFileSize:      *maxSize,
+		MaxDepth:         *depth,
+		RespectGitignore: !*noGit,
+		IncludeHidden:    *hidden,
+	}
 	if *listOnly {
+		// The same filters the pack applies, so --list never disagrees with
+		// <fileCount>. The walk stops at the directory entries: ReadContent is
+		// false, so no file body is read and --list stays cheap enough for a
+		// pre-commit hook.
+		res, err := walker.Walk(path, walkerOpts)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "ctxpack:", err)
+			return 1
+		}
+		inScope := make(map[string]bool, len(res.Files))
+		for _, fe := range res.Files {
+			inScope[fe.RelPath] = true
+		}
+		n := 0
 		for _, f := range changed {
+			if inScope[f] {
+				fmt.Println(f)
+				n++
+			}
+		}
+		// A deleted file no longer exists, so it cannot appear in the walk; the
+		// packer passes deletions through unfiltered and --list must match.
+		for _, f := range d.Deleted {
 			fmt.Println(f)
+			n++
+		}
+		if n == 0 {
+			// Unreachable when there are deletions: those are printed above, so
+			// this branch means the changed files all failed the filters.
+			fmt.Fprintf(os.Stderr,
+				"no changed files in scope vs %q (check --include / --exclude)\n", *ref)
 		}
 		return 0
 	}
 
+	walkerOpts.ReadContent = true
 	bundle, err := runPack(path, packer.Options{
-		Walker: walker.Options{
-			Include:          []string(includes),
-			Exclude:          []string(excludes),
-			MaxFileSize:      *maxSize,
-			MaxDepth:         *depth,
-			RespectGitignore: !*noGit,
-			IncludeHidden:    *hidden,
-			ReadContent:      true,
-		},
+		Walker:  walkerOpts,
 		Budget:  *budget,
 		Files:   changed,
 		Deleted: d.Deleted,
@@ -344,17 +375,18 @@ func cmdDiff(args []string) int {
 		return 1
 	}
 	if *dryRun {
-		fmt.Fprintf(os.Stderr, "dry run vs %q: %d files, ~%d tokens, %s\n",
-			*ref, len(bundle.Files), bundle.TotalTokens, humanBytes(bundle.TotalBytes))
+		fmt.Fprintf(os.Stderr, "dry run vs %q: %s, ~%d tokens, %s\n",
+			*ref, format.Plural(len(bundle.Files), "file"),
+			bundle.TotalTokens, humanBytes(bundle.TotalBytes))
 		for _, f := range bundle.Files {
 			fmt.Fprintf(os.Stderr, "  %s (~%d tokens, %s)\n", f.Path, f.Tokens, humanBytes(f.Bytes))
 		}
 		if len(bundle.Omitted) > 0 {
-			fmt.Fprintf(os.Stderr, "  ... %d files, ~%d tokens omitted by the budget\n",
-				len(bundle.Omitted), bundle.OmittedTokens)
+			fmt.Fprintf(os.Stderr, "  ... %s, ~%d tokens omitted by the budget\n",
+				format.Plural(len(bundle.Omitted), "file"), bundle.OmittedTokens)
 		}
 		if len(bundle.Deleted) > 0 {
-			fmt.Fprintf(os.Stderr, "  ... %d files deleted\n", len(bundle.Deleted))
+			fmt.Fprintf(os.Stderr, "  ... %s deleted\n", format.Plural(len(bundle.Deleted), "file"))
 			for _, p := range bundle.Deleted {
 				fmt.Fprintf(os.Stderr, "    D %s\n", p)
 			}
@@ -366,14 +398,21 @@ func cmdDiff(args []string) int {
 	// A JSON bundle must parse as JSON, so the diff header (and the fit note)
 	// cannot be prepended as an HTML comment. For other formats the comment is
 	// the natural carrier.
+	//
+	// The header reports len(bundle.Files), the packed count, not len(changed):
+	// <fileCount> is the packed count, and a reader who compared the two with an
+	// --include filter in force was otherwise told "3 files" by the header and 2
+	// by the XML one line below it.
 	header := ""
 	if outFmt != format.JSON {
-		header = fmt.Sprintf("<!-- ctxpack diff vs %q: %d files -->\n", *ref, len(changed))
+		header = fmt.Sprintf("<!-- ctxpack diff vs %q: %s -->\n",
+			*ref, format.Plural(len(bundle.Files), "file"))
 		if *model != "" {
 			header += annotateFit(bundle.TotalTokens, *model) + "\n"
 		}
 	} else if !*quiet {
-		fmt.Fprintf(os.Stderr, "ctxpack diff vs %q: %d files\n", *ref, len(changed))
+		fmt.Fprintf(os.Stderr, "ctxpack diff vs %q: %s\n",
+			*ref, format.Plural(len(bundle.Files), "file"))
 		if *model != "" {
 			fmt.Fprintln(os.Stderr, annotateFit(bundle.TotalTokens, *model))
 		}
@@ -466,7 +505,8 @@ func cmdMap(args []string) int {
 		if *topN < len(files) {
 			files = files[:*topN]
 		}
-		fmt.Fprintf(w, "Top %d files by %s (of %d total):\n\n", len(files), *sortBy, countFiles(root))
+		fmt.Fprintf(w, "Top %s by %s (of %d total):\n\n",
+			format.Plural(len(files), "file"), *sortBy, countFiles(root))
 		fmt.Fprintf(w, "%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
 		fmt.Fprintf(w, "%-45s %10s %10s\n", strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
 		for _, f := range files {

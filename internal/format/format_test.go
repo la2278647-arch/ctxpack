@@ -595,3 +595,75 @@ func TestRenderJSONDeleted(t *testing.T) {
 		t.Error("empty deleted lists must be omitted from the JSON")
 	}
 }
+
+func TestPlural(t *testing.T) {
+	for _, n := range []int{0, 1, 2, 7, 100} {
+		got := Plural(n, "file")
+		want := itoa(n) + " file"
+		if n != 1 {
+			want += "s"
+		}
+		if got != want {
+			t.Errorf("Plural(%d, \"file\") = %q, want %q", n, got, want)
+		}
+	}
+	// The word is untouched apart from the trailing s, so "model" and "file"
+	// both read naturally.
+	if got := Plural(1, "model"); got != "1 model" {
+		t.Errorf("Plural(1, \"model\") = %q, want \"1 model\"", got)
+	}
+	if got := Plural(3, "model"); got != "3 models" {
+		t.Errorf("Plural(3, \"model\") = %q, want \"3 models\"", got)
+	}
+}
+
+// A single omitted or deleted file must read "1 file", not "1 files".
+func TestRenderSingularCounts(t *testing.T) {
+	b := sample()
+	b.Omitted = []string{"vendor/heavy.go"}
+	b.OmittedTokens = 900
+	b.Deleted = []string{"pkg/gone.go"}
+
+	if out := Render(b, Markdown); !strings.Contains(out, "## Omitted by budget (1 file, ~900 tokens)") {
+		t.Errorf("markdown omitted section must be singular:\n%s", out)
+	}
+	if out := Render(b, Markdown); strings.Contains(out, "## Omitted by budget (1 files") {
+		t.Errorf("markdown omitted section must not pluralise one file:\n%s", out)
+	}
+	if out := Render(b, Markdown); !strings.Contains(out, "## Deleted (1 file)") {
+		t.Errorf("markdown deleted section must be singular:\n%s", out)
+	}
+	if out := Render(b, Text); !strings.Contains(out, "==== omitted by budget (1 file, ~900 tokens) ====") {
+		t.Errorf("text omitted section must be singular:\n%s", out)
+	}
+	if out := Render(b, Text); strings.Contains(out, "deleted (1 files") {
+		t.Errorf("text deleted section must not pluralise one file:\n%s", out)
+	}
+	// XML uses a numeric count attribute, so it is unaffected by plural rules.
+	var node struct {
+		Omitted struct {
+			Count int `xml:"count,attr"`
+		} `xml:"omitted"`
+		Deleted struct {
+			Count int `xml:"count,attr"`
+		} `xml:"deleted"`
+	}
+	if err := xml.Unmarshal([]byte(Render(b, XML)), &node); err != nil {
+		t.Fatal(err)
+	}
+	if node.Omitted.Count != 1 || node.Deleted.Count != 1 {
+		t.Errorf("xml counts = omitted %d, deleted %d, want 1 and 1",
+			node.Omitted.Count, node.Deleted.Count)
+	}
+}
+
+// Two of each must stay plural, so Plural only changes the one-item case.
+func TestRenderPluralCountsUnchanged(t *testing.T) {
+	out := Render(omittedSample(), Text)
+	if !strings.Contains(out, "==== omitted by budget (2 files, ~900 tokens) ====") {
+		t.Errorf("text omitted section must stay plural:\n%s", out)
+	}
+	if out := Render(deletedSample(), Text); !strings.Contains(out, "==== deleted (2 files) ====") {
+		t.Errorf("text deleted section must stay plural:\n%s", out)
+	}
+}

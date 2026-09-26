@@ -175,8 +175,8 @@ func writeOmittedMarkdown(sb *strings.Builder, b *Bundle) {
 	if len(b.Omitted) == 0 {
 		return
 	}
-	fmt.Fprintf(sb, "## Omitted by budget (%d files, ~%d tokens)\n\n",
-		len(b.Omitted), b.OmittedTokens)
+	fmt.Fprintf(sb, "## Omitted by budget (%s, ~%d tokens)\n\n",
+		Plural(len(b.Omitted), "file"), b.OmittedTokens)
 	for _, p := range b.Omitted {
 		fmt.Fprintf(sb, "- `%s`\n", p)
 	}
@@ -189,7 +189,7 @@ func writeDeletedMarkdown(sb *strings.Builder, b *Bundle) {
 	if len(b.Deleted) == 0 {
 		return
 	}
-	fmt.Fprintf(sb, "## Deleted (%d files)\n\n", len(b.Deleted))
+	fmt.Fprintf(sb, "## Deleted (%s)\n\n", Plural(len(b.Deleted), "file"))
 	for _, p := range b.Deleted {
 		fmt.Fprintf(sb, "- `%s`\n", p)
 	}
@@ -235,8 +235,8 @@ func writeOmittedText(sb *strings.Builder, b *Bundle) {
 	if len(b.Omitted) == 0 {
 		return
 	}
-	fmt.Fprintf(sb, "==== omitted by budget (%d files, ~%d tokens) ====\n",
-		len(b.Omitted), b.OmittedTokens)
+	fmt.Fprintf(sb, "==== omitted by budget (%s, ~%d tokens) ====\n",
+		Plural(len(b.Omitted), "file"), b.OmittedTokens)
 	for _, p := range b.Omitted {
 		sb.WriteString(p)
 		sb.WriteString("\n")
@@ -250,7 +250,7 @@ func writeDeletedText(sb *strings.Builder, b *Bundle) {
 	if len(b.Deleted) == 0 {
 		return
 	}
-	fmt.Fprintf(sb, "==== deleted (%d files) ====\n", len(b.Deleted))
+	fmt.Fprintf(sb, "==== deleted (%s) ====\n", Plural(len(b.Deleted), "file"))
 	for _, p := range b.Deleted {
 		sb.WriteString(p)
 		sb.WriteString("\n")
@@ -264,6 +264,17 @@ func xmlEscape(s string) string {
 }
 
 func itoa(n int) string { return fmt.Sprintf("%d", n) }
+
+// Plural renders "%d <word>" with the right form for the count, so one deleted
+// file reports as "1 file" rather than "1 files". Exported because the CLI and
+// the MCP server build their own diff headers with the same wording, and the
+// rule should live in one place instead of being re-typed at each call site.
+func Plural(n int, word string) string {
+	if n == 1 {
+		return itoa(n) + " " + word
+	}
+	return itoa(n) + " " + word + "s"
+}
 
 func humanBytes(n int) string {
 	const unit = 1024

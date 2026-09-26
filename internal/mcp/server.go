@@ -190,7 +190,7 @@ func tools() []map[string]any {
 					"no_gitignore": map[string]any{"type": "boolean", "default": false},
 					"hidden":       map[string]any{"type": "boolean", "default": false},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
-					"list":         map[string]any{"type": "boolean", "default": false, "description": "List changed file paths only (no packing, no token counts)."},
+					"list":         map[string]any{"type": "boolean", "default": false, "description": "List the changed file paths that would be packed (no packing, no content read). Honours include/exclude like the pack does."},
 				},
 				"required": []string{"path"},
 			},
@@ -493,19 +493,39 @@ func callDiffRepo(args map[string]any) (string, string) {
 	if len(changed) == 0 && len(d.Deleted) == 0 {
 		return "", "no changed files vs " + ref
 	}
-	if toBool(args["list"]) {
-		return strings.Join(changed, "\n"), ""
+	walkerOpts := walker.Options{
+		Include:          toStrSlice(args["include"]),
+		Exclude:          toStrSlice(args["exclude"]),
+		MaxFileSize:      toInt64(args["max_size"]),
+		MaxDepth:         toInt(args["max_depth"]),
+		RespectGitignore: !toBool(args["no_gitignore"]),
+		IncludeHidden:    toBool(args["hidden"]),
 	}
+	if toBool(args["list"]) {
+		// The same filters the pack applies, so list never disagrees with
+		// fileCount. ReadContent stays false: no file body is read.
+		res, err := walker.Walk(path, walkerOpts)
+		if err != nil {
+			return "", "walk error: " + err.Error()
+		}
+		inScope := make(map[string]bool, len(res.Files))
+		for _, fe := range res.Files {
+			inScope[fe.RelPath] = true
+		}
+		var out []string
+		for _, f := range changed {
+			if inScope[f] {
+				out = append(out, f)
+			}
+		}
+		// A deleted file no longer exists, so it cannot appear in the walk; the
+		// packer passes deletions through unfiltered and list must match.
+		out = append(out, d.Deleted...)
+		return strings.Join(out, "\n"), ""
+	}
+	walkerOpts.ReadContent = true
 	bundle, err := packer.Pack(path, packer.Options{
-		Walker: walker.Options{
-			Include:          toStrSlice(args["include"]),
-			Exclude:          toStrSlice(args["exclude"]),
-			MaxFileSize:      toInt64(args["max_size"]),
-			MaxDepth:         toInt(args["max_depth"]),
-			RespectGitignore: !toBool(args["no_gitignore"]),
-			IncludeHidden:    toBool(args["hidden"]),
-			ReadContent:      true,
-		},
+		Walker:  walkerOpts,
 		Budget:  toInt(args["budget"]),
 		Files:   changed,
 		Deleted: d.Deleted,

@@ -522,11 +522,95 @@ func TestToolCallDiffRepoRangeExcludesWorktree(t *testing.T) {
 	}
 }
 
-// A deletion has no content to pack, but the tool must still say so.
-func TestToolCallDiffRepoReportsDeletions(t *testing.T) {
+// list must honour include like the pack does: a filter that the caller
+// expects to narrow the bundle cannot silently be ignored by the one call that
+// pretends not to build it.
+func TestToolCallDiffRepoListHonoursInclude(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	if err := os.MkdirAll(filepath.Join(dir, "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root"), 0o644)
+	os.WriteFile(filepath.Join(dir, "pkg", "a.txt"), []byte("a"), 0o644)
+	os.WriteFile(filepath.Join(dir, "pkg", "b.txt"), []byte("b"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "pkg", "a.txt"), []byte("a changed"), 0o644)
+	os.WriteFile(filepath.Join(dir, "pkg", "b.txt"), []byte("b changed"), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root changed"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","list":true,"include":["pkg/*"]}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "pkg/a.txt") || !strings.Contains(text, "pkg/b.txt") {
+		t.Errorf("both pkg changes should be listed:\n%s", text)
+	}
+	if strings.Contains(text, "root.txt") {
+		t.Errorf("include pkg/* must exclude root.txt:\n%s", text)
+	}
+}
+
+// list must also name deletions, which the pack reports in a Deleted section.
+func TestToolCallDiffRepoListIncludesDeletions(t *testing.T) {
 	dir := t.TempDir()
 	gitInit(t, dir)
 	os.WriteFile(filepath.Join(dir, "gone.txt"), []byte("bye"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
+	os.Remove(filepath.Join(dir, "gone.txt"))
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","list":true}}}`,
+	)
+	msg := respByID(msgs, 2)
+	if msg == nil {
+		t.Fatalf("no tools/call response: %v", msgs)
+	}
+	result, ok := msg["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result: %v", msg)
+	}
+	if result["isError"] == true {
+		t.Fatalf("unexpected error: %v", result["content"])
+	}
+	content, _ := result["content"].([]any)
+	if len(content) == 0 {
+		t.Fatal("no content")
+	}
+	text, _ := content[0].(map[string]any)["text"].(string)
+	if !strings.Contains(text, "a.txt") {
+		t.Errorf("list should include the modified file:\n%s", text)
+	}
+	if !strings.Contains(text, "gone.txt") {
+		t.Errorf("list should name the deleted file:\n%s", text)
+	}
+}
+
+// A deletion has no content to pack, but the tool must still say so.
+func TestToolCallDiffRepoReportsDeletions(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "gone.txt"), []byte("bye"), 0o644)
+	gitInit(t, dir)
 	gitAddAll(t, dir)
 	gitCommit(t, dir, "initial")
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
@@ -555,8 +639,11 @@ func TestToolCallDiffRepoReportsDeletions(t *testing.T) {
 	if !strings.Contains(text, "a.txt") {
 		t.Errorf("diff_repo should still include a.txt:\n%s", text)
 	}
-	if !strings.Contains(text, "## Deleted (1 files)") {
+	if !strings.Contains(text, "## Deleted (1 file)") {
 		t.Errorf("expected a deleted section:\n%s", text)
+	}
+	if strings.Contains(text, "## Deleted (1 files)") {
+		t.Errorf("deleted section must not pluralise a single file:\n%s", text)
 	}
 	if !strings.Contains(text, "`gone.txt`") {
 		t.Errorf("deleted section missing gone.txt:\n%s", text)

@@ -6,6 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -438,8 +442,11 @@ func TestDiffDryRunShowsFiles(t *testing.T) {
 	if !strings.Contains(out, "dry run") {
 		t.Errorf("stderr missing 'dry run'\n%s", out)
 	}
-	if !strings.Contains(out, "files") {
-		t.Errorf("stderr missing 'files'\n%s", out)
+	if !strings.Contains(out, "1 file") {
+		t.Errorf("stderr missing the singular file count '1 file':\n%s", out)
+	}
+	if strings.Contains(out, "1 files") {
+		t.Errorf("stderr must not say '1 files':\n%s", out)
 	}
 }
 
@@ -487,6 +494,161 @@ func TestDiffListOnly(t *testing.T) {
 
 // A deletion has no content to pack, but a diff must still report it: a removed
 // file that the bundle never mentions would look like it never existed.
+func TestDiffListHonoursInclude(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	// Two changed files in src/, one elsewhere.
+	os.WriteFile(filepath.Join(src, "src", "a.go"), []byte("package a\n\nvar a = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "src", "b.go"), []byte("package a\n\nvar b = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "notes.txt"), []byte("notes\n\nmore notes\n"), 0o644)
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--list", "--include", "src/*"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "src/a.go") || !strings.Contains(out, "src/b.go") {
+		t.Errorf("expected both src changes in the list:\n%s", out)
+	}
+	if strings.Contains(out, "notes.txt") {
+		t.Errorf("--include src/* must exclude notes.txt:\n%s", out)
+	}
+	if strings.Contains(out, "new.go") {
+		t.Errorf("new.go is not changed and must not be listed:\n%s", out)
+	}
+}
+
+func TestDiffListReportsDeletions(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "gone.txt"), []byte("gone\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+	os.Remove(filepath.Join(src, "gone.txt"))
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--list"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "modified.go") {
+		t.Errorf("stdout missing the modified file:\n%s", out)
+	}
+	if !strings.Contains(out, "gone.txt") {
+		t.Errorf("--list must name the deleted file too:\n%s", out)
+	}
+}
+
+func TestDiffListNothingInScope(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	outCap := captureStdout(t)
+	errCap := captureStderr(t)
+	code := cmdDiff([]string{src, "--list", "--exclude", "*"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if out := outCap.Content(); out != "" {
+		t.Errorf("nothing in scope, so stdout must be empty:\n%s", out)
+	}
+	if out := errCap.Content(); !strings.Contains(out, "no changed files in scope") {
+		t.Errorf("stderr should say nothing is in scope:\n%s", out)
+	}
+	if out := errCap.Content(); !strings.Contains(out, "--include / --exclude") {
+		t.Errorf("stderr should point at the filters:\n%s", out)
+	}
+}
+
+func TestDiffListMatchesPackedFiles(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "src", "a.go"), []byte("package a\n\nvar a = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "src", "b.go"), []byte("package a\n\nvar b = 1\n"), 0o644)
+
+	listCap := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list"}); code != 0 {
+		t.Fatalf("cmdDiff --list exit = %d", code)
+	}
+	var listed []string
+	for _, line := range strings.Split(strings.TrimSpace(listCap.Content()), "\n") {
+		if line != "" {
+			listed = append(listed, line)
+		}
+	}
+
+	outCap := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var bundle struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Deleted []string `json:"deleted"`
+	}
+	if err := json.Unmarshal([]byte(outCap.Content()), &bundle); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	packed := append([]string{}, bundle.Deleted...)
+	for _, f := range bundle.Files {
+		packed = append(packed, f.Path)
+	}
+	sort.Strings(packed)
+	sort.Strings(listed)
+	if !reflect.DeepEqual(listed, packed) {
+		t.Errorf("--list = %v, pack paths = %v: the two must agree", listed, packed)
+	}
+}
+
+// A diff that filters one changed file out must tell the reader the packed
+// count, not the pre-filter count: <fileCount> is the packed count, so the
+// header has to say the same thing.
+func TestDiffHeaderCountsPackedFiles(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "src", "a.go"), []byte("package a\n\nvar a = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "src", "b.go"), []byte("package a\n\nvar b = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "notes.txt"), []byte("notes\n\nmore\n"), 0o644)
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--include", "src/*"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	header := regexp.MustCompile(`<!-- ctxpack diff vs "[^"]+": (\d+) files? -->`).FindStringSubmatch(out)
+	if header == nil {
+		t.Fatalf("output has no diff header:\n%s", out)
+	}
+	headerCount, _ := strconv.Atoi(header[1])
+	if !regexp.MustCompile(`<fileCount>2</fileCount>`).MatchString(out) {
+		t.Errorf("fileCount is not 2 with --include src/*:\n%s", out)
+	}
+	if headerCount != 2 {
+		t.Errorf("header says %d files, <fileCount> says 2: they must agree:\n%s",
+			headerCount, out)
+	}
+}
+
 func TestDiffReportsDeletions(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
@@ -506,8 +668,11 @@ func TestDiffReportsDeletions(t *testing.T) {
 	if !strings.Contains(out, "modified.go") {
 		t.Errorf("stdout missing the modified file:\n%s", out)
 	}
-	if !strings.Contains(out, "## Deleted (1 files)") {
+	if !strings.Contains(out, "## Deleted (1 file)") {
 		t.Errorf("stdout missing the deleted section:\n%s", out)
+	}
+	if strings.Contains(out, "## Deleted (1 files)") {
+		t.Errorf("deleted section must not pluralise a single file:\n%s", out)
 	}
 	if !strings.Contains(out, "`new.go`") {
 		t.Errorf("deleted section missing new.go:\n%s", out)
@@ -557,8 +722,11 @@ func TestDiffDryRunListsDeletions(t *testing.T) {
 		t.Fatalf("cmdDiff exit = %d", code)
 	}
 	out := errCap.Content()
-	if !strings.Contains(out, "1 files deleted") {
-		t.Errorf("dry run missing the deletion count:\n%s", out)
+	if !strings.Contains(out, "1 file deleted") {
+		t.Errorf("dry run missing the singular deletion count:\n%s", out)
+	}
+	if strings.Contains(out, "1 files deleted") {
+		t.Errorf("dry run must not pluralise a single deletion:\n%s", out)
 	}
 	if !strings.Contains(out, "D gone.go") {
 		t.Errorf("dry run missing the deleted path:\n%s", out)

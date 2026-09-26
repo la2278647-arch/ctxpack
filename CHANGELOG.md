@@ -8,6 +8,36 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`diff` reported two different file counts in one document.**
+  The header comment was built from the pre-filter change list while
+  `<fileCount>` was built from what actually got packed, so with a filter in
+  force the two disagreed:
+  `ctxpack diff . --include 'hello_service/*'` printed
+  `<!-- ctxpack diff vs "WORKTREE": 3 files -->` and then
+  `<fileCount>2</fileCount>` eleven lines below it. A reader who trusts one
+  number over the other has no way to tell which one describes the document.
+  The header (and the JSON stderr note) now report the packed count, which is
+  what `<fileCount>`, `totalTokens` and `totalBytes` all describe.
+
+- **`diff --list` ignored `--include`, `--exclude` and every other filter.**
+  It printed the raw change list from git and returned before the packer ran, so
+  `--include` narrowed the bundle it advertised but not the list. That is exactly
+  the wrong place to get silent: `--list` is what a pre-commit hook or a CI check
+  reads to decide whether the change fits, and a filter it ignores reports a file
+  that the next command in the same pipeline never sees. `--list` now applies the
+  same walker options as the pack — include, exclude, max-size, depth,
+  gitignore, hidden — so its output is the set of paths the pack would emit. It
+  also reads no file bodies: `ReadContent` stays false, so it stays cheap enough
+  to run on every commit. Deletions are listed too, since the pack names them in
+  a `<deleted>` element and `--list` was the only call that did not.
+
+- **One file printed as "1 files".**
+  Every count was `%d files`, so a single changed, omitted or deleted file read
+  `1 files`, and the same was true of `pack --dry-run`, the `--output` summary
+  and the `map --top 1` heading. All of them go through `format.Plural` now,
+  which singularises only the count of exactly one, so `2 files` is untouched
+  and `0 files` stays plural the way `0 files` naturally reads.
+
 - **`install.sh` retried detecting the release but not downloading it.**
   v0.1.10 added `--retry 3` to the release-detection `curl`, and the two
   downloads that follow — the binary and `SHA256SUMS.txt` — were left without
