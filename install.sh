@@ -24,9 +24,13 @@ if [ -z "$VERSION" ]; then
     # /releases/latest page redirects to /releases/tag/vX.Y.Z instead and is
     # not rate-limited at all, so it is the fallback.
     echo "Detecting latest release…" >&2
-    VERSION="$(curl -fsSL -H 'User-Agent: ctxpack-installer' \
+    # grep -o, not grep -m1: the API may answer on one line, and a whole
+    # response line fed to a greedy sed can match inside the release body and
+    # produce a "version" that is really a paragraph of release notes.
+    VERSION="$(curl -fsSL --retry 3 -H 'User-Agent: ctxpack-installer' \
         "https://api.github.com/repos/${OWNER}/${REPO}/releases/latest" \
-        | grep -m1 '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/' 2>/dev/null || true)"
+        | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | head -n 1 | sed -E 's/.*"([^"]+)"$/\1/' 2>/dev/null || true)"
     if [ -z "$VERSION" ]; then
         # || true: under "set -euo pipefail" a curl failure here would abort the
         # script before the friendly message below could be printed.
@@ -86,11 +90,15 @@ echo "Downloading ${BASE}/${ASSET}" >&2
 curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/ctxpack"
 curl -fsSL "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA256SUMS.txt"
 
-# The two spaces are part of the match, so the asset cannot match a filename
-# that merely has it as a prefix.
-# || true: a grep with no match would otherwise abort under "set -e" and skip
-# the message below.
-WANT="$(grep -F "  ${ASSET}" "${TMP}/SHA256SUMS.txt" | cut -d' ' -f1 || true)"
+# A sha256sum line is "<hash> <marker><name>", where the marker is "*" in
+# binary mode and a space in text mode. Which marker a host emits is
+# platform-dependent: GNU coreutils 8.32 defaults to binary mode when given
+# file arguments, so a checksum file produced on one machine is not guaranteed
+# to parse on another. Accept both and compare the name after stripping the
+# marker.
+# || true: an awk that prints nothing would otherwise abort under "set -e" and
+# skip the message below.
+WANT="$(awk -v a="${ASSET}" '{ n = $NF; sub(/^\*/, "", n); if (n == a) { print $1; exit } }' "${TMP}/SHA256SUMS.txt" || true)"
 if [ -z "$WANT" ]; then
     echo "ctxpack: ${ASSET} is not listed in SHA256SUMS.txt" >&2
     exit 1

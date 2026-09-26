@@ -82,7 +82,7 @@ release:
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags '$(LDFLAGS)' \
 			-o "dist/ctxpack_$(VERSION)_$$os_$$arch$$ext" . || exit 1; \
 	done
-	@cd dist && (sha256sum * > SHA256SUMS.txt 2>/dev/null || sha256 * > SHA256SUMS.txt) && cat SHA256SUMS.txt
+	@cd dist && (sha256sum -t * > SHA256SUMS.txt 2>/dev/null || sha256 -a 256 * > SHA256SUMS.txt) && cat SHA256SUMS.txt
 
 clean:
 	rm -rf bin dist

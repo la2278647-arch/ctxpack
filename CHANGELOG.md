@@ -6,6 +6,40 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Both installers could not verify any checksum file.**
+  `install.sh` and `install.ps1` matched an asset with a two-space separator,
+  which is what `sha256sum -t` emits in text mode. But GNU coreutils defaults to
+  **binary mode** when given file arguments, which emits `hash *name` instead.
+  `sha256sum --help` states it plainly: `-b, --binary  read in binary mode
+  (default unless reading tty stdin)`. So the checksum file that `make release`
+  produces on this project's own release host made both installers fail with
+  `ctxpack_0.1.9_windows_amd64.exe is not listed in SHA256SUMS.txt` — the
+  installers rejected every release, on every platform. Neither had ever been
+  executed, so the defect shipped for four releases. Both parsers now accept
+  either marker and compare the name after stripping it, and the Makefile pins
+  `-t` so the published file is deterministic.
+  The parsers are covered by 8 offline cases each: binary and text mode, the
+  asset not being first, and two prefix traps — `..._amd64.exe` must not match
+  `..._amd64.exe.debug`, and `..._386.exe` must not match `..._amd64.exe`.
+
+- **`install.sh` without a version produced a "version" made of release notes.**
+  The REST call was piped through `grep -m1 '"tag_name"'`, which returns the
+  whole matching line. When the API answers on a single line that line is the
+  entire response including the release body, and the greedy `sed` then matched
+  inside it, yielding a URL like `.../download/v line with the converse case
+  proving` before curl refused the malformed URL. `grep -o` extracts just the
+  `"tag_name": "v0.1.9"` fragment, so the `sed` only ever sees that.
+
+- **A transient GitHub connection reset aborted an install.**
+  `Invoke-WebRequest` has no retry of its own, and the script runs under
+  `$ErrorActionPreference = 'Stop'`, so one reset connection killed the install
+  with no attempt to recover. `install.ps1` now retries with backoff before
+  giving up, and `install.sh` passes `--retry 3` to curl. Under a live reset the
+  retry path was observed printing `retry 1/4 ... 3/4` and then rethrowing the
+  real error, so a failure still reports clearly.
+
 ## [0.1.9] - 2026-09-26
 
 ### Added

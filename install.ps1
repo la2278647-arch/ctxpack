@@ -91,19 +91,47 @@ $Dest = Join-Path $InstallDir 'ctxpack.exe'
 # so a failed download cannot leave a truncated binary on PATH.
 $Tmp = Join-Path $env:TEMP "ctxpack-$Ver-$PID.exe"
 $SumsTmp = Join-Path $env:TEMP "ctxpack-$Ver-$PID.sha256sums"
+# A reset connection or a transient 5xx from GitHub aborts an install, and
+# Invoke-WebRequest has no retry of its own. Back off and try again a few times
+# before giving up.
+function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$Attempts = 4) {
+    for ($i = 1; $i -le $Attempts; $i++) {
+        try {
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -Headers $Headers -UseBasicParsing
+            return
+        } catch {
+            if ($i -eq $Attempts) { throw }
+            Write-Host "  retry $i/$Attempts after a failed download" -ForegroundColor DarkYellow
+            Start-Sleep -Seconds (2 * $i)
+        }
+    }
+}
+
 try {
     Write-Host "Downloading $Url" -ForegroundColor Cyan
-    Invoke-WebRequest -Uri $Url -OutFile $Tmp -Headers $Headers -UseBasicParsing
-    Invoke-WebRequest -Uri $SumsUrl -OutFile $SumsTmp -Headers $Headers -UseBasicParsing
+    DownloadWithRetry $Url $Tmp
+    DownloadWithRetry $SumsUrl $SumsTmp
 
-    # The two spaces are part of the match, so the asset cannot match a
-    # filename that merely has it as a prefix.
-    $Line = Get-Content $SumsTmp | Where-Object { $_ -like "*  $Asset" }
-    if (-not $Line) {
+    # A sha256sum line is "<hash> <marker><name>", where the marker is "*" in
+    # binary mode and a space in text mode. Which marker a host emits is
+    # platform-dependent: GNU coreutils defaults to binary mode when given file
+    # arguments, so a checksum file produced on one machine is not guaranteed to
+    # parse on another. Accept both and compare the name after stripping the
+    # marker.
+    $Want = $null
+    foreach ($Line in (Get-Content $SumsTmp)) {
+        $parts = @($Line -split '\s+')
+        if ($parts.Count -lt 2) { continue }
+        if ($parts[$parts.Count - 1].TrimStart('*') -ceq $Asset) {
+            $Want = $parts[0]
+            break
+        }
+    }
+    if (-not $Want) {
         Write-Error "ctxpack: $Asset is not listed in SHA256SUMS.txt"
         exit 1
     }
-    $Want = (($Line -split '\s+', 2))[0].ToLower()
+    $Want = $Want.ToLower()
     $Got = (Get-FileHash $Tmp -Algorithm SHA256).Hash.ToLower()
     if ($Got -ne $Want) {
         Write-Error "ctxpack: SHA256 mismatch for $Asset"
