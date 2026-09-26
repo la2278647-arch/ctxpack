@@ -81,6 +81,20 @@ to follow [Semantic Versioning](https://semver.org/).
   destroying the envelope. `fitNote` now derives both renderings from one place,
   and `scripts/smoke.sh` asserts the `fit` key survives.
 
+- **The README's MCP tool table was missing `doctor`.**
+  `doctor` shipped in v0.1.8 but the table never gained its row, so a client
+  reading the README concluded that a failing pack could not be diagnosed from
+  inside the server - the exact case `doctor` exists for. The prose beside it
+  called the analytic tools "three" when there are four. `doctor` is now listed
+  with its `format?` / `top?` arguments, the `list_models` footnote moved out of
+  the cell so the argument lists stay machine-readable, and the `fit` object
+  from the fix above is described.
+  `internal/mcp/readme_test.go` parses the table and compares it both ways
+  against the schemas `tools()` returns: a tool added to or removed from the
+  server fails it, as does a required/optional mismatch. Mutation-checked by
+  deleting the `doctor` row, which fails with `the table does not document
+  doctor; the server advertises it`.
+
 ## [0.1.8] - 2026-09-26
 
 ### Added
