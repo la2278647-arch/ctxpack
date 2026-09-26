@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-09-26
+
 ### Added
 
 - **A regression test pins the help text to the flag registrations.**

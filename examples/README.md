@@ -18,7 +18,7 @@ ctxpack map . > examples/ctxpack-self.map.txt
 
 `ctxpack` packing **itself** into a single Markdown bundle, capped to an 8000
 token budget and annotated for `gpt-4o`. This is the interesting demo: it
-keeps the 10 highest-priority files (~7.9k tokens) and **lists the 48 files it
+keeps the 10 highest-priority files (~7.9k tokens) and **lists the 54 files it
 omitted and why** — the "what got cut" report that is the whole point of a
 budget.
 
