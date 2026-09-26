@@ -9,7 +9,14 @@
 set -euo pipefail
 
 CTX=${1:-ctxpack}
-OUT=examples/diff-demo/diff.xml
+
+# Resolve OUT from this script's own location, not from the caller's working
+# directory. The README documents `cd examples/diff-demo && ./make.sh`, and with
+# a repo-root-relative OUT that wrote examples/diff-demo/examples/diff-demo/
+# diff.xml instead of examples/diff-demo/diff.xml — a silent wrong-file
+# regeneration that looks like success.
+HERE=$(cd "$(dirname "$0")" && pwd)
+OUT="$HERE/diff.xml"
 
 base=$(mktemp -d)
 work="$base/diffdemo"

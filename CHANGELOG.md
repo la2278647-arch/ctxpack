@@ -31,6 +31,21 @@ to follow [Semantic Versioning](https://semver.org/).
   output with a real run; it fails on the stale two-path example and passes on the
   fixed one.
 
+- **`examples/diff-demo/make.sh` wrote to the wrong file when run as the README
+  tells you to.**
+  The script set `OUT=examples/diff-demo/diff.xml`, a repo-root-relative path,
+  while both READMEs document `cd examples/diff-demo && ./make.sh`. From inside
+  the script's own directory that resolves to
+  `examples/diff-demo/examples/diff-demo/diff.xml`, so the committed `diff.xml`
+  was left untouched and a nested `examples/` directory appeared beside it. The
+  regeneration reported success, because `ctxpack diff` exits 0 either way — the
+  output just landed somewhere nobody was looking. Found by following the
+  documented command verbatim. `OUT` now resolves from the script's own location
+  via `HERE=$(cd "$(dirname "$0")" && pwd)`, so all three plausible invocations —
+  from the repo root, from `examples/diff-demo`, and by relative path from an
+  unrelated directory — write the same file, verified byte-identical (865 B) in
+  each case.
+
 - **Thirteen advertised MCP arguments had no description.**
   An MCP client renders `inputSchema` straight into what a user sees: an
   argument without a `description` shows up with an empty hint, so asking
