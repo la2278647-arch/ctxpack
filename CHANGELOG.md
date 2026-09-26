@@ -8,6 +8,29 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`examples/diff-demo/README.md` said `--list` "deliberately hides
+  deletions".**
+  The section carried a two-path example plus the reasoning that `--list` keeps a
+  shell loop receiving "one real, existing path per line". The filter fix below
+  made `--list` name deletions, because the pack names them in `<deleted>` and a
+  list that disagrees with the document it pretends not to build is the same
+  defect as a header that disagrees with `<fileCount>`. So the claim was wrong and
+  the example was no longer reproducible: the demo's own range contains a
+  deletion, so `--list` prints three paths, not two. The section now shows the
+  real three-path output, states the consequence (a listed path may not exist on
+  disk, so a loop must `test -f "$f"` first) and points at `--dry-run`, which is
+  the call that keeps packed and deleted paths apart.
+
+  The stale sentence had already been copied into
+  `examples/ctxpack-self-budget8000.md` — that snapshot packs this repository and
+  embeds `examples/diff-demo/README.md` — so the published examples were wrong in
+  two places. Both snapshots were regenerated, and the README's `--list` row, the
+  `ctxpack help` line and the MCP `diff_repo.list` description now all say the
+  same thing. `TestDiffDemoReadmeListOutputMatches` rebuilds the demo's
+  two-commit scenario the way `make.sh` does and compares the README's documented
+  output with a real run; it fails on the stale two-path example and passes on the
+  fixed one.
+
 - **Thirteen advertised MCP arguments had no description.**
   An MCP client renders `inputSchema` straight into what a user sees: an
   argument without a `description` shows up with an empty hint, so asking

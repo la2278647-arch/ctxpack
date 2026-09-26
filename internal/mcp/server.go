@@ -199,7 +199,7 @@ func tools() []map[string]any {
 					"no_gitignore": map[string]any{"type": "boolean", "default": false, "description": "Ignore .gitignore files while walking (built-in ignore rules still apply). Defaults to false."},
 					"hidden":       map[string]any{"type": "boolean", "default": false, "description": "Include dotfiles and dot-directories. Defaults to false."},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
-					"list":         map[string]any{"type": "boolean", "default": false, "description": "List the changed file paths that would be packed (no packing, no content read). Honours include/exclude like the pack does."},
+					"list":         map[string]any{"type": "boolean", "default": false, "description": "List the paths the pack will name, one per line (no packing, no content read). Deletions are named too; the same walk filters as the pack apply."},
 				},
 				"required": []string{"path"},
 			},

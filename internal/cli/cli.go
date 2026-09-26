@@ -99,7 +99,7 @@ FLAGS (pack)
 FLAGS (diff)
   --format F           xml|markdown|json|text (default xml)
   --ref REF            Base git ref (default: working-tree changes). e.g. HEAD~1, main
-  --list               List changed file paths only (no packing)
+  --list               List the paths the pack will name, one per line (deletions included)
   --budget N           Cap output to ~N tokens (priority-selects files)
   --model NAME         Annotate fit for a model
   --dry-run            Show changed files without writing
@@ -285,7 +285,7 @@ func cmdDiff(args []string) int {
 		output   = fs.String("output", "", "write to FILE")
 		quiet    = fs.Bool("quiet", false, "suppress stderr status messages")
 		dryRun   = fs.Bool("dry-run", false, "show changed files without writing output")
-		listOnly = fs.Bool("list", false, "list the changed file paths that would be packed (no packing, no content read)")
+		listOnly = fs.Bool("list", false, "list the paths the pack will name, one per line (no packing, no content read; deletions included)")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")

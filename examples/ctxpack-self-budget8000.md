@@ -1,7 +1,7 @@
 <!-- fit: FITS model=gpt-4o used=8.0k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 10  | Tokens: ~7988  | Bytes: 19.3 KB  | Skipped: 0
+- Files: 9  | Tokens: ~7971  | Bytes: 19.3 KB  | Skipped: 1
 
 ---
 
@@ -445,7 +445,7 @@ cd examples/diff-demo && ./make.sh /path/to/ctxpack
 
 ---
 
-## `examples/diff-demo/README.md` (1002 tokens, 2.4 KB)
+## `examples/diff-demo/README.md` (1367 tokens, 3.2 KB)
 
 ```markdown
 # diff demo — a range with a deletion
@@ -464,7 +464,8 @@ A deletion has no content to pack — the file is gone. But a diff that silently
 omitted it would make the removal look like it never happened, so the bundle
 names the path in a `Deleted` section and leaves it out of `<files>`. The same
 section appears in every format: `<deleted>` in XML, `## Deleted` in Markdown,
-`==== deleted (N files) ====` in text, and a `deleted` array in JSON.
+`==== deleted (N files) ====` in text — `1 file` when it is one, as here — and a
+`deleted` array in JSON.
 
 ## Reproduce
 
@@ -489,72 +490,43 @@ working tree, the diff never picks up uncommitted or untracked files — they
 exist in no revision. Pass a plain ref instead (`--ref HEAD~1`, or nothing for
 the default `WORKTREE`) to include them.
 
-## `--list` deliberately hides deletions
+## `--list` names deletions too
 
 ```sh
 ctxpack diff <repo> --list --ref HEAD~1..HEAD
 # src/app.go
 # src/util.go
+# src/legacy.go
 ```
 
-`--list` prints the packable paths and nothing else, so a shell loop such as
-`ctxpack diff . --list | while read f; do ...; do` keeps receiving one real,
-existing path per line. Deletions are reported by the packed bundle and by
-`--dry-run` (which prints `... N files deleted` followed by each path prefixed
-with `D `), not by `--list`.
+`--list` answers one question — which paths will the bundle name? — and a
+deletion is named in the `<deleted>` element, so `--list` says so too. That is
+the convention `git diff --name-only` uses.
+
+The practical consequence is that a listed path may not exist on disk. A loop
+such as `ctxpack diff . --list | while read -r f; do wc -l "$f"; done` will trip
+over `src/legacy.go`, so test `test -f "$f"` first. `--dry-run` is the call that
+keeps the two apart, which is what it exists for:
+
+```console
+$ ctxpack diff <repo> --dry-run --ref HEAD~1..HEAD
+dry run vs "HEAD~1..HEAD": 2 files, ~141 tokens, 328 B
+  src/app.go (~72 tokens, 167 B)
+  src/util.go (~69 tokens, 161 B)
+  ... 1 file deleted
+    D src/legacy.go
+```
+
+The same filters the pack applies — `--include`, `--exclude`, `--max-size`,
+`--depth`, `--no-gitignore`, `--hidden` — narrow `--list` too, so a filter the
+caller expects to narrow the bundle is not silently ignored by the one call that
+pretends not to build it. The deletion is named by path and is therefore not
+filtered: the file is gone, and there is no content left to size or skip.
 
 ## Files
 
 - `make.sh` — regenerates `diff.xml`; idempotent and self-cleaning.
 - `diff.xml` — the generated output.
-```
-
----
-
-## `examples/diff-demo/diff.xml` (382 tokens, 865 B)
-
-```
-<!-- ctxpack diff vs "HEAD~1..HEAD": 2 files -->
-<repository>
-  <meta>
-    <root>diffdemo</root>
-    <fileCount>2</fileCount>
-    <totalTokens>141</totalTokens>
-    <totalBytes>328</totalBytes>
-    <skipped>0</skipped>
-  </meta>
-  <files>
-    <file path="src/app.go" tokens="72" bytes="167">
-      <content><![CDATA[package app
-
-// Run starts the server.
-func Run() {
-	println("listening")
-}
-
-// Serve handles a single request.
-func Serve(req string) string {
-	return "ok: " + req
-}
-]]></content>
-    </file>
-    <file path="src/util.go" tokens="69" bytes="161">
-      <content><![CDATA[package app
-
-// TitleCase uppercases the first letter of s.
-func TitleCase(s string) string {
-	if s == "" {
-		return s
-	}
-	return string([]rune(s)[0]) + s[1:]
-}
-]]></content>
-    </file>
-  </files>
-  <deleted count="1">
-    <path>src/legacy.go</path>
-  </deleted>
-</repository>
 ```
 
 ---
@@ -606,7 +578,7 @@ func main() {
 
 ---
 
-## Omitted by budget (56 files, ~286868 tokens)
+## Omitted by budget (59 files, ~300988 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -627,6 +599,7 @@ func main() {
 - `docs/release-notes-v0.1.9.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
+- `examples/diff-demo/diff.xml`
 - `examples/diff-demo/make.sh`
 - `install.ps1`
 - `install.sh`
@@ -636,6 +609,7 @@ func main() {
 - `internal/cli/cli_test.go`
 - `internal/cli/fit_test.go`
 - `internal/cli/help_test.go`
+- `internal/cli/readme_diff_demo_test.go`
 - `internal/cli/sortmodels_test.go`
 - `internal/counter/counter.go`
 - `internal/counter/counter_test.go`
@@ -651,6 +625,7 @@ func main() {
 - `internal/mcp/fitjson_test.go`
 - `internal/mcp/protocol_test.go`
 - `internal/mcp/readme_test.go`
+- `internal/mcp/schema_test.go`
 - `internal/mcp/server.go`
 - `internal/mcp/server_more_test.go`
 - `internal/mcp/server_test.go`
