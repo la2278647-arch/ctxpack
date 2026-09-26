@@ -15,6 +15,13 @@
 # stdlib-only assertion that go.sum stays empty and `go list -m all` reports
 # exactly one module.
 #
+# A workflow that never runs rots silently - a shell block that no longer
+# parses, a script that was moved, a gate that quietly drifts from the local
+# one. So this file is audited locally instead: `make cicheck`, which runs
+# scripts/check-ci.sh, bash -n's every run: block, checks that every script
+# and Make target named here exists, and fails if a gate primitive drifts
+# between this file and `make check`.
+#
 # Why it is here rather than there
 # --------------------------------
 # This repository was published by an automation token that does not carry the
@@ -91,12 +98,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Build into a throwaway dir: outputting ./ctxpack would collide
-          # with this repo's ./ctxpack/ source directory. The script then
-          # drives every command, flag, format, the diff range and deleted-file
-          # cases, and the MCP server against the tree, so this step stays
-          # short and cannot drift from the local `make smoke` target, which
-          # calls the same script.
+          # Build into a throwaway dir, not ./ctxpack. A Linux or macOS runner
+          # would leave an untracked binary next to main.go - .gitignore covers
+          # *.exe, not an extensionless name - and a local run would drop it
+          # inside the source tree. The script then drives every command, flag,
+          # format, the diff range and deleted-file cases, and the MCP server
+          # against the tree, so this step stays short and cannot drift from
+          # the local `make smoke` target, which calls the same script.
           B=$(mktemp -d)/ctxpack
           case "$RUNNER_OS" in Windows) B="$B.exe" ;; esac
           go build -o "$B" .

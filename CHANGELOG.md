@@ -8,6 +8,42 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`docs/ci.yml` shipped a comment naming a directory that does not exist, and
+  its "identical gate" claim was drifting.**
+  The smoke step explained its throwaway build directory by saying `./ctxpack`
+  would "collide with this repo's `./ctxpack/` source directory". There is no
+  such directory — the root holds `main.go`, `internal/`, `docs/`, `examples/`,
+  `scripts/` and `bin/`. The reason that is actually true is that `.gitignore`
+  covers `*.exe` but not an extensionless name, so a Linux or macOS runner would
+  leave an untracked `ctxpack` beside `main.go`. Separately, the header claimed
+  `make check` runs "the identical gate", but the Makefile ran a cacheable
+  `go test ./...` while CI ran `go test ./... -count=1`, so a warm local cache
+  could report green for code that had changed since the last real run. Both
+  targets pass `-count=1` now.
+
+- **A workflow that can never run had nothing to stop it rotting, so it now has
+  something.**
+  `docs/ci.yml` is versioned in `docs/` on purpose: the publishing token lacks
+  the `workflow` scope, so GitHub refuses any push that creates or updates a file
+  under `.github/workflows/`, which means no CI will ever execute it and no red
+  build will ever report a broken step. `scripts/check-ci.sh` (`make cicheck`,
+  wired into `make ci`) checks what can be checked locally: it extracts every
+  `run:` step and `bash -n`'s it, confirms every script and every Make target the
+  file names still exists, and requires both files to assert the same five gate
+  primitives, so "the local equivalent of what CI runs" stays true instead of
+  being a claim that drifts. Because the extractor can silently skip a malformed
+  step, it also fails when the block count differs from the number of `run:`
+  lines declared.
+
+  Verified against ten injected defects in a scratch copy — a malformed `run:`
+  step at three different indents, a call to a missing script, a reference to a
+  missing Make target, three removed gate primitives, a dropped smoke step and a
+  renamed script. The unmodified file passes and every defect is rejected. Two of
+  the ten exposed gaps in the first cut of the audit itself: matching the go.sum
+  gate on the header prose instead of on `-s go.sum`, and trusting the extracted
+  block count without checking it against the declared step count. Both are
+  fixed.
+
 - **`examples/diff-demo/README.md` said `--list` "deliberately hides
   deletions".**
   The section carried a two-path example plus the reasoning that `--list` keeps a

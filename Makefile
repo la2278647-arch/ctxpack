@@ -23,7 +23,7 @@ OSARCHES := windows-amd64 windows-386 windows-arm64 \
             linux-amd64 linux-386 linux-arm64 \
             darwin-amd64 darwin-arm64
 
-.PHONY: all build test vet fmt tidy check smoke ci release clean
+.PHONY: all build test vet fmt tidy check smoke cicheck ci release clean
 
 all: check
 
@@ -31,9 +31,10 @@ all: check
 build:
 	$(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN) .
 
-## Run the test suite
+## Run the test suite. -count=1: a warm build cache must not be able to report
+## a green suite for code that has changed since the last real run.
 test:
-	$(GO) test ./...
+	$(GO) test ./... -count=1
 
 vet:
 	$(GO) vet ./...
@@ -54,7 +55,7 @@ check:
 	@echo "--- go vet ---"
 	$(GO) vet ./...
 	@echo "--- go test ---"
-	$(GO) test ./...
+	$(GO) test ./... -count=1
 	@echo "--- stdlib only ---"
 	@if [ -s go.sum ]; then echo "go.sum must stay empty; this module uses no external packages"; exit 1; fi
 	@mods="$$( $(GO) list -m all | wc -l | tr -d ' ' )" \
@@ -70,7 +71,15 @@ smoke: build
 	bash scripts/smoke.sh '$(BIN)'
 
 ## check plus smoke: the whole CI gate from the command line.
-ci: check smoke
+ci: check smoke cicheck
+
+## Audit docs/ci.yml, the workflow that lives in docs/ because the token that
+## publishes this repository lacks the `workflow` scope and so can never run it
+## on GitHub. A workflow that is never executed rots silently, so this
+## syntax-checks every run: block, verifies the scripts and targets it names
+## exist, and fails if its gate drifts from `make check`. Requires bash + awk.
+cicheck:
+	bash scripts/check-ci.sh
 
 ## Cross-compile the release set into ./dist, then checksum them.
 release:
@@ -84,5 +93,9 @@ release:
 	done
 	@cd dist && (sha256sum -t * > SHA256SUMS.txt 2>/dev/null || sha256 -a 256 * > SHA256SUMS.txt) && cat SHA256SUMS.txt
 
+## Remove build output and coverage profiles. .gitignore covers every one of
+## these, so a stale working tree still reads "clean" in git status while a
+## month-old cover.out from an earlier go test -coverprofile sits in it.
 clean:
 	rm -rf bin dist
+	rm -f cover cover.out coverage.txt coverage.html *.out *.test
