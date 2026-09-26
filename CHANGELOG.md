@@ -8,6 +8,34 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Thirteen advertised MCP arguments had no description.**
+  An MCP client renders `inputSchema` straight into what a user sees: an
+  argument without a `description` shows up with an empty hint, so asking
+  `pack_repo` what `no_gitignore` does returned nothing at all — even though the
+  schema said the argument existed, and `tools/call` honoured it. The affected
+  properties were `format`, `no_gitignore` and `hidden` on `pack_repo`, `path`,
+  `include`, `exclude` and `max_size` on `repo_map`, `path`, `no_gitignore` and
+  `hidden` on `count_tokens`, and `format`, `no_gitignore` and `hidden` on
+  `diff_repo`. All thirteen now carry a description in the same voice as the
+  properties that already had one.
+
+- **`server.go`'s package doc drifted from the schema it describes.**
+  The doc repeated every tool's argument list by hand and had fallen behind the
+  published schema: it abbreviated `pack_repo` to eight of its ten arguments
+  (dropping `max_depth` and `model`), `count_tokens` to `path` alone while the
+  schema advertised eleven, `list_models` to no arguments while it has
+  `format`, and `diff_repo` to four of its twelve (dropping `model`, `include`,
+  `exclude`, `max_size`, `no_gitignore`, `hidden`, `max_depth` and `list`). A
+  hand-typed second copy of a table that is already declared once is a drift
+  source, so the doc now names the six tools and their purposes and points at
+  `tools()` as the single place arguments are declared.
+  `TestToolSchemasDocumentEveryProperty` fails if any property loses its
+  description, if a `required` entry is missing from `properties`, if a
+  property declares no `type`, or if the tool list stops matching the doc's
+  list. `TestEveryAdvertisedPropertyIsAccepted` calls each tool with every
+  advertised property set to a schema-derived value and fails if a handler
+  rejects its own schema.
+
 - **`diff` reported two different file counts in one document.**
   The header comment was built from the pre-filter change list while
   `<fileCount>` was built from what actually got packed, so with a filter in

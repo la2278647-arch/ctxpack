@@ -1,16 +1,25 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio.
 //
 // It speaks JSON-RPC 2.0 with newline-delimited messages (the MCP stdio
-// transport) and exposes six tools that any MCP-capable agent (Claude
-// Desktop, Cursor, Codex, ...) can call:
+// transport) and exposes six tools that any MCP-capable agent (Claude Desktop,
+// Cursor, Codex, ...) can call:
 //
-//   - pack_repo(path, format?, include?, exclude?, max_size?, no_gitignore?,
-//     hidden?, budget?) -> packed bundle text
-//   - repo_map(path, include?, exclude?, ...) -> token-aware tree text
-//   - count_tokens(path) -> total tokens + per-model fit
-//   - list_models() -> the model table, with each model's effective limit
-//   - diff_repo(path, ref?, format?, budget?) -> packed diff bundle text
-//   - doctor(format?, top?) -> the environment this server runs in
+//   - pack_repo    -> pack a repository into one context document
+//   - repo_map     -> token-aware tree outline
+//   - count_tokens -> total tokens plus per-model fit
+//   - list_models  -> the model table, with each model's effective limit
+//   - diff_repo    -> pack only the files changed against a git ref
+//   - doctor       -> the environment this server runs in
+//
+// Argument names, types, defaults and per-argument descriptions are declared
+// once, in tools(), and documented nowhere else. This file used to repeat the
+// argument lists by hand and drifted from the published schema; the arguments
+// below were once spelled out in full, and thirteen advertised properties were
+// left without a description at all, so a client asking what no_gitignore does
+// showed an empty hint for an argument the schema said existed.
+// TestToolSchemasDocumentEveryProperty fails if a property goes undocumented
+// again, and TestEveryAdvertisedPropertyIsAccepted fails if tools() advertises
+// an argument a handler does not accept.
 //
 // The implementation is stdlib-only and synchronous, which is enough for local
 // single-client use.
@@ -112,12 +121,12 @@ func tools() []map[string]any {
 				"type": "object",
 				"properties": map[string]any{
 					"path":         map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
-					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
+					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml", "description": "Output format. xml is the default and parses; markdown, json and text are also available."},
 					"include":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include (e.g. \"*.go\")."},
 					"exclude":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
 					"max_size":     map[string]any{"type": "integer", "description": "Read no more than N bytes of a file; larger files are still listed, without content."},
-					"no_gitignore": map[string]any{"type": "boolean", "default": false},
-					"hidden":       map[string]any{"type": "boolean", "default": false},
+					"no_gitignore": map[string]any{"type": "boolean", "default": false, "description": "Ignore .gitignore files while walking (built-in ignore rules still apply). Defaults to false."},
+					"hidden":       map[string]any{"type": "boolean", "default": false, "description": "Include dotfiles and dot-directories. Defaults to false."},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
 					"budget":       map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
 					"model":        map[string]any{"type": "string", "description": "Annotate fit for a named model (e.g. gpt-4o, claude-3.5-sonnet). Shows whether the bundle fits."},
@@ -131,11 +140,11 @@ func tools() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":      map[string]any{"type": "string"},
+					"path":      map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
 					"format":    map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
-					"include":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"max_size":  map[string]any{"type": "integer"},
+					"include":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include (e.g. \"*.go\")."},
+					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
+					"max_size":  map[string]any{"type": "integer", "description": "Read no more than N bytes of a file; larger files are still listed, without content."},
 					"max_depth": map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
 					"sort":      map[string]any{"type": "string", "enum": []string{"name", "tokens", "bytes"}, "default": "name", "description": "Sort children by: name (default), tokens (largest first), bytes (largest first)."},
 				},
@@ -148,14 +157,14 @@ func tools() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":         map[string]any{"type": "string"},
+					"path":         map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
 					"format":       map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
 					"include":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
 					"exclude":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
 					"max_size":     map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
-					"no_gitignore": map[string]any{"type": "boolean", "default": false},
-					"hidden":       map[string]any{"type": "boolean", "default": false},
+					"no_gitignore": map[string]any{"type": "boolean", "default": false, "description": "Ignore .gitignore files while walking (built-in ignore rules still apply). Defaults to false."},
+					"hidden":       map[string]any{"type": "boolean", "default": false, "description": "Include dotfiles and dot-directories. Defaults to false."},
 					"model":        map[string]any{"type": "string", "description": "Show fit for one model only (by name)."},
 					"top":          map[string]any{"type": "integer", "description": "Show only the N largest models by context window."},
 					"sort":         map[string]any{"type": "string", "enum": []string{"name", "pct", "window"}, "default": "name", "description": "Sort fit table by name, pct_used, or window size."},
@@ -181,14 +190,14 @@ func tools() []map[string]any {
 				"properties": map[string]any{
 					"path":         map[string]any{"type": "string", "description": "Absolute or relative path to the repository root."},
 					"ref":          map[string]any{"type": "string", "default": "WORKTREE", "description": "Base git ref (e.g. HEAD~1, main, v1.0.0) or range (HEAD~5..HEAD). Default is WORKTREE for uncommitted changes; a range compares two revisions and excludes working-tree files."},
-					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml"},
+					"format":       map[string]any{"type": "string", "enum": []string{"xml", "markdown", "json", "text"}, "default": "xml", "description": "Output format of the packed diff. xml is the default and parses; markdown, json and text are also available."},
 					"budget":       map[string]any{"type": "integer", "description": "Cap output to ~N tokens, priority-selecting files."},
 					"model":        map[string]any{"type": "string", "description": "Annotate fit for a named model."},
 					"include":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to include."},
 					"exclude":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
 					"max_size":     map[string]any{"type": "integer", "description": "Read no more than N bytes of a file."},
-					"no_gitignore": map[string]any{"type": "boolean", "default": false},
-					"hidden":       map[string]any{"type": "boolean", "default": false},
+					"no_gitignore": map[string]any{"type": "boolean", "default": false, "description": "Ignore .gitignore files while walking (built-in ignore rules still apply). Defaults to false."},
+					"hidden":       map[string]any{"type": "boolean", "default": false, "description": "Include dotfiles and dot-directories. Defaults to false."},
 					"max_depth":    map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
 					"list":         map[string]any{"type": "boolean", "default": false, "description": "List the changed file paths that would be packed (no packing, no content read). Honours include/exclude like the pack does."},
 				},
