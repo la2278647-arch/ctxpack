@@ -6,7 +6,7 @@
 #   irm https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.ps1 | iex
 #
 # Pin a version:
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.ps1))) 'v0.1.9'
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.ps1))) 'v0.1.10'
 #
 # Environment:
 #   CTXPACK_INSTALL_DIR  override the install directory (default:
@@ -16,7 +16,7 @@
 .SYNOPSIS
     Installs ctxpack from the GitHub releases.
 .PARAMETER Version
-    Optional version tag to install (e.g. v0.1.9). Defaults to the latest.
+    Optional version tag to install (e.g. v0.1.10). Defaults to the latest.
 #>
 param([string]$Version = "")
 

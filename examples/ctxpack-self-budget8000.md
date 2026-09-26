@@ -1,7 +1,7 @@
-<!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
+<!-- fit: FITS model=gpt-4o used=8.0k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 10  | Tokens: ~7924  | Bytes: 19.2 KB  | Skipped: 0
+- Files: 10  | Tokens: ~7988  | Bytes: 19.3 KB  | Skipped: 0
 
 ---
 
@@ -389,7 +389,7 @@ estimates move as the tree changes, so regenerate before tagging a release.
 
 ---
 
-## `examples/README.md` (665 tokens, 1.6 KB)
+## `examples/README.md` (791 tokens, 1.9 KB)
 
 ```markdown
 # Examples
@@ -405,16 +405,20 @@ is annotated with a token estimate and byte size, so you can see at a glance
 where the context budget goes.
 
 ```sh
-ctxpack map . > examples/ctxpack-self.map.txt
+tmp=$(mktemp) && ctxpack map . > "$tmp" && mv "$tmp" examples/ctxpack-self.map.txt
 ```
+
+The map contains its own entry, and the shell truncates its target before
+`ctxpack` walks the tree — writing straight to it records its own size as zero,
+so write to a temporary path and move the result in.
 
 ## `ctxpack-self-budget8000.md`
 
 `ctxpack` packing **itself** into a single Markdown bundle, capped to an 8000
 token budget and annotated for `gpt-4o`. This is the interesting demo: it
-keeps the 10 highest-priority files (~7.9k tokens) and **lists the 54 files it
-omitted and why** — the "what got cut" report that is the whole point of a
-budget.
+keeps the highest-priority files (~8k tokens) and **lists every file the budget
+cut** — the "what got cut" report that is the whole point of a budget. The
+counts in the snapshot header are the ground truth; they move as the tree does.
 
 ```sh
 ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
@@ -507,51 +511,60 @@ with `D `), not by `--list`.
 
 ---
 
+## `examples/diff-demo/diff.xml` (382 tokens, 865 B)
+
+```
+<!-- ctxpack diff vs "HEAD~1..HEAD": 2 files -->
+<repository>
+  <meta>
+    <root>diffdemo</root>
+    <fileCount>2</fileCount>
+    <totalTokens>141</totalTokens>
+    <totalBytes>328</totalBytes>
+    <skipped>0</skipped>
+  </meta>
+  <files>
+    <file path="src/app.go" tokens="72" bytes="167">
+      <content><![CDATA[package app
+
+// Run starts the server.
+func Run() {
+	println("listening")
+}
+
+// Serve handles a single request.
+func Serve(req string) string {
+	return "ok: " + req
+}
+]]></content>
+    </file>
+    <file path="src/util.go" tokens="69" bytes="161">
+      <content><![CDATA[package app
+
+// TitleCase uppercases the first letter of s.
+func TitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return string([]rune(s)[0]) + s[1:]
+}
+]]></content>
+    </file>
+  </files>
+  <deleted count="1">
+    <path>src/legacy.go</path>
+  </deleted>
+</repository>
+```
+
+---
+
 ## `go.mod` (23 tokens, 50 B)
 
 ```
 module github.com/la2278647-arch/ctxpack
 
 go 1.21
-```
-
----
-
-## `internal/version/version.go` (444 tokens, 1.0 KB)
-
-```go
-// Package version holds the build-time identity shared by the CLI and the MCP
-// server. It lives in its own package so the two do not have to import each
-// other just to print the same version string.
-package version
-
-import "runtime"
-
-// Module is the import path of the ctxpack module.
-const Module = "github.com/la2278647-arch/ctxpack"
-
-// Version is the semantic version of the running binary. Override it at build
-// time with:
-//
-//	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.9"
-
-// BuildCommit is populated by CI when a tag is cut.
-var BuildCommit = "dev"
-
-// BuildDate is populated by CI when a tag is cut.
-var BuildDate = "unknown"
-
-// Info is a human-readable summary of how the binary was built.
-func Info() string {
-	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
-		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
-}
-
-// UserAgent is a short product token for HTTP clients.
-func UserAgent() string {
-	return "ctxpack/" + Version
-}
 ```
 
 ---
@@ -593,7 +606,7 @@ func main() {
 
 ---
 
-## Omitted by budget (55 files, ~280922 tokens)
+## Omitted by budget (56 files, ~286868 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -603,6 +616,7 @@ func main() {
 - `docs/promote.md`
 - `docs/release-notes-v0.1.0.md`
 - `docs/release-notes-v0.1.1.md`
+- `docs/release-notes-v0.1.10.md`
 - `docs/release-notes-v0.1.2.md`
 - `docs/release-notes-v0.1.3.md`
 - `docs/release-notes-v0.1.4.md`
@@ -613,7 +627,6 @@ func main() {
 - `docs/release-notes-v0.1.9.md`
 - `examples/ctxpack-self-budget8000.md`
 - `examples/ctxpack-self.map.txt`
-- `examples/diff-demo/diff.xml`
 - `examples/diff-demo/make.sh`
 - `install.ps1`
 - `install.sh`
@@ -645,6 +658,7 @@ func main() {
 - `internal/packer/packer_test.go`
 - `internal/repomap/repomap.go`
 - `internal/repomap/repomap_test.go`
+- `internal/version/version.go`
 - `internal/version/version_test.go`
 - `internal/walker/walker.go`
 - `internal/walker/walker_more_test.go`

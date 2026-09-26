@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-09-26
+
 ### Fixed
 
 - **`readme_helper.py` was scored as a project document.**
