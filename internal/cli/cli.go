@@ -80,44 +80,61 @@ COMMANDS
   version              Print the build identity.
   help                 Show this help.
 
-FLAGS (pack)
-  --format F           xml|markdown|json|text (default xml)
+WALK FLAGS (pack / diff / map / tokens; models and doctor reject these)
   --include GLOB       Only include paths matching GLOB (repeatable; basename ok)
   --exclude GLOB       Exclude paths matching GLOB (repeatable)
   --max-size BYTES     Read no more than BYTES of a file (larger files stay listed, without content). 0 = unlimited
   --no-gitignore       Ignore .gitignore files (built-in defaults still apply)
   --hidden             Include dotfiles/dotdirs (.git always skipped)
+  --depth N            Limit traversal to N levels below root (0 = unlimited)
+
+FLAGS (pack)
+  --format F           xml|markdown|json|text (default xml)
   --budget N           Cap output to ~N tokens (priority-selects files)
   --model NAME         Annotate fit for a model (gpt-4o, claude-3.5-sonnet, ...)
   -o, --output FILE    Write to FILE instead of stdout
   -q, --quiet          Suppress the 'wrote' message when --output is set
+  --dry-run            Show what would be packed without writing
 
 FLAGS (diff)
+  --format F           xml|markdown|json|text (default xml)
   --ref REF            Base git ref (default: working-tree changes). e.g. HEAD~1, main
+  --list               List changed file paths only (no packing)
+  --budget N           Cap output to ~N tokens (priority-selects files)
+  --model NAME         Annotate fit for a model
+  --dry-run            Show changed files without writing
+  -o, --output FILE    Write to FILE instead of stdout
   -q, --quiet          Suppress stderr status messages
-  (also accepts --format/--include/--exclude/--budget/--model/-o)
 
-FLAGS (map / tokens / models)
-  --include/--exclude/--max-size/--no-gitignore/--hidden   (map / tokens only)
-  --depth N           Limit traversal to N levels below root (0 = unlimited)
-  --sort BY           (map only) Sort children by: name (default), tokens, bytes
-  --sort BY           (models only) Sort by: name (default), window, vendor
-  --top N             (map only) Flat list of the N largest files
-  --csv               (map only) Flat CSV list of all files
-  --format F          (map only) text (default), json, csv
-  --model NAME        (tokens only) Show fit for one model instead of all
-  --sort BY           (tokens only) Sort fit table by: name (default), pct, window
-  --top N             (tokens only) Show only the N largest models by window
-  --format F          (tokens only) text (default), json
-  --vendor NAME       (models only) Show only models from this vendor
-  --top N             (map/tokens/models/doctor) Top N results by size/count
-  --json              Emit JSON instead of the text output, for scripting
-  --format F          (doctor only) text (default), json
-  --format F          (models only) text (default), json
-  -o, --output FILE   Write to FILE instead of stdout (all commands)
-  --dry-run           (pack/diff) Show what would be packed without writing
-  --list              (diff) List changed file paths only (no packing)
-  -q, --quiet         Suppress stderr status messages (pack, diff)
+FLAGS (map)
+  --format F           text (default), json, csv
+  --json               Emit JSON instead of the text output
+  --sort BY            Sort children by: name (default), tokens, bytes
+  --top N              Flat list of the N largest files
+  --csv                Flat CSV list of all files (path, tokens, bytes)
+  -o, --output FILE    Write to FILE instead of stdout
+
+FLAGS (tokens)
+  --format F           text (default), json
+  --json               Emit JSON instead of the text output
+  --sort BY            Sort the fit table by: name (default), pct, window
+  --top N              Show only the N largest models by context window
+  --model NAME         Show fit for one model instead of all
+  -o, --output FILE    Write to FILE instead of stdout
+
+FLAGS (models)
+  --format F           text (default), json
+  --json               Emit JSON instead of the text output
+  --sort BY            Sort by: name (default), window (largest first), vendor
+  --top N              Show only the N largest models by context window
+  --vendor NAME        Show only models from this vendor
+  -o, --output FILE    Write to FILE instead of stdout
+
+FLAGS (doctor)
+  --format F           text (default), json
+  --json               Emit JSON instead of the text output
+  --top N              Show only the top N vendors by model count
+  -o, --output FILE    Write to FILE instead of stdout
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md

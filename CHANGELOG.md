@@ -6,17 +6,27 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- **`doctor -o FILE` did not work.**
-  The help text advertises `-o, --output FILE` as available on all commands, but
-  `doctor` only registered the long form. The shorthand failed with
-  `flag provided but not defined: -o` and exited 2, so anyone scripting
-  `ctxpack doctor -o report.txt` got a usage screen instead of a report. Both
-  spellings now write to the file, matching `pack`, `map`, `diff`, `tokens` and
-  `models`. A new test pins the shorthand so it cannot drift again.
+- **A regression test pins the help text to the flag registrations.**
+  `internal/cli/help_test.go` walks the union of every flag against all six
+  commands and asserts that each advertised flag parses (exit 0) and each
+  non-advertised one is rejected by the parser (exit 2). Two further tests read
+  the real `printHelp` output and check both directions: every documented flag
+  must be registered, and no section may document a flag the command rejects.
+  Mutation-checked against the bug below — deleting `doctor`'s `-o` registration
+  fails it with exactly `cmd doctor: -o accept (exit 2, want 0)`.
 
 ### Changed
+
+- **The help text now says what the commands actually accept.**
+  `printHelp` described the walk flags as "map / tokens only" when `pack` and
+  `diff` accept them too, filed `--depth` under a three-command group while four
+  commands take it, and told `diff` it "also accepts" only eight of the sixteen
+  flags it registers, omitting `--max-size`, `--depth`, `--no-gitignore`,
+  `--hidden`, `--output`, `--dry-run` and `--list`. The FLAGS block is now one
+  WALK FLAGS group naming the four traversing commands, plus a complete section
+  per command, with no scope note the code contradicts.
 
 - **Every smoke assertion now reports what failed.**
   `scripts/smoke.sh` ran under `set -euo pipefail`, but 23 assertions were bare
@@ -27,7 +37,17 @@ to follow [Semantic Versioning](https://semver.org/).
   structural: `fail` was defined near the bottom of the script, after the
   assertions it was meant to serve, so those sections could not have used it. It
   now sits at the top. Wiring the `doctor --output` assertion up is what
-  surfaced the `-o` bug above, which had been a silent no-op.
+  surfaced the `-o` bug below, which had been a silent no-op.
+
+### Fixed
+
+- **`doctor -o FILE` did not work.**
+  The help text advertises `-o, --output FILE` as available on all commands, but
+  `doctor` only registered the long form. The shorthand failed with
+  `flag provided but not defined: -o` and exited 2, so anyone scripting
+  `ctxpack doctor -o report.txt` got a usage screen instead of a report. Both
+  spellings now write to the file, matching `pack`, `map`, `diff`, `tokens` and
+  `models`.
 
 ## [0.1.8] - 2026-09-26
 
