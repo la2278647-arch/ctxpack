@@ -743,8 +743,13 @@ func sortModels(models []counter.Model, sortBy string) {
 		})
 	case "vendor":
 		sort.Slice(models, func(i, j int) bool {
-			if models[i].Vendor != models[j].Vendor {
-				return strings.ToLower(models[i].Vendor) < strings.ToLower(models[j].Vendor)
+			// Fold both sides before comparing, so "OpenAI" and "openai" are one
+			// vendor. Comparing raw strings for equality but folded strings for
+			// order makes the comparator inconsistent — sort.Slice has no
+			// defined result for that.
+			vi, vj := strings.ToLower(models[i].Vendor), strings.ToLower(models[j].Vendor)
+			if vi != vj {
+				return vi < vj
 			}
 			if models[i].ContextWindow != models[j].ContextWindow {
 				return models[i].ContextWindow > models[j].ContextWindow
@@ -754,8 +759,11 @@ func sortModels(models []counter.Model, sortBy string) {
 	default:
 		// name (default)
 		sort.Slice(models, func(i, j int) bool {
-			if models[i].Name != models[j].Name {
-				return strings.ToLower(models[i].Name) < strings.ToLower(models[j].Name)
+			// Fold both sides before comparing, for the same reason as the
+			// vendor case above.
+			ni, nj := strings.ToLower(models[i].Name), strings.ToLower(models[j].Name)
+			if ni != nj {
+				return ni < nj
 			}
 			return models[i].ContextWindow > models[j].ContextWindow
 		})

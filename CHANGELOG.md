@@ -8,6 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`ctxpack models --sort vendor` could sort wrong.**
+  The comparator compared vendor strings raw for equality but folded them to
+  lowercase for ordering, so `OpenAI` and `openai` were treated as *different*
+  vendors while ordering as *equal*. That is an inconsistent comparator, and
+  `sort.Slice` has no defined result for one — the grouping came out wrong. The
+  default (name) sort had the identical defect for case-variant names. Both now
+  fold before comparing. Found by writing tests for the two tiebreak branches
+  that had never been exercised; the real 31-entry table has distinct names, so
+  neither branch had ever run.
+
 - **The CI release-binary job could not upload its artifacts.**
   The workflow declares `permissions: contents: read` at the top level, and that
   applies to every job unless a job overrides it. `actions/upload-artifact@v4`
@@ -63,6 +73,27 @@ to follow [Semantic Versioning](https://semver.org/).
   giving up, and `install.sh` passes `--retry 3` to curl. Under a live reset the
   retry path was observed printing `retry 1/4 ... 3/4` and then rethrowing the
   real error, so a failure still reports clearly.
+
+### Added
+
+- **The `go install` path is now verified end to end.**
+  It is the first install method the README and release notes show, and it had
+  never been executed. From a clean GOPATH, `go install
+  github.com/la2278647-arch/ctxpack@v0.1.9` downloads, builds and installs
+  `ctxpack.exe`, which reports `ctxpack 0.1.9`. `@latest` and `@main` resolve to
+  v0.1.9, `@v0.1.8` correctly resolves the older release and reports
+  `ctxpack 0.1.8`, and `@v9.9.9` fails with a clear error. This also confirms the
+  module path in `go.mod` matches the repository and that the root package is a
+  main package, both of which `go install` silently requires.
+
+- **Twelve tests cover the `sortModels` contract, including the two branches that
+  had never run.**
+  `internal/cli/sortmodels_test.go` pins the ordering for `name`, `window`, and
+  `vendor` — the primary key, each tiebreak, case-folding, case-insensitive sort
+  keys, the fallback for an unknown key, idempotence, and empty and single-element
+  slices. Coverage of `internal/cli` rose from 99.4% to 99.6%; the one remaining
+  uncovered statement is `outputWriter`'s `os.Create` failure, which calls
+  `os.Exit(1)` and so cannot be reached from a test.
 
 ## [0.1.9] - 2026-09-26
 
