@@ -89,6 +89,12 @@ echo "--- flag surface ---"
 # through a pipe. Assert that explicitly rather than silently discarding it.
 DRY="$("$B" pack . --dry-run 2>&1 >/dev/null)"
 grep -q 'dry run:' <<< "$DRY" || fail "pack --dry-run reports nothing"
+# Save the file's content rather than restoring it from git: `git checkout --`
+# brings back the index copy and silently discards whatever uncommitted edits
+# were already in README.md before this run. A smoke test should not be able to
+# destroy work that nobody asked it to touch.
+RMD="$(mktemp)"
+cp README.md "$RMD"
 echo x >> README.md
 "$B" diff --list | grep -q README.md || fail "diff --list did not name a changed file"
 DDRY="$("$B" diff --dry-run 2>&1 >/dev/null)"
@@ -97,7 +103,8 @@ grep -q 'dry run' <<< "$DDRY" || fail "diff --dry-run reports nothing"
 "$B" diff --format text | grep -q '^Repository:' || fail "diff text has no header"
 # A failure here would leave README.md dirty for the rest of the run, so it
 # must not be allowed to pass silently.
-git checkout -- README.md || fail "could not restore README.md after the diff test"
+cp "$RMD" README.md || fail "could not restore README.md after the diff test"
+rm -f "$RMD"
 
 echo "--- diff range excludes the working tree ---"
 R="$(mktemp -d)"

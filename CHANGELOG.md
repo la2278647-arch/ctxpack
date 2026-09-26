@@ -95,6 +95,15 @@ to follow [Semantic Versioning](https://semver.org/).
   deleting the `doctor` row, which fails with `the table does not document
   doctor; the server advertises it`.
 
+- **`make smoke` could destroy uncommitted `README.md` edits.**
+  The diff test dirties `README.md` to exercise `diff`, then restored it with
+  `git checkout -- README.md`. That restores from the index, so anyone who ran
+  the smoke suite with uncommitted README work lost it without warning. It now
+  copies the file aside and copies it back, preserving the exact bytes that were
+  there before the run. The finding was self-inflicted: the MCP table edit above
+  was applied, the suite was run, and the edits came back missing from the
+  commit.
+
 ## [0.1.8] - 2026-09-26
 
 ### Added

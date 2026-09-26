@@ -392,18 +392,29 @@ Claude Desktop and Cursor read this from their config; Codex and any other MCP
 client work the same way. Exposed tools:
 
 Every tool accepts `format`. The two packing tools (`pack_repo`, `diff_repo`)
-offer `xml` / `markdown` / `json` / `text`; the three analytic tools
-(`repo_map`, `count_tokens`, `list_models`) offer `text` / `json`. With
-`format: "json"` a tool's output matches the corresponding CLI `--format json`
-shape, so scripts can consume either interface without a second parser.
+offer `xml` / `markdown` / `json` / `text`; the four analytic tools
+(`repo_map`, `count_tokens`, `list_models`, `doctor`) offer `text` / `json`.
+With `format: "json"` a tool's output matches the corresponding CLI
+`--format json` shape, so scripts can consume either interface without a second
+parser — including when `model` is set. The packing tools carry the same fit
+note the text formats do, but as a `fit` object inside the envelope (`name`,
+`vendor`, `window`, `limit`, `used`, `pct_used`, `fits`, `reserve`) rather than
+as an HTML comment, so the document stays parseable; an unknown model name
+gives `fit: {"model": "...", "unknown": true}` instead of a verdict.
 
 | Tool | Arguments |
 | ---- | --------- |
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `budget?`, `model?` |
 | `repo_map` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `sort?` |
 | `count_tokens` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `no_gitignore?`, `hidden?`, `model?`, `top?`, `sort?` |
-| `list_models` | `format?` — the whole table, so a client can pick a valid model name before calling `count_tokens` |
+| `list_models` | `format?` |
 | `diff_repo` | `path`, `ref?`, `format?`, `budget?`, `model?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `list?` |
+| `doctor` | `format?`, `top?` |
+
+`list_models` and `doctor` take no required argument: the first reports the
+whole table so a client can pick a valid model name before calling
+`count_tokens`, and the second needs nothing at all — a client that cannot name
+a repository can still report the environment it is running in.
 
 Conversation:
 
