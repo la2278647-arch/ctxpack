@@ -6,6 +6,19 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`install.sh` retried detecting the release but not downloading it.**
+  v0.1.10 added `--retry 3` to the release-detection `curl`, and the two
+  downloads that follow — the binary and `SHA256SUMS.txt` — were left without
+  any. Those are exactly the transfers that get reset: `install.ps1`'s
+  `DownloadWithRetry` already covered them, so the two installers disagreed about
+  what a transient failure means. Found while verifying the v0.1.10 release:
+  `install.sh v0.1.10` failed on its first attempt with
+  `curl: (28) Failed to connect to github.com:443` and aborted with exit 28,
+  while `install.ps1 v0.1.10` ran to completion on the same connection. Both
+  downloads now retry 4 times on any error, matching `install.ps1`.
+
 ## [0.1.10] - 2026-09-26
 
 ### Fixed

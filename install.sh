@@ -85,10 +85,13 @@ trap 'rm -rf "$TMP"' EXIT
 
 # Download to a scratch directory and move into place only after the checksum
 # is verified, so a truncated or tampered download cannot leave a bad binary
-# sitting on PATH.
+# sitting on PATH. --retry, as on the release-detection call above: this is the
+# transfer that gets reset. Without it one transient failure aborts the install
+# on a flaky connection to github.com; install.ps1's DownloadWithRetry already
+# covered this, and the two installers now behave the same way.
 echo "Downloading ${BASE}/${ASSET}" >&2
-curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/ctxpack"
-curl -fsSL "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA256SUMS.txt"
+curl -fsSL --retry 4 --retry-all-errors "${BASE}/${ASSET}" -o "${TMP}/ctxpack"
+curl -fsSL --retry 4 --retry-all-errors "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA256SUMS.txt"
 
 # A sha256sum line is "<hash> <marker><name>", where the marker is "*" in
 # binary mode and a space in text mode. Which marker a host emits is
