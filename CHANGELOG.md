@@ -17,6 +17,23 @@ to follow [Semantic Versioning](https://semver.org/).
   Mutation-checked against the bug below — deleting `doctor`'s `-o` registration
   fails it with exactly `cmd doctor: -o accept (exit 2, want 0)`.
 
+- **The `Run` dispatcher and three CLI error branches now have tests.**
+  `internal/cli/cli_gaps_test.go` drives `cli.Run` — the function `main.go`
+  actually calls — through its `doctor` case, which was the one command never
+  dispatched by a test, so a typo in the case label would have shipped as
+  "unknown command" for a command the help text advertises. The same file adds
+  the near-miss check (`Run(["docter"])` must hit the unknown-command branch),
+  the `tokens --model` OVERFLOW verdict with the reverse case proving the mark
+  is a property of the repository/model pair rather than of the fixture, and
+  `diff --dry-run`'s "omitted by the budget" line with the converse case proving
+  it follows the cap rather than printing unconditionally.
+  `TestDoctorRejectsExtraArgs` previously only rejected an unknown *flag*, which
+  made its name overclaim; it now covers the positional-argument branch too and
+  asserts both distinct messages. CLI statement coverage went from 98.4% to
+  99.4%; the two remaining gaps are a name tiebreaker in `sortModels` (all
+  registered model names are unique) and `outputWriter`'s `os.Create` failure,
+  which calls `os.Exit(1)` and cannot be reached from a test.
+
 ### Changed
 
 - **The help text now says what the commands actually accept.**

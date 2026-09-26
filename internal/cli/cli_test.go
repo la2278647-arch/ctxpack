@@ -1343,11 +1343,26 @@ func TestDoctorJSON(t *testing.T) {
 func TestDoctorRejectsExtraArgs(t *testing.T) {
 	c := captureStderr(t)
 
-	code := cmdDoctor([]string{"--bogus"})
-	if code != 2 {
-		t.Fatalf("cmdDoctor exit = %d, want 2", code)
+	// Two distinct rejections: flag.Parse rejects an unknown flag, the NArg
+	// check rejects a positional argument. The messages differ, so assert both
+	// rather than naming the test after the one it used to exercise.
+	for _, args := range [][]string{
+		{"--bogus"},
+		{"."},
+		{"--top", "3", "someroot"},
+	} {
+		if code := cmdDoctor(args); code != 2 {
+			t.Errorf("cmdDoctor(%v) exit = %d, want 2", args, code)
+		}
 	}
-	_ = c.Content() // drain
+
+	got := c.Content()
+	if !strings.Contains(got, "flag provided but not defined") {
+		t.Errorf("an unknown flag was not reported as such:\n%s", got)
+	}
+	if !strings.Contains(got, "unexpected argument") {
+		t.Errorf("a positional argument was not reported as such:\n%s", got)
+	}
 }
 
 func TestDoctorFormatText(t *testing.T) {
