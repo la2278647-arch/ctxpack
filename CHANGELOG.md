@@ -8,6 +8,30 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The CI release-binary job could not upload its artifacts.**
+  The workflow declares `permissions: contents: read` at the top level, and that
+  applies to every job unless a job overrides it. `actions/upload-artifact@v4`
+  requires `actions: write`, so the `packages` job would have failed at the very
+  last step of a release build. The job now declares both permissions itself
+  instead of widening the whole workflow. Found while validating the workflow
+  structurally — every step, matrix and permission is now checked by a script
+  that parses the YAML, and all seven `run:` blocks pass `bash -n`.
+
+- **CI release binaries were named differently from the real release assets.**
+  The workflow built `ctxpack-0.1.9-linux-amd64` (hyphens) while `make release`,
+  the published assets, and both installers all use `ctxpack_0.1.9_linux_amd64`
+  (underscores). A CI artifact therefore could not stand in for a release
+  download, and a `sha256sum -c` against the published sums file would fail.
+  The naming now matches.
+
+- **A mistyped `-ldflags -X` path is now detected instead of silently ignored.**
+  Go accepts a wrong `-X` path with exit 0 and quietly leaves the source default
+  in place: building with `-X ...version.Vresion=9.9.9-typo` (one letter wrong)
+  and with `-X ...internal/versionz.Version=...` (wrong package) both succeed,
+  and both binaries report `ctxpack 0.1.9`. That makes a typo in a version stamp
+  invisible until a user inspects the output. The test job now builds with a
+  sentinel version and fails if it does not appear in `ctxpack version`.
+
 - **Both installers could not verify any checksum file.**
   `install.sh` and `install.ps1` matched an asset with a two-space separator,
   which is what `sha256sum -t` emits in text mode. But GNU coreutils defaults to
