@@ -593,7 +593,7 @@ func main() {
 
 ---
 
-## Omitted by budget (54 files, ~273107 tokens)
+## Omitted by budget (55 files, ~280922 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -623,6 +623,7 @@ func main() {
 - `internal/cli/cli_test.go`
 - `internal/cli/fit_test.go`
 - `internal/cli/help_test.go`
+- `internal/cli/sortmodels_test.go`
 - `internal/counter/counter.go`
 - `internal/counter/counter_test.go`
 - `internal/doctor/doctor.go`

@@ -8,6 +8,36 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`readme_helper.py` was scored as a project document.**
+  The README check was `strings.HasPrefix(base, "readme")` — any basename
+  *beginning* with readme. `readme_helper.py` and `readmes.py` therefore scored
+  1000, the policy-document tier, instead of 200 (source), outranking config
+  files, scripts and every test. The same function matched `policyDocs` by
+  exact basename, where `securityscanner.go` correctly scored 200 against
+  `SECURITY.md` at 1000, so the two halves of one rule disagreed: one exact,
+  one greedy. `isPolicyDoc` now accepts only the basename `readme` or
+  `readme.<ext>`, so `README.md` and `docs/README.rst` still score 1000 while
+  `readme_helper.py` and `readmes.py` score 200 and `docs/READMEING.md` scores
+  300 — a markdown file that is not a README.
+
+- **`notmain.go` was scored as an application entry point.**
+  Entry-point detection ran `strings.HasSuffix` on the *full* path, and
+  `HasSuffix("notmain.go", "main.go")` is true — as are `myindex.js` against
+  `index.js`, `mymanage.py` against `manage.py` and `customserver.js` against
+  `server.js`. Four ordinary source files therefore scored 400, outranking the
+  real source they sat among at 200, so a tight budget spent tokens on
+  `notmain.go` before they reached anything the repository actually runs. Entry
+  points are now an exact-basename set: `main.go`, `mod.go`, `index.ts`,
+  `index.js`, `index.jsx`, `index.tsx`, `server.js`, `manage.py`.
+
+- **React and TSX files scored 10, the lowest tier of all.**
+  The source list was `.go .ts .js .py .rs .java .rb .cs` and contained no
+  `.tsx` or `.jsx`, so React and TypeScript-JSX components fell through to the
+  default 10 — below config files (150), shell scripts (100) and even test
+  files (50). Under a budget a component was dropped before a YAML file. Both
+  extensions now score 200 as source, and `index.jsx` / `index.tsx` are
+  registered as entry points at 400.
+
 - **`ctxpack models --sort vendor` could sort wrong.**
   The comparator compared vendor strings raw for equality but folded them to
   lowercase for ordering, so `OpenAI` and `openai` were treated as *different*
@@ -75,6 +105,20 @@ to follow [Semantic Versioning](https://semver.org/).
   real error, so a failure still reports clearly.
 
 ### Added
+
+- **Fourteen regression cases pin the priority ladder's matching rules.**
+  `TestPriorityLadder` now covers the two basename boundaries the defects above
+  crossed — `readme.md`, `readme.rst` and `docs/README.adoc` at 1000 against
+  `readme_helper.py` and `readmes.py` at 200 and `docs/READMEING.md` at 300 —
+  every entry-point near miss (`notmain.go`, `myindex.js`, `mymanage.py`,
+  `customserver.js`, all 200) against the real entry points at 400, and the new
+  `.tsx` / `.jsx` tiers. Each case varies the extension and the basename
+  independently, so the two matching rules cannot drift back into each other
+  again. The self-packing snapshots in `examples/` are regenerated in the same
+  commit: they now cover 55 files instead of 54 and about 280922 tokens instead
+  of 273107, because `internal/cli/sortmodels_test.go` is new since they were
+  taken and enters the omitted list. The kept-file selection is unchanged, so
+  they still demonstrate the same budget behaviour.
 
 - **The `go install` path is now verified end to end.**
   It is the first install method the README and release notes show, and it had

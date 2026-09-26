@@ -28,10 +28,10 @@ type Options struct {
 	Deleted []string
 }
 
-// policyDocs are the project-level documents a reader reaches for first. The
-// readme prefix is matched separately below, because it covers readme.md,
-// readme.rst and readme.adoc at once. These are exact basenames, with or
-// without an extension, so securityscanner.go is not confused for SECURITY.md.
+// policyDocs are the project-level documents a reader reaches for first,
+// excluding readmes, which isPolicyDoc handles separately. These are exact
+// basenames, with or without an extension, so securityscanner.go is not
+// confused for SECURITY.md.
 var policyDocs = map[string]bool{
 	"license":            true,
 	"license.md":         true,
@@ -49,6 +49,30 @@ var policyDocs = map[string]bool{
 	"security.md":        true,
 	"patents":            true,
 	"patents.md":         true,
+}
+
+// isPolicyDoc reports whether base is a project-level document a reader reaches
+// for first. Readmes match on the basename — "readme" or "readme.<ext>" — so a
+// file merely named after readme, like readme_helper.py, stays source. The
+// policy list is exact-basename, so securityscanner.go is not SECURITY.md.
+func isPolicyDoc(base string) bool {
+	if base == "readme" || strings.HasPrefix(base, "readme.") {
+		return true
+	}
+	return policyDocs[base]
+}
+
+// entryPoints are the basenames a language convention treats as the program's
+// front door. Matched as exact basenames, so myindex.js is not index.js.
+var entryPoints = map[string]bool{
+	"main.go":   true,
+	"index.ts":  true,
+	"index.js":  true,
+	"index.jsx": true,
+	"index.tsx": true,
+	"mod.go":    true,
+	"server.js": true,
+	"manage.py": true,
 }
 
 // Pack walks root, counts tokens, applies an optional budget, and returns a
@@ -187,13 +211,11 @@ func priority(f format.File) int {
 	if i := strings.LastIndex(low, "/"); i >= 0 {
 		base = low[i+1:]
 	}
-	if strings.HasPrefix(base, "readme") || policyDocs[base] {
+	if isPolicyDoc(base) {
 		return 1000
 	}
 	switch {
-	case strings.HasSuffix(low, "main.go") || strings.HasSuffix(low, "index.ts") ||
-		strings.HasSuffix(low, "index.js") || strings.HasSuffix(low, "mod.go") ||
-		strings.HasSuffix(low, "server.js") || strings.HasSuffix(low, "manage.py"):
+	case entryPoints[base]:
 		return 400
 	case strings.HasSuffix(low, ".proto") || strings.HasSuffix(low, ".graphql") ||
 		strings.HasSuffix(low, ".thrift"):
@@ -211,7 +233,8 @@ func priority(f format.File) int {
 		(strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py")):
 		return 50
 	case strings.HasSuffix(low, ".go") || strings.HasSuffix(low, ".ts") ||
-		strings.HasSuffix(low, ".js") || strings.HasSuffix(low, ".py") ||
+		strings.HasSuffix(low, ".tsx") || strings.HasSuffix(low, ".js") ||
+		strings.HasSuffix(low, ".jsx") || strings.HasSuffix(low, ".py") ||
 		strings.HasSuffix(low, ".rs") || strings.HasSuffix(low, ".java") ||
 		strings.HasSuffix(low, ".rb") || strings.HasSuffix(low, ".cs"):
 		return 200

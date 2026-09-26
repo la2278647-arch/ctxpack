@@ -159,6 +159,23 @@ func TestPriorityLadder(t *testing.T) {
 		// is source code.
 		{"SECURITY.md", 1000},
 		{"securityscanner.go", 200},
+		// Readmes match on the basename, not a prefix, so a file merely named
+		// after readme is source.
+		{"readme.md", 1000},
+		{"readme.rst", 1000},
+		{"docs/README.adoc", 1000},
+		{"readme_helper.py", 200},
+		{"readmes.py", 200},
+		{"docs/READMEING.md", 300},
+		// Entry points match on the basename too, so myindex.js is source.
+		{"myindex.js", 200},
+		{"notmain.go", 200},
+		{"mymanage.py", 200},
+		{"customserver.js", 200},
+		{"src/App.tsx", 200},
+		{"src/App.jsx", 200},
+		{"index.jsx", 400},
+		{"index.tsx", 400},
 	}
 	for _, tc := range cases {
 		if got := priority(format.File{Path: tc.path}); got != tc.want {
