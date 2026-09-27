@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/la2278647-arch/ctxpack/internal/counter"
 	"github.com/la2278647-arch/ctxpack/internal/repomap"
 )
 
@@ -1014,6 +1015,47 @@ func TestModelsFormatJSON(t *testing.T) {
 	}
 	if len(env.Models) == 0 {
 		t.Error("JSON models array is empty")
+	}
+}
+
+func TestModelsCSVHeaderAndRows(t *testing.T) {
+	for _, args := range [][]string{{"--format", "csv"}, {"--csv"}} {
+		c := captureStdout(t)
+		if code := cmdModels(args); code != 0 {
+			t.Fatalf("cmdModels(%v) exit = %d", args, code)
+		}
+		lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+		if len(lines) == 0 || lines[0] != "name,context_window,vendor" {
+			t.Fatalf("cmdModels(%v) header = %q, want name,context_window,vendor", args, lines[0])
+		}
+		if len(lines) != len(counter.Models())+1 {
+			t.Errorf("cmdModels(%v) rows = %d, want %d", args, len(lines)-1, len(counter.Models()))
+		}
+		for _, row := range lines[1:] {
+			parts := strings.Split(row, ",")
+			if len(parts) != 3 || parts[0] == "" || parts[2] == "" {
+				t.Errorf("cmdModels(%v) row %q is not name,window,vendor", args, row)
+			}
+			if _, err := strconv.Atoi(parts[1]); err != nil {
+				t.Errorf("cmdModels(%v) row %q has a non-numeric window", args, row)
+			}
+		}
+	}
+}
+
+func TestModelsCSVFollowsFilters(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--vendor", "anthropic", "--top", "2"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 3 { // header + 2 rows
+		t.Fatalf("vendor+top csv rows = %d, want 2:\n%s", len(lines)-1, c.Content())
+	}
+	for _, row := range lines[1:] {
+		if !strings.HasSuffix(row, ",anthropic") {
+			t.Errorf("row %q does not end in ,anthropic", row)
+		}
 	}
 }
 

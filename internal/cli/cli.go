@@ -131,8 +131,9 @@ FLAGS (tokens)
   -o, --output FILE    Write to FILE instead of stdout
 
 FLAGS (models)
-  --format F           text (default), json
+  --format F           text (default), json, csv
   --json               Emit JSON instead of the text output
+  --csv                Emit CSV (name,context_window,vendor) instead of the text output
   --sort BY            Sort by: name (default), window (largest first), vendor
   --top N              Show only the N largest models by context window
   --vendor NAME        Show only models from this vendor
@@ -704,19 +705,22 @@ func cmdModels(args []string) int {
 	fs := flag.NewFlagSet("models", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "print the model table as JSON")
+	csvOut := fs.Bool("csv", false, "print the model table as CSV (name,context_window,vendor)")
 	vendor := fs.String("vendor", "", "show only models from this vendor")
 	topN := fs.Int("top", 0, "show only the N largest models by context window")
 	sortBy := fs.String("sort", "", "sort by: name (default), window (largest first), vendor")
-	formatF := fs.String("format", "", "output format: text (default), json")
+	formatF := fs.String("format", "", "output format: text (default), json, csv")
 	output := fs.String("output", "", "write to FILE instead of stdout")
 	fs.StringVar(output, "o", "", "shorthand for --output")
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
-	// --format sets json flag for backward compatibility.
+	// --format sets the json/csv flags for backward compatibility.
 	switch strings.ToLower(*formatF) {
 	case "json":
 		*jsonOut = true
+	case "csv":
+		*csvOut = true
 	case "text", "":
 		// default
 	default:
@@ -756,6 +760,19 @@ func cmdModels(args []string) int {
 		w, close := outputWriter(*output)
 		defer close()
 		return writeEnvelope(w, modelsEnvelope{Models: modelJSON(models)})
+	}
+	if *csvOut {
+		w, close := outputWriter(*output)
+		defer close()
+		bw := bufio.NewWriter(w)
+		defer bw.Flush()
+		// Names and vendors are simple identifiers, so no CSV escaping is
+		// needed; the header doubles as the schema for scripted consumers.
+		fmt.Fprintln(bw, "name,context_window,vendor")
+		for _, m := range models {
+			fmt.Fprintf(bw, "%s,%d,%s\n", m.Name, m.ContextWindow, m.Vendor)
+		}
+		return 0
 	}
 	out, close := outputWriter(*output)
 	defer close()

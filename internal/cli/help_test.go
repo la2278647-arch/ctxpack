@@ -41,7 +41,7 @@ var flagMatrix = map[string][]string{
 		"--output", "-o",
 	},
 	"models": {
-		"--format", "--json", "--sort", "--top", "--vendor", "--output", "-o",
+		"--format", "--json", "--csv", "--sort", "--top", "--vendor", "--output", "-o",
 	},
 	"doctor": {
 		"--format", "--json", "--top", "--output", "-o",

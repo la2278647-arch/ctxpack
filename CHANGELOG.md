@@ -8,6 +8,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`models` gains a `--csv` output.**
+  The table is a static list of identifiers, so a scripted consumer gets
+  `name,context_window,vendor` per row — the header doubles as the schema.
+  `--format csv` works as the alias, the same way `--json` is an alias for
+  `--format json`, and vendor/top/sort filters apply before rendering, so the
+  rows always match what the text and JSON output would show for the same
+  flags.
+
 - **`version` gets a `FLAGS (version)` section in `--help` and a row in the
   README command table.**
   Every other command had its own flags block; `version` only had an inline
