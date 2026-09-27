@@ -1009,6 +1009,31 @@ func TestDiffDryRunListsDeletions(t *testing.T) {
 
 // --- quiet ---
 
+// TestDiffQuietSuppressesStatus pins --quiet on diff: the "ctxpack diff vs
+// <ref>" status line goes to stderr and --quiet silences it, while the stdout
+// JSON stays intact — the README's "diff --quiet still emits its JSON" claim.
+func TestDiffQuietSuppressesStatus(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	outCap := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src, "--quiet", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if err := errCap.Content(); err != "" {
+		t.Errorf("with --quiet, stderr should be empty, got:\n%s", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(outCap.Content()), &env); err != nil {
+		t.Errorf("--quiet must not break the json output: %v", err)
+	}
+}
+
 func TestPackQuietSuppressesWrote(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
