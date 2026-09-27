@@ -357,7 +357,7 @@ Scripts should treat `2` as "the command line is wrong, fix the caller" and
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 30. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. `models`: sort by `name` (default), `window` (largest first), or `vendor`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
-| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `help` accepts at most a command name and rejects anything else; `version` accepts only `--json` and rejects anything else. |
+| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `-` (or a bare `--output`) means stdout explicitly, and never creates a file named `-`. `mcp` takes no flags at all and rejects it; `help` accepts at most a command name and rejects anything else; `version` accepts only `--json` and rejects anything else. |
 | `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
 | `--list` | `diff`: list the paths the bundle will name, one per line, without packing. Deletions are named too, since the pack names them in a `Deleted` section. |
 | `-q, --quiet` | Suppress the stderr status line: `pack`'s "wrote ..." line and `diff`'s `ctxpack diff vs <ref>: N file`. Stdout is untouched — `diff --quiet` still emits its JSON. |
