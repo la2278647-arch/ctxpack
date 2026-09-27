@@ -1,0 +1,27 @@
+name: Feature request
+description: A capability ctxpack does not have yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "ctxpack is deliberately small and stdlib-only. The bar for new code is high, so say what the capability is for in a real workflow, not just what it would be."
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: The workflow this serves. A reproducible, scriptable example is best.
+    validations:
+      required: true
+  - type: textarea
+    id: propose
+    attributes:
+      label: Proposed shape
+      description: The command, flag or MCP tool as you imagine it, with the output it would produce.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: "It can be done with the standard library (no new module)"
+          required: true
+        - label: "It fits CLI, MCP and the shared engine together (or I say which surface it targets)"

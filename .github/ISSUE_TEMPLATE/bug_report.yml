@@ -1,0 +1,34 @@
+name: Bug report
+description: Something ctxpack does is wrong — not a missing feature.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting. The bar for fixing bugs is low — include a repro and it will get attention."
+  - type: input
+    id: version
+    attributes:
+      label: ctxpack version
+      description: Output of `ctxpack version` (or say "dev build from commit X").
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The exact command and the tree shape (even a two-file example) that shows the wrong behaviour.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: What you expected and what you got — paste both outputs if they differ.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, shell, git version if the bug touches `diff` or the installers.
