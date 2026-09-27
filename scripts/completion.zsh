@@ -21,7 +21,7 @@ _ctxpack_per_cmd() {
     tokens) print -l $_ctxpack_walk --format --json --csv --sort --top --model --output -o ;;
     models) print -l --format --json --csv --sort --top --vendor --output -o ;;
     doctor) print -l --format --json --top --output -o ;;
-    version) print -l --json ;;
+    version) print -l --json --short ;;
     mcp|help) ;;
   esac
 }

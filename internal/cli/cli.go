@@ -54,12 +54,20 @@ func Run(args []string) int {
 		printHelp(os.Stdout)
 		return 0
 	case "version", "--version", "-v":
-		if len(args) > 1 && (args[1] != "--json" || len(args) > 2) {
-			fmt.Fprintln(os.Stderr, "ctxpack: version takes at most --json")
-			return 2
-		}
 		if len(args) > 1 {
-			fmt.Println(version.JSON())
+			flag := args[1]
+			if flag != "--json" && flag != "--short" || len(args) > 2 {
+				fmt.Fprintln(os.Stderr, "ctxpack: version takes at most --json or --short")
+				return 2
+			}
+			switch flag {
+			case "--json":
+				fmt.Println(version.JSON())
+			case "--short":
+				// The bare semantic version, for scripts that want
+				// "0.1.11" without parsing the prose banner.
+				fmt.Println(version.Version)
+			}
 			return 0
 		}
 		fmt.Println(version.Info())
@@ -175,6 +183,7 @@ FLAGS (doctor)
 
 FLAGS (version)
   --json               Emit the build identity as one JSON object
+  --short              Emit just the semantic version (e.g. 0.1.11)
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md

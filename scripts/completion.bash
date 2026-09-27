@@ -21,7 +21,7 @@ _ctxpack_flags() {
     tokens) echo "$_ctxpack_walk --format --json --csv --sort --top --model --output -o" ;;
     models) echo "--format --json --csv --sort --top --vendor --output -o" ;;
     doctor) echo "--format --json --top --output -o" ;;
-    version) echo "--json" ;;
+    version) echo "--json --short" ;;
     mcp|help) echo "" ;;
   esac
 }

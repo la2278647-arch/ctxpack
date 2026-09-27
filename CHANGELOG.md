@@ -31,6 +31,17 @@ to follow [Semantic Versioning](https://semver.org/).
   a command name ("…the pack will name") cannot leak a flag onto the wrong
   command.
 
+- **`version --short` prints just the semantic version.**
+  `version` always printed the full banner, and a script that wanted
+  "0.1.11" alone had to parse it or call `--json` and read a field. `version
+  --short` — available under all three aliases (`version`, `--version`,
+  `-v`) and identical across them — prints one line containing only the
+  version, e.g. `0.1.11`. Combining it with `--json` (or anything else) is
+  rejected with exit code 2, matching the existing `--json` discipline. The
+  bash/zsh/fish completion scripts and the README examples were updated with
+  the new flag, and the smoke help-conformance check verifies the scripts
+  again.
+
 - **MCP `version` tool.**
   The server exposed six tools for the six file-oriented CLI commands and
   left `version` out, so an agent that only wanted to check whether the

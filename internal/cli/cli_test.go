@@ -389,6 +389,32 @@ func TestCommandHelpExitsZero(t *testing.T) {
 	}
 }
 
+// TestVersionShort pins `version --short`: a bare semantic version on its own
+// line, identical across the three aliases, and rejected when combined with
+// anything else.
+func TestVersionShort(t *testing.T) {
+	var outs []string
+	for _, alias := range []string{"version", "--version", "-v"} {
+		outCap := captureStdout(t)
+		if code := Run([]string{alias, "--short"}); code != 0 {
+			t.Fatalf("Run(%s --short) exit = %d", alias, code)
+		}
+		out := strings.TrimSpace(outCap.Content())
+		if regexp.MustCompile(`^\d+\.\d+\.\d+$`).FindString(out) == "" {
+			t.Errorf("%s --short = %q, want a bare semantic version", alias, out)
+		}
+		if len(outs) > 0 && out != outs[0] {
+			t.Errorf("%s --short differs: %q vs %q", alias, out, outs[0])
+		}
+		outs = append(outs, out)
+	}
+	for _, args := range [][]string{{"version", "--short", "--json"}, {"version", "--json", "--short"}, {"version", "--short", "x"}} {
+		if code := Run(args); code != 2 {
+			t.Errorf("Run(%v) = %d, want 2 (only one of --json/--short)", args, code)
+		}
+	}
+}
+
 // --- pack end to end ---
 
 func writeRepo(t *testing.T, dir string) {

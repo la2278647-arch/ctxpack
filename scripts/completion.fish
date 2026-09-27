@@ -75,4 +75,5 @@ complete -c ctxpack -n '__fish_seen_subcommand_from doctor' -l output -r -d 'Wri
 complete -c ctxpack -n '__fish_seen_subcommand_from doctor' -s o      -r -d 'Shorthand for --output'
 
 # version.
-complete -c ctxpack -n '__fish_seen_subcommand_from version' -l json -d 'Emit the build identity as one JSON object'
+complete -c ctxpack -n '__fish_seen_subcommand_from version' -l json  -d 'Emit the build identity as one JSON object'
+complete -c ctxpack -n '__fish_seen_subcommand_from version' -l short -d 'Emit just the semantic version'

@@ -127,6 +127,8 @@ ctxpack version
 # ctxpack 0.1.11 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
 ctxpack version --json
 # {"name":"ctxpack","version":"0.1.11","os":"linux","arch":"amd64","go":"go1.26.5","commit":"abc1234","built":"2026-09-22"}
+ctxpack version --short
+# 0.1.11
 ```
 
 Pin build identity at release time:
@@ -314,7 +316,7 @@ the changed file paths without packing.
 | `models` | List known models and context windows. |
 | `mcp`    | Run as an MCP server on stdio. |
 | `doctor` | Print environment diagnostics (version, git, models). |
-| `version` | Print the build identity (`--json` for scripted consumers). |
+| `version` | Print the build identity (`--json` for scripted consumers, `--short` for a bare version). |
 | `help` | Show the full usage; `help <command>` validates a command name. |
 
 Run `ctxpack <command> --help` for details.
