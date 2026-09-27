@@ -2133,6 +2133,28 @@ func TestMapIncludePathGlob(t *testing.T) {
 	}
 }
 
+// TestMapExcludePathGlob pins that --exclude may span a directory too, the
+// mirror of TestMapIncludePathGlob: "src/*" drops the nested file but keeps
+// root-level ones.
+func TestMapExcludePathGlob(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "src"), 0o755)
+	os.WriteFile(filepath.Join(src, "src", "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package r\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--exclude", "src/*"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(out, "a.go") {
+		t.Errorf("src/* must drop the nested file:\n%s", out)
+	}
+	if !strings.Contains(out, "root.go") {
+		t.Errorf("src/* must keep root-level files:\n%s", out)
+	}
+}
+
 // TestMapMultipleIncludeFlagsMerge pins the "repeatable" promise in the help
 // text: two --include globs are a union, not a last-wins replacement.
 func TestMapMultipleIncludeFlagsMerge(t *testing.T) {
