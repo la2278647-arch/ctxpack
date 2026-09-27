@@ -311,6 +311,10 @@ sees the change set. Deleted files are reported by name in a `Deleted` section
 would make a deletion look like it never happened. Use `--list` to show only
 the changed file paths without packing.
 
+When nothing changed, `--format json` still emits a parseable envelope
+(`files: null`, zero tokens) so a script can json-parse every diff run; the
+other formats print a `no changed files` note to stderr and exit 0.
+
 ---
 
 ## Commands
