@@ -575,6 +575,23 @@ func TestPackBadFlagFails(t *testing.T) {
 
 // --- diff requires git ---
 
+func TestDiffBadRefFails(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+
+	errCap := captureStderr(t)
+	code := cmdDiff([]string{src, "--ref", "not-a-real-ref"})
+	if code == 0 {
+		t.Fatal("cmdDiff with an unresolvable ref must fail")
+	}
+	if !strings.Contains(errCap.Content(), "ctxpack:") {
+		t.Errorf("bad ref did not report the git error on stderr:\n%s", errCap.Content())
+	}
+}
+
 func TestDiffOutsideRepo(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
