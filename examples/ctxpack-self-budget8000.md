@@ -571,7 +571,7 @@ func main() {
 
 ---
 
-## Omitted by budget (62 files, ~330887 tokens)
+## Omitted by budget (63 files, ~334455 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -583,6 +583,7 @@ func main() {
 - `docs/release-notes-v0.1.0.md`
 - `docs/release-notes-v0.1.1.md`
 - `docs/release-notes-v0.1.10.md`
+- `docs/release-notes-v0.1.11.md`
 - `docs/release-notes-v0.1.2.md`
 - `docs/release-notes-v0.1.3.md`
 - `docs/release-notes-v0.1.4.md`
