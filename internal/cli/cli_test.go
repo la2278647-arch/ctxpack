@@ -697,6 +697,31 @@ func TestDiffDryRunShowsFiles(t *testing.T) {
 	}
 }
 
+// TestDiffOutputWritesFile pins the -o file branch for diff, mirroring the
+// --output tests the other commands have: json goes to the file, exit 0.
+func TestDiffOutputWritesFile(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	out := filepath.Join(t.TempDir(), "diff.json")
+	code := cmdDiff([]string{src, "--format", "json", "-o", out})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output file is not valid JSON: %v\n%s", err, data)
+	}
+}
+
 func TestDiffDryRunNoOutputFile(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
