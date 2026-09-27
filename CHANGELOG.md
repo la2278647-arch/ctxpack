@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A bad `--output` path no longer calls `os.Exit(1)`.**
+  `outputWriter` created the target file and, on failure, printed to stderr
+  and called `os.Exit(1)` — bypassing every deferred close in the caller and
+  making the failure path impossible to test (a test invoking it would kill
+  the test process). It now returns the error, and each of the twelve call
+  sites maps it to exit code 1 through a shared helper, so `ctxpack pack -o
+  /no/such/dir/x` fails cleanly like any other runtime error and is covered
+  by a test.
+
 - **`docs/ci.yml` release job now builds with Go 1.26.**
   The test matrix was extended to 1.26 in v0.1.12, but the (inactive)
   workflow's `packages` job still pinned `go-version: "1.23"` — the newest

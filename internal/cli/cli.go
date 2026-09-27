@@ -542,14 +542,20 @@ func cmdMap(args []string) int {
 		return 1
 	}
 	if *jsonOut {
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		return writeEnvelope(w, mapEnvelope{
 			Root: root.Name, TotalTokens: tokens, TotalBytes: bytes, Tree: toJSONNode(root),
 		})
 	}
 	if *topN > 0 {
-		out, close := outputWriter(*output)
+		out, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		w := bufio.NewWriter(out)
 		defer w.Flush()
@@ -582,7 +588,10 @@ func cmdMap(args []string) int {
 		return 0
 	}
 	if *csvOut {
-		out, close := outputWriter(*output)
+		out, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		files := collectFiles(root, "")
 		sort.Slice(files, func(i, j int) bool {
@@ -601,7 +610,10 @@ func cmdMap(args []string) int {
 		w.Flush()
 		return 0
 	}
-	out, close := outputWriter(*output)
+	out, close, err := outputWriter(*output)
+	if err != nil {
+		return outputFileError(err)
+	}
 	defer close()
 	fmt.Fprintf(out, "Repository: %s\nFiles: ~%d tokens, %s\n\n", root.Name, tokens, humanBytes(bytes))
 	fmt.Fprint(out, repomap.Render(root))
@@ -677,7 +689,10 @@ func cmdTokens(args []string) int {
 			fits = topFits(fits, *topN)
 		}
 		sortFits(fits, *sortBy)
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		return writeEnvelope(w, tokensEnvelope{
 			Path:          root.Name,
@@ -699,7 +714,10 @@ func cmdTokens(args []string) int {
 			fits = topFits(fits, *topN)
 		}
 		sortFits(fits, *sortBy)
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		bw := bufio.NewWriter(w)
 		defer bw.Flush()
@@ -715,7 +733,10 @@ func cmdTokens(args []string) int {
 			return 2
 		}
 	}
-	out, close := outputWriter(*output)
+	out, close, err := outputWriter(*output)
+	if err != nil {
+		return outputFileError(err)
+	}
 	defer close()
 	w := bufio.NewWriter(out)
 	defer w.Flush()
@@ -840,12 +861,18 @@ func cmdModels(args []string) int {
 		sortModels(models, *sortBy)
 	}
 	if *jsonOut {
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		return writeEnvelope(w, modelsEnvelope{Models: modelJSON(models)})
 	}
 	if *csvOut {
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		bw := bufio.NewWriter(w)
 		defer bw.Flush()
@@ -857,7 +884,10 @@ func cmdModels(args []string) int {
 		}
 		return 0
 	}
-	out, close := outputWriter(*output)
+	out, close, err := outputWriter(*output)
+	if err != nil {
+		return outputFileError(err)
+	}
 	defer close()
 	w := bufio.NewWriter(out)
 	defer w.Flush()
@@ -959,12 +989,22 @@ func cmdDoctor(args []string) int {
 	report := doctor.Gather()
 
 	if *jsonOut {
-		w, close := outputWriter(*output)
+		w, close, err := outputWriter(*output)
+		if err != nil {
+			return outputFileError(err)
+		}
 		defer close()
 		return writeEnvelope(w, report)
 	}
 
-	out, close := outputWriter(*output)
+	out, close, err := outputWriter(*output)
+
+	if err != nil {
+
+		return outputFileError(err)
+
+	}
+
 	defer close()
 	w := bufio.NewWriter(out)
 	defer w.Flush()
@@ -1252,16 +1292,23 @@ func annotateFit(tokens int, model string) string {
 // writeOutput writes data to dest, or stdout when dest is "" or "-".
 // outputWriter returns a writer for the given output path, or os.Stdout if
 // empty. The caller is responsible for calling the returned close function.
-func outputWriter(dest string) (io.Writer, func()) {
+func outputWriter(dest string) (io.Writer, func(), error) {
 	if dest == "" || dest == "-" {
-		return os.Stdout, func() {}
+		return os.Stdout, func() {}, nil
 	}
 	f, err := os.Create(dest)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ctxpack:", err)
-		os.Exit(1)
+		return nil, nil, err
 	}
-	return f, func() { f.Close() }
+	return f, func() { f.Close() }, nil
+}
+
+// outputFileError reports an --output write failure the way the other runtime
+// errors do (message on stderr, exit code 1) instead of calling os.Exit, which
+// would bypass every deferred close in the caller and make the path untestable.
+func outputFileError(err error) int {
+	fmt.Fprintln(os.Stderr, "ctxpack:", err)
+	return 1
 }
 
 func writeOutput(dest, data string) error {

@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -183,7 +184,10 @@ func modelsOf(fits []fitEntry) []string {
 // literally named "-".
 func TestOutputWriterStdoutForEmptyAndDash(t *testing.T) {
 	for _, dest := range []string{"", "-"} {
-		w, closeFn := outputWriter(dest)
+		w, closeFn, err := outputWriter(dest)
+		if err != nil {
+			t.Fatalf("outputWriter(%q) error: %v", dest, err)
+		}
 		if w != os.Stdout {
 			t.Errorf("outputWriter(%q) did not return os.Stdout", dest)
 		}
@@ -199,7 +203,10 @@ func TestOutputWriterCreatesAndClosesARealFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.xml")
 	const payload = "<repository>ctxpack</repository>"
 
-	w, closeFn := outputWriter(path)
+	w, closeFn, err := outputWriter(path)
+	if err != nil {
+		t.Fatalf("outputWriter(%q) error: %v", path, err)
+	}
 	if _, err := w.Write([]byte(payload)); err != nil {
 		t.Fatalf("write failed: %v", err)
 	}
@@ -211,5 +218,24 @@ func TestOutputWriterCreatesAndClosesARealFile(t *testing.T) {
 	}
 	if string(data) != payload {
 		t.Errorf("file holds %q, want %q", data, payload)
+	}
+}
+
+// TestOutputWriterBadPathReturnsError pins the failure branch that used to
+// call os.Exit(1): an --output targeting a nonexistent directory must come
+// back as an error so the command can return exit code 1 and stay testable.
+func TestOutputWriterBadPathReturnsError(t *testing.T) {
+	bad := filepath.Join(t.TempDir(), "no", "such", "dir", "out.xml")
+	if _, _, err := outputWriter(bad); err == nil {
+		t.Fatalf("outputWriter(%q) succeeded, want an error", bad)
+	}
+
+	// On the command level the failure must be exit code 1, not a process exit.
+	errCap := captureStderr(t)
+	if code := cmdModels([]string{"--output", bad}); code != 1 {
+		t.Fatalf("cmdModels with a bad --output = %d, want 1", code)
+	}
+	if !strings.Contains(errCap.Content(), "ctxpack:") {
+		t.Errorf("bad --output did not report the error on stderr:\n%s", errCap.Content())
 	}
 }
