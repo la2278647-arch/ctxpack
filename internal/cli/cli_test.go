@@ -1549,6 +1549,33 @@ func TestModelsTopIgnoresSort(t *testing.T) {
 	}
 }
 
+// TestModelsCSVTopTruncates pins --top in csv mode: header + N rows, the
+// first being the largest window (top ranks by window and ignores sort).
+func TestModelsCSVTopTruncates(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--top", "2"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 3 { // header + 2 rows
+		t.Fatalf("--top 2 csv should be header + 2 rows, got %d lines:\n%s", len(lines), c.Content())
+	}
+	first := strings.Split(lines[1], ",")
+	if len(first) != 3 {
+		t.Fatalf("first data row malformed: %q", lines[1])
+	}
+	maxWin := 0
+	for _, m := range counter.Models() {
+		if m.ContextWindow > maxWin {
+			maxWin = m.ContextWindow
+		}
+	}
+	win, err := strconv.Atoi(first[1])
+	if err != nil || win != maxWin {
+		t.Errorf("csv top[0].context_window = %v (%v), want the largest %d", first[1], err, maxWin)
+	}
+}
+
 func TestModelsTopJSON(t *testing.T) {
 	c := captureStdout(t)
 
