@@ -1017,6 +1017,33 @@ func TestToolCallCountTokensJSON(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoEmptyDirJSON pins that packing an empty directory in
+// json format yields a parseable envelope (files null, zero tokens), not an
+// error — the MCP mirror of the CLI's TestPackEmptyDirYieldsEmptyBundle.
+func TestToolCallPackRepoEmptyDirJSON(t *testing.T) {
+	dir := t.TempDir()
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json"}}}`,
+	)
+	text := toolText(t, msgs, "2")
+	var env struct {
+		Files       *[]any `json:"files"`
+		TotalTokens int    `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("empty-dir pack_repo json is not a parseable envelope: %v\n%s", err, text)
+	}
+	got := 0
+	if env.Files != nil {
+		got = len(*env.Files)
+	}
+	if got != 0 || env.TotalTokens != 0 {
+		t.Errorf("empty dir pack_repo = %d files, %d tokens; want 0, 0", got, env.TotalTokens)
+	}
+}
+
 func TestToolCallPackRepoModelAnnotates(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
