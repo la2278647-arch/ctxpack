@@ -1656,6 +1656,28 @@ func TestMapSortByBytes(t *testing.T) {
 
 // --- map --depth ---
 
+// TestMapSortUnknownFallsBackToName pins that an unknown --sort value for map
+// is not an error: the walk falls back to name ordering (a before b), like the
+// models command's unknown sort keys.
+func TestMapSortUnknownFallsBackToName(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "b.go"), []byte("package b\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--sort", "bogus"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d, want 0", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "a.go") || !strings.Contains(out, "b.go") {
+		t.Fatalf("unknown sort must not drop files:\n%s", out)
+	}
+	// Name ordering lists a.go's line before b.go's.
+	if strings.Index(out, "a.go") > strings.Index(out, "b.go") {
+		t.Errorf("unknown sort did not fall back to name order:\n%s", out)
+	}
+}
+
 func TestMapDepthLimitsTraversal(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
