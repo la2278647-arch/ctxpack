@@ -23,6 +23,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`help --help` and `help -h` show the help instead of an unknown-command
+  error.**
+  `ctxpack help` validated its one argument as a command name, so the help
+  flags themselves — which mean "help about help", i.e. the same text — were
+  rejected with `unknown command "--help"` and exit code 2. They now return
+  the shared help with exit code 0, like `ctxpack help` itself, while
+  `help bogus` still names the typo and exits 2.
+
 - **MCP `count_tokens` `top` now means "the N largest context windows",
   matching the CLI.**
   The CLI's `tokens --top` was fixed to rank by window and ignore `--sort`;
