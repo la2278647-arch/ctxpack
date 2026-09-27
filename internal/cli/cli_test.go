@@ -697,6 +697,46 @@ func TestDiffDryRunShowsFiles(t *testing.T) {
 	}
 }
 
+// TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
+// any changed file yields an empty bundle (exit 0, not an error), while a
+// generous budget keeps every changed file — the same priority-selection
+// contract pack has.
+func TestDiffBudgetTinyDropsFiles(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	caseFor := func(budget, wantFiles int) {
+		c := captureStdout(t)
+		args := []string{src, "--format", "json"}
+		if budget >= 0 {
+			args = append(args, "--budget", strconv.Itoa(budget))
+		}
+		if code := cmdDiff(args); code != 0 {
+			t.Fatalf("cmdDiff(%v) exit = %d", args, code)
+		}
+		var env struct {
+			Files *[]any `json:"files"`
+		}
+		if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+			t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+		}
+		got := 0
+		if env.Files != nil {
+			got = len(*env.Files)
+		}
+		if got != wantFiles {
+			t.Errorf("budget=%v: %d files, want %d", budget, got, wantFiles)
+		}
+	}
+
+	caseFor(1, 0)    // too small for any file
+	caseFor(-1, 1)   // no budget: everything
+}
+
 // TestDiffOutputWritesFile pins the -o file branch for diff, mirroring the
 // --output tests the other commands have: json goes to the file, exit 0.
 func TestDiffOutputWritesFile(t *testing.T) {
