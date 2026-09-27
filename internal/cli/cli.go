@@ -37,6 +37,20 @@ func Run(args []string) int {
 	}
 	switch args[0] {
 	case "help", "-h", "--help":
+		if len(args) > 1 {
+			// `ctxpack help <command>`: same answer as `-h`/`--help` would give
+			// on that command — the one global help text — but the argument is
+			// validated so a typo is an error instead of being ignored.
+			switch args[1] {
+			case "pack", "diff", "map", "tokens", "models", "mcp", "doctor", "version", "help":
+				printHelp(os.Stdout)
+				return 0
+			default:
+				fmt.Fprintf(os.Stderr, "ctxpack: unknown command %q\n\n", args[1])
+				printHelp(os.Stderr)
+				return 2
+			}
+		}
 		printHelp(os.Stdout)
 		return 0
 	case "version", "--version", "-v":
@@ -71,6 +85,19 @@ func Run(args []string) int {
 	}
 }
 
+// commandHelpRequested reports whether args asks for help (-h / --help as the
+// first argument) and, if so, prints the help text to stdout. Every command
+// starts with the same check so `-h` returns 0 everywhere, instead of the
+// flag package's default of treating -h as a parse error that exits 2 and
+// writes to stderr.
+func commandHelpRequested(args []string) bool {
+	if len(args) > 0 && (args[0] == "-h" || args[0] == "--help") {
+		printHelp(os.Stdout)
+		return true
+	}
+	return false
+}
+
 func printHelp(w io.Writer) {
 	fmt.Fprintf(w, `ctxpack %s — pack a repository into LLM-optimized context
 
@@ -86,7 +113,7 @@ COMMANDS
   mcp                  Run as a Model Context Protocol server on stdio.
   doctor               Print environment diagnostics (version, git, models).
   version [--json]      Print the build identity (--json for scripted consumers).
-  help                 Show this help.
+  help [command]        Show this help, or validate a command name.
 
 WALK FLAGS (pack / diff / map / tokens; models and doctor reject these)
   --include GLOB       Only include paths matching GLOB (repeatable; basename ok)
@@ -174,6 +201,9 @@ func (s *stringList) Set(v string) error { *s = append(*s, v); return nil }
 // --- pack ---
 
 func cmdPack(args []string) int {
+	if commandHelpRequested(args) {
+		return 0
+	}
 	fs := flag.NewFlagSet("pack", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	var (
@@ -282,6 +312,9 @@ var runPack = func(path string, opts packer.Options) (*format.Bundle, error) {
 }
 
 func cmdDiff(args []string) int {
+	if commandHelpRequested(args) {
+		return 0
+	}
 	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	var (
@@ -440,6 +473,9 @@ func cmdDiff(args []string) int {
 // --- map ---
 
 func cmdMap(args []string) int {
+	if commandHelpRequested(args) {
+		return 0
+	}
 	fs := flag.NewFlagSet("map", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	var (
@@ -564,6 +600,9 @@ func cmdMap(args []string) int {
 // --- tokens ---
 
 func cmdTokens(args []string) int {
+	if commandHelpRequested(args) {
+		return 0
+	}
 	fs := flag.NewFlagSet("tokens", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	var (
@@ -730,9 +769,9 @@ func cmdTokens(args []string) int {
 
 func cmdModels(args []string) int {
 	// Handled before the FlagSet so that "-h" keeps returning 0 here, unlike the
-	// other commands where an undefined flag is a parse error.
-	if len(args) > 0 && (args[0] == "-h" || args[0] == "--help") {
-		fmt.Println("usage: ctxpack models")
+	// other commands where an undefined flag is a parse error (those now route
+	// through commandHelpRequested too; both paths print the shared help).
+	if commandHelpRequested(args) {
 		return 0
 	}
 	fs := flag.NewFlagSet("models", flag.ContinueOnError)
@@ -876,6 +915,9 @@ func sortModels(models []counter.Model, sortBy string) {
 // --- doctor ---
 
 func cmdDoctor(args []string) int {
+	if commandHelpRequested(args) {
+		return 0
+	}
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.Usage = func() { printHelp(os.Stderr) }
 	jsonOut := fs.Bool("json", false, "output diagnostics as JSON")

@@ -8,6 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`-h`/`--help` now returns 0 on every subcommand, and `help <command>`
+  validates its argument.**
+  `ctxpack pack -h` used to exit 2 — the flag parser treats an undefined
+  `-h` as a parse error and writes the help to stderr — while
+  `ctxpack models -h` returned 0, so the two halves of one convention
+  disagreed. Every subcommand now handles `-h` itself: prints the shared help
+  to stdout and returns 0. `ctxpack help pack` does the same thing and
+  returns 0, but `ctxpack help bogus` names the unknown command and returns 2
+  instead of silently ignoring the argument as it did before.
+
 - **Bash, zsh and fish shell completion.**
   `scripts/completion.bash`, `scripts/completion.zsh` and
   `scripts/completion.fish` complete command names and each command's own

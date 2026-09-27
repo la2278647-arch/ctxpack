@@ -299,6 +299,8 @@ func TestRunDispatchExitCodes(t *testing.T) {
 		{[]string{"help"}, 0},
 		{[]string{"--help"}, 0},
 		{[]string{"-h"}, 0},
+		{[]string{"help", "pack"}, 0},
+		{[]string{"help", "bogus"}, 2},
 		{[]string{"version"}, 0},
 		{[]string{"--version"}, 0},
 		{[]string{"-v"}, 0},
@@ -353,6 +355,37 @@ func TestVersionJSONAllAliases(t *testing.T) {
 			t.Errorf("%s --json differs from --version --json:\n%s\nvs\n%s", alias, out, outs[0])
 		}
 		outs = append(outs, out)
+	}
+}
+
+// TestCommandDashFooHelpExitsZero pins that `-h` on every subcommand returns 0
+// and prints the shared help, instead of the flag parser's default of exit 2.
+func TestCommandHelpExitsZero(t *testing.T) {
+	for _, cmd := range []string{"pack", "diff", "map", "tokens", "models", "doctor"} {
+		for _, flag := range []string{"-h", "--help"} {
+			outCap := captureStdout(t)
+			var code int
+			switch cmd {
+			case "pack":
+				code = cmdPack([]string{flag})
+			case "diff":
+				code = cmdDiff([]string{flag})
+			case "map":
+				code = cmdMap([]string{flag})
+			case "tokens":
+				code = cmdTokens([]string{flag})
+			case "models":
+				code = cmdModels([]string{flag})
+			case "doctor":
+				code = cmdDoctor([]string{flag})
+			}
+			if code != 0 {
+				t.Errorf("cmd%s(%s) = %d, want 0", cmd, flag, code)
+			}
+			if out := outCap.Content(); !strings.Contains(out, "USAGE") {
+				t.Errorf("cmd%s(%s) did not print the help text", cmd, flag)
+			}
+		}
 	}
 }
 
