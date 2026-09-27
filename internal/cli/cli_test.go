@@ -1101,6 +1101,24 @@ func TestTokensModelJSONFilters(t *testing.T) {
 	}
 }
 
+// TestTokensModelUnknownCSV pins that an unknown --model in csv mode behaves
+// exactly like json mode — an empty result, exit 0 — so a script can rely on
+// the shape of the output rather than a special-case exit code. (The text
+// mode deliberately differs: it validates the name and exits 2.)
+func TestTokensModelUnknownCSV(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--csv", "--model", "not-a-model"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d, want 0 for an unknown model in csv mode", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 1 || lines[0] != "model,used,limit,fits,pct_used" {
+		t.Fatalf("unknown --model in csv mode should print only the header, got:\n%s", c.Content())
+	}
+}
+
 // --- models --vendor ---
 
 func TestModelsVendorShowsOnlyThatVendor(t *testing.T) {
