@@ -1960,7 +1960,8 @@ func TestMapSortByTokens(t *testing.T) {
 
 func TestMapSortByBytes(t *testing.T) {
 	src := t.TempDir()
-	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("package s\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("// filler line\n", 40)), 0o644)
 	c := captureStdout(t)
 
 	code := cmdMap([]string{src, "--sort", "bytes"})
@@ -1970,6 +1971,9 @@ func TestMapSortByBytes(t *testing.T) {
 	out := c.Content()
 	if !strings.Contains(out, "Repository:") {
 		t.Errorf("output missing Repository header with --sort bytes:\n%s", out)
+	}
+	if strings.Index(out, "big.go") > strings.Index(out, "small.go") {
+		t.Errorf("sort=bytes must put the larger file first:\n%s", out)
 	}
 }
 
