@@ -129,6 +129,41 @@ func TestRepoMapTopListsLargestFiles(t *testing.T) {
 	}
 }
 
+// TestRepoMapJSONSortsByBytes pins that repo_map's sort argument orders the
+// JSON tree the same way it orders the text outline (and the CLI's map --json
+// does): children come largest-first when sorting by bytes.
+func TestRepoMapJSONSortsByBytes(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "small.txt"), []byte(strings.Repeat("b", 20)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json","sort":"bytes"}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		Tree struct {
+			Children []struct {
+				Name  string `json:"name"`
+				Bytes int    `json:"bytes"`
+			} `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("repo_map json is not valid JSON: %v\n%s", err, text)
+	}
+	if len(env.Tree.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(env.Tree.Children))
+	}
+	if env.Tree.Children[0].Name != "big.txt" || env.Tree.Children[0].Bytes != 500 {
+		t.Errorf("sort=bytes should put the largest file first, got %+v", env.Tree.Children[0])
+	}
+}
+
 // A repository large enough to exceed the smallest registered window must show
 // OVERFLOW, and the same run should still fit the largest model.
 func TestCountTokensReportsOverflow(t *testing.T) {
