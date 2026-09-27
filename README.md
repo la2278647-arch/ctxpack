@@ -321,6 +321,17 @@ the changed file paths without packing.
 
 Run `ctxpack <command> --help` for details.
 
+### Exit codes
+
+| Code | Meaning |
+| ---- | ------- |
+| `0` | Success. `-h`/`--help` and `help <command>` also return 0. |
+| `1` | A run-time failure — the path does not exist or cannot be read (a bad repository, an unreadable `.gitignore`), so the command could not do its job. |
+| `2` | A usage error — unknown command or flag, an unknown format/vendor/model, or `version`/`help` given an argument they reject. The message names the problem on stderr. |
+
+Scripts should treat `2` as "the command line is wrong, fix the caller" and
+`1` as "the input was wrong, not the flags".
+
 ### Shared flags
 
 | Flag | Meaning |
