@@ -305,6 +305,8 @@ func TestRunDispatchExitCodes(t *testing.T) {
 		{[]string{"--version"}, 0},
 		{[]string{"-v"}, 0},
 		{[]string{"version", "--json"}, 0},
+		{[]string{"mcp", "--version"}, 2},
+		{[]string{"mcp", "--list"}, 2},
 		{[]string{"models"}, 0},
 		{[]string{"models", "-h"}, 0},
 		{[]string{"totally-unknown"}, 2},
