@@ -529,7 +529,10 @@ func countTokensJSON(path string, tokens, bytes int, models []counter.Model) str
 }
 
 // filterAndSortModels filters models by name (if filter is non-empty), truncates
-// to top N by context window (if top > 0), and sorts by the given field.
+// to the N largest by context window (if top > 0), and otherwise sorts by the
+// given field. When top is in effect the window order is the result — exactly
+// like the CLI's tokens --top, which ranks by window and ignores --sort — so
+// the two interfaces cannot disagree about what a top slice means.
 func filterAndSortModels(models []counter.Model, filter string, top int, sortBy string) []counter.Model {
 	if filter != "" {
 		m, ok := counter.LookupModel(filter)
@@ -540,9 +543,12 @@ func filterAndSortModels(models []counter.Model, filter string, top int, sortBy 
 	}
 	if top > 0 && top < len(models) {
 		sort.Slice(models, func(i, j int) bool {
-			return models[i].ContextWindow > models[j].ContextWindow
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
 		})
-		models = models[:top]
+		return models[:top]
 	}
 	switch strings.ToLower(sortBy) {
 	case "pct":

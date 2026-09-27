@@ -23,6 +23,17 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **MCP `count_tokens` `top` now means "the N largest context windows",
+  matching the CLI.**
+  The CLI's `tokens --top` was fixed to rank by window and ignore `--sort`;
+  the MCP server's `filterAndSortModels` still truncated by window and then
+  re-sorted — defaulting to a name sort when no `sort` was given — so
+  `count_tokens top:3` listed the first rows of the registration order
+  (gpt-3.5-turbo & co) instead of the 2M-window Gemini models, the same
+  documented-lie bug the CLI just shed. `top` now returns the window order
+  directly (with a name tiebreak), so the two interfaces cannot disagree
+  about what a top slice means.
+
 - **`tokens --top` now means "the N largest context windows".**
   The help text said exactly that, and the `models` command honoured it, but
   `tokens` cut the first N entries of the registration order — which is why

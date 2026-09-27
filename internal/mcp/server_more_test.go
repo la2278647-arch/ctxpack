@@ -1053,6 +1053,22 @@ func TestToolCallCountTokensTop(t *testing.T) {
 	if modelLines != 3 {
 		t.Errorf("expected 3 models with top=3, got %d:\n%s", modelLines, text)
 	}
+	// top alone means "the N largest context windows", same as the CLI — the
+	// first row must be a 2M-window Gemini model, not the first rows of the
+	// registration order (gpt-3.5-turbo & co, which a name sort would produce).
+	firstModel := ""
+	for _, line := range lines {
+		if strings.Contains(line, " — ") {
+			parts := strings.Split(line, " — ")
+			if len(parts) > 0 {
+				firstModel = strings.TrimSpace(parts[0])
+			}
+			break
+		}
+	}
+	if !strings.Contains(firstModel, "gemini") {
+		t.Errorf("expected gemini first with top=3, got %q:\n%s", firstModel, text)
+	}
 }
 
 func TestToolCallCountTokensSortByWindow(t *testing.T) {
