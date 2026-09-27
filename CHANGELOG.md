@@ -169,6 +169,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`map --top` header no longer claims "by name" while ranking by tokens.**
+  `--sort` defaults to `name`, which is not a ranking key in the flat top-N
+  mode, so `map --top 5` printed "Top 5 files by name" while the list was
+  ordered by token estimate — the header lied about the order. It now echoes
+  the effective key: "by tokens" by default, "by bytes" with `--sort bytes`.
+  The MCP `repo_map` tool's top rendering was written against this corrected
+  behaviour, so the two output the same header for the same sort.
+
 - **`models` no longer advertises the legacy `qwen2.5` alias.**
   `qwen2.5` was a leftover from v0.1.0 with no hyphen, and v0.1.5 added the
   canonical `qwen-2.5-72b` (alibaba, 128k). Keeping both meant prefix lookups

@@ -518,8 +518,15 @@ func cmdMap(args []string) int {
 		if *topN < len(files) {
 			files = files[:*topN]
 		}
+		// The header must name what the list is actually ranked by. The sortBy
+		// default is "name", which is not a ranking key in this mode, so echo
+		// the effective key instead of a default that would lie about the order.
+		rankedBy := "tokens"
+		if *sortBy == "bytes" {
+			rankedBy = "bytes"
+		}
 		fmt.Fprintf(w, "Top %s by %s (of %d total):\n\n",
-			format.Plural(len(files), "file"), *sortBy, countFiles(root))
+			format.Plural(len(files), "file"), rankedBy, countFiles(root))
 		fmt.Fprintf(w, "%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
 		fmt.Fprintf(w, "%-45s %10s %10s\n", strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
 		for _, f := range files {

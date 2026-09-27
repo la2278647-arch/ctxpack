@@ -1343,6 +1343,9 @@ func TestMapTopShowsFlatList(t *testing.T) {
 	if !strings.Contains(out, "Top ") {
 		t.Errorf("output missing 'Top' header:\n%s", out)
 	}
+	if !strings.Contains(out, "by tokens") {
+		t.Errorf("default top header must say 'by tokens' (the default sortBy of name is not a ranking key):\n%s", out)
+	}
 	if !strings.Contains(out, "TOKENS") || !strings.Contains(out, "BYTES") {
 		t.Errorf("output missing column headers:\n%s", out)
 	}
