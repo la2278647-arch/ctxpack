@@ -174,11 +174,14 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "list_models",
-			"description": "List the models ctxpack knows about, with each model's context window and its effective limit after the reply reserve. Call this before count_tokens to learn which model names exist. Use format:json for machine-readable output.",
+			"description": "List the models ctxpack knows about, with each model's context window and its effective limit after the reply reserve. Call this before count_tokens to learn which model names exist. vendor, top and sort filter and order the table the same way the CLI's models command does. Use format:json for machine-readable output.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+					"vendor": map[string]any{"type": "string", "description": "Show only models from this vendor (case-insensitive)."},
+					"top":    map[string]any{"type": "integer", "description": "Show only the N models with the largest context windows."},
+					"sort":   map[string]any{"type": "string", "enum": []string{"name", "window", "vendor"}, "default": "name", "description": "Sort by name (default), window (largest first), or vendor."},
 				},
 			},
 		},
@@ -556,12 +559,14 @@ func callDiffRepo(args map[string]any) (string, string) {
 	return out, ""
 }
 
-// callListModels reports the model table. It deliberately takes no filtering
-// arguments: there is nothing to filter on, and an argument-taking tool that
-// ignored its arguments would hide typos, as ctxpack models did before it took
-// a FlagSet. It accepts only `format` for text vs JSON output.
+// callListModels reports the model table. vendor, top and sort are executed,
+// not ignored, so a typo in one of them produces a visible change: a vendor
+// with no models yields an empty table, an unknown sort falls back to name
+// order the way the CLI does. That keeps the "an argument-taking tool that
+// ignores its arguments hides typos" failure mode from reappearing.
 func callListModels(args map[string]any) (string, string) {
-	models := counter.Models()
+	models := filterModelsForList(counter.Models(),
+		getString(args, "vendor", ""), toInt(args["top"]), getString(args, "sort", ""))
 	if getString(args, "format", "text") == "json" {
 		return listModelsJSON(models), ""
 	}
@@ -572,6 +577,65 @@ func callListModels(args map[string]any) (string, string) {
 			m.Name, m.ContextWindow, m.ContextWindow-counter.ReplyReserve, m.Vendor)
 	}
 	return sb.String(), ""
+}
+
+// filterModelsForList applies the same filtering, truncation and ordering as
+// the CLI's `models` command: vendor match is case-insensitive, top takes the
+// N largest context windows first and then returns (the CLI applies no further
+// sort after top), and sort re-orders the unfiltered result by name (default),
+// window descending, or vendor.
+func filterModelsForList(models []counter.Model, vendor string, top int, sortBy string) []counter.Model {
+	if vendor != "" {
+		v := strings.ToLower(vendor)
+		out := make([]counter.Model, 0, len(models))
+		for _, m := range models {
+			if strings.ToLower(m.Vendor) == v {
+				out = append(out, m)
+			}
+		}
+		models = out
+	}
+	if top > 0 {
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+		if top < len(models) {
+			models = models[:top]
+		}
+		return models
+	}
+	switch strings.ToLower(sortBy) {
+	case "window":
+		sort.Slice(models, func(i, j int) bool {
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+	case "vendor":
+		sort.Slice(models, func(i, j int) bool {
+			vi, vj := strings.ToLower(models[i].Vendor), strings.ToLower(models[j].Vendor)
+			if vi != vj {
+				return vi < vj
+			}
+			if models[i].ContextWindow != models[j].ContextWindow {
+				return models[i].ContextWindow > models[j].ContextWindow
+			}
+			return models[i].Name < models[j].Name
+		})
+	default:
+		sort.Slice(models, func(i, j int) bool {
+			ni, nj := strings.ToLower(models[i].Name), strings.ToLower(models[j].Name)
+			if ni != nj {
+				return ni < nj
+			}
+			return models[i].ContextWindow > models[j].ContextWindow
+		})
+	}
+	return models
 }
 
 // listModelsJSON returns the model table as JSON, the same shape as the CLI's

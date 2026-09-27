@@ -248,6 +248,75 @@ func TestListModelsJSON(t *testing.T) {
 	}
 }
 
+func listModelsJSONEntries(t *testing.T, args string) []map[string]any {
+	t.Helper()
+	msgs := serveLines(t, fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_models","arguments":{%s}}}`, args))
+	text := toolText(t, msgs, "1")
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("list_models JSON is not valid JSON: %v\n%s", err, text)
+	}
+	entries, _ := env["models"].([]any)
+	out := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.(map[string]any))
+	}
+	return out
+}
+
+func TestListModelsVendorFilter(t *testing.T) {
+	entries := listModelsJSONEntries(t, `"format":"json","vendor":"GOOGLE"`)
+	if len(entries) == 0 {
+		t.Fatal("vendor=GOOGLE returned no models")
+	}
+	for _, e := range entries {
+		if e["vendor"] != "google" {
+			t.Errorf("vendor filter leaked %q, want only google", e["vendor"])
+		}
+	}
+	if len(entries) >= len(counter.Models()) {
+		t.Errorf("vendor filter returned %d entries, want fewer than the full %d", len(entries), len(counter.Models()))
+	}
+}
+
+func TestListModelsTopAndSort(t *testing.T) {
+	top := listModelsJSONEntries(t, `"format":"json","top":3`)
+	if len(top) != 3 {
+		t.Fatalf("top=3 returned %d entries, want 3", len(top))
+	}
+	// top sorts by window descending, so the first entry is the largest window.
+	maxWin := 0
+	for _, m := range counter.Models() {
+		if m.ContextWindow > maxWin {
+			maxWin = m.ContextWindow
+		}
+	}
+	if int(top[0]["context_window"].(float64)) != maxWin {
+		t.Errorf("top[0] window = %v, want the largest %d", top[0]["context_window"], maxWin)
+	}
+
+	sorted := listModelsJSONEntries(t, `"format":"json","sort":"window"`)
+	if len(sorted) == 0 {
+		t.Fatal("sort=window returned no models")
+	}
+	for i := 1; i < len(sorted); i++ {
+		if sorted[i-1]["context_window"].(float64) < sorted[i]["context_window"].(float64) {
+			t.Errorf("sort=window is not descending at %d: %v < %v",
+				i, sorted[i-1]["context_window"], sorted[i]["context_window"])
+		}
+	}
+
+	byVendor := listModelsJSONEntries(t, `"format":"json","sort":"vendor"`)
+	prev := ""
+	for i, e := range byVendor {
+		v := e["vendor"].(string)
+		if i > 0 && v < prev {
+			t.Errorf("sort=vendor is not ascending at %d: %q before %q", i, prev, v)
+		}
+		prev = v
+	}
+}
+
 // The reserve was a literal in count_tokens and a constant in the CLI, so a
 // change to one would not have shown in the other. Both tools now read
 // counter.ReplyReserve, and this checks that every model's limit really does

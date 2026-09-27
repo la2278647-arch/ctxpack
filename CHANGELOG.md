@@ -8,6 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **MCP `list_models` gains `vendor`, `top` and `sort` arguments.**
+  The CLI's `models` command has filtered and ordered the table since before
+  v0.1.5, but the MCP tool only offered `format:json` — an agent could see the
+  whole registry or nothing. The tool now executes the same case-insensitive
+  vendor filter, the same top-N-by-window truncation, and the same
+  name/window/vendor ordering as the CLI, in both text and JSON output. The
+  old "deliberately takes no filtering arguments" note is gone; the arguments
+  are real, so a misspelled vendor still shows its effect (an empty table)
+  instead of being silently ignored.
+
 - **`tokens` gains a `--csv` output.**
   The per-model fit table is now available to scripted consumers as
   `model,used,limit,fits,pct_used` — the columns mirror the `--json` field

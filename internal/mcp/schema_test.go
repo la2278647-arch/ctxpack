@@ -135,6 +135,8 @@ func schemaValue(t *testing.T, tool, prop string, spec map[string]any, dir strin
 			return "WORKTREE"
 		case "model":
 			return "gpt-4o"
+		case "vendor":
+			return "openai"
 		}
 		t.Fatalf("%s.%s: no value known for a free string", tool, prop)
 	case "boolean":

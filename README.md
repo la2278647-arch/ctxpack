@@ -410,7 +410,7 @@ gives `fit: {"model": "...", "unknown": true}` instead of a verdict.
 | `pack_repo` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `budget?`, `model?` |
 | `repo_map` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `sort?` |
 | `count_tokens` | `path`, `format?`, `include?`, `exclude?`, `max_size?`, `max_depth?`, `no_gitignore?`, `hidden?`, `model?`, `top?`, `sort?` |
-| `list_models` | `format?` |
+| `list_models` | `format?`, `vendor?`, `top?`, `sort?` |
 | `diff_repo` | `path`, `ref?`, `format?`, `budget?`, `model?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `list?` |
 | `doctor` | `format?`, `top?` |
 
