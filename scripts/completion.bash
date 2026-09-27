@@ -15,8 +15,8 @@ _ctxpack_walk="--include --exclude --max-size --no-gitignore --hidden --depth"
 _ctxpack_flags() {
   local cmd="$1"
   case "$cmd" in
-    pack)   echo "$_ctxpack_walk --format --budget --model --dry-run --output -o -q" ;;
-    diff)   echo "$_ctxpack_walk --format --ref --list --budget --model --dry-run --output -o -q" ;;
+    pack)   echo "$_ctxpack_walk --format --budget --model --dry-run --output -o -q --quiet" ;;
+    diff)   echo "$_ctxpack_walk --format --ref --list --budget --model --dry-run --output -o -q --quiet" ;;
     map)    echo "$_ctxpack_walk --format --json --sort --top --csv --output -o" ;;
     tokens) echo "$_ctxpack_walk --format --json --csv --sort --top --model --output -o" ;;
     models) echo "--format --json --csv --sort --top --vendor --output -o" ;;

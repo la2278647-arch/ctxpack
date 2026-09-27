@@ -286,6 +286,38 @@ COMP_WORDS=(ctxpack models --v); COMP_CWORD=2; _ctxpack
 grep -q -- '--vendor' <<< "${COMPREPLY[*]}" || fail "completion did not offer --vendor"
 echo "completion ok"
 
+# --- completion flags match the help text ---
+# completion.bash's tables are maintained by hand ("regenerate by hand from
+# printHelp"), so this asserts they have not drifted: every flag a command's
+# FLAGS section documents must be offered by _ctxpack_flags, and vice versa
+# (excluding the shared walk flags, which are documented in the WALK FLAGS
+# group, not per command).
+HELP="$("$B" --help)"
+flags_for() {
+  printf '%s\n' "$HELP" | awk -v cmd="$1" '
+    $0 ~ "^FLAGS \\(" cmd "\\)" { inb=1; next }
+    inb && /^[[:space:]]*$/ { exit }
+    inb { for (i = 1; i <= NF; i++) {
+      gsub(/,/, "", $i)
+      if ($i ~ /^--?[a-z]/) print $i
+    } }
+  '
+}
+WALK_FLAGS="$_ctxpack_walk"
+for cmd in pack diff map tokens models doctor version; do
+  want="$(flags_for "$cmd" | sort | tr '\n' ' ')"
+  got="$(_ctxpack_flags "$cmd" | tr ' ' '\n' | grep -v '^$' | sort | tr '\n' ' ')"
+  for f in $want; do
+    case " $got " in *" $f "*) ;; *)
+      fail "completion.bash does not offer $cmd's documented flag $f" ;; esac
+  done
+  for f in $got; do
+    case " $want $WALK_FLAGS " in *" $f "*) ;; *)
+      fail "completion.bash offers $f for $cmd but the help text does not" ;; esac
+  done
+done
+echo "completion flags match the help text"
+
 # --- fish completion (static) ---
 # No fish interpreter is assumed on this machine, so hold the script to a
 # structural check: it must define a completion for every command and for the

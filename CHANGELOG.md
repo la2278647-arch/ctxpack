@@ -8,6 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`smoke` now verifies the completion tables against the help text.**
+  The bash/zsh/fish completion scripts' flag tables are maintained by hand,
+  and nothing checked them against `--help` — the comment said "regenerate
+  by hand from printHelp" and trusted it. The smoke suite now extracts every
+  command's `FLAGS (…)` section from `--help` and asserts, in both
+  directions, that the bash completion function offers exactly those flags
+  (walk flags excepted, being documented in the shared group). The first run
+  caught a real drift: `pack`/`diff` accept `-q, --quiet` but the scripts
+  only offered `-q`, so the long form is now included in all three scripts.
+
 - **MCP `version` tool.**
   The server exposed six tools for the six file-oriented CLI commands and
   left `version` out, so an agent that only wanted to check whether the
