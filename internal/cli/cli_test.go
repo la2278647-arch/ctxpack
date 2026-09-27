@@ -533,6 +533,40 @@ func TestPackMissingPathFails(t *testing.T) {
 	}
 }
 
+// TestPackMaxSizeZeroMeansUnlimited pins that an explicit --max-size 0 reads
+// whole files like the default, while a positive cap still lists the file but
+// omits its content.
+func TestPackMaxSizeZeroMeansUnlimited(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte("hello, world\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte("SMALL\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text", "--max-size", "0"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if out := c.Content(); !strings.Contains(out, "hello, world") {
+		t.Errorf("--max-size 0 must include file content, got:\n%s", out)
+	}
+
+	c = captureStdout(t)
+	// big.txt is 13 bytes, small.txt is 6: a 10-byte cap omits the big one's
+	// content but keeps the small one's.
+	if code := cmdPack([]string{src, "--format", "text", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "==== big.txt") {
+		t.Errorf("--max-size 10 must still list big.txt:\n%s", out)
+	}
+	if strings.Contains(out, "hello, world") {
+		t.Errorf("--max-size 10 must omit big.txt's content:\n%s", out)
+	}
+	if !strings.Contains(out, "SMALL") {
+		t.Errorf("--max-size 10 must keep a file under the cap (small.txt is \"SMALL\\n\"):\n%s", out)
+	}
+}
+
 func TestPackBadFlagFails(t *testing.T) {
 	if code := cmdPack([]string{t.TempDir(), "--budget", "not-a-number"}); code != 2 {
 		t.Errorf("exit = %d, want 2 for an unparseable flag", code)

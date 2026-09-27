@@ -571,7 +571,7 @@ func main() {
 
 ---
 
-## Omitted by budget (67 files, ~351436 tokens)
+## Omitted by budget (67 files, ~352038 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
