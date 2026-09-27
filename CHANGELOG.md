@@ -82,6 +82,24 @@ to follow [Semantic Versioning](https://semver.org/).
   `~/.config/fish/completions/`. bash completion is exercised in
   `scripts/smoke.sh`, and the fish script gets a structural check.
 
+### Fixed
+
+- **`commandscheck` reported real environment variables as unread.**
+  The variable check searched `internal/` (Go `"CTXPACK_X"` literals) and the
+  two installers, but `scripts/check-release.sh` reads `CTXPACK_TAP` and
+  `CTXPACK_BUCKET` through `${CTXPACK_TAP:-…}` expansion — a genuine read
+  that the doc-command guard's narrow scope could not see, so documenting
+  those two variables in the README immediately turned the guard red. The
+  check now also greps `scripts/` with the same plain-name pattern the
+  installers use, and the README's Development section documents the
+  `releasecheck` gate that consumes them.
+
+- **`docs/ci.yml` Go matrix now covers 1.21 through 1.26.**
+  The (deliberately inactive, audit-only) workflow's test matrix stopped at
+  Go 1.23 while current releases had moved on. The upper end now tracks the
+  latest releases; 1.21 stays as the declared minimum in go.mod. The matrix
+  is data, not a gate primitive, so `make cicheck` still passes unchanged.
+
 ## [0.1.11] - 2026-09-27
 
 ### Added
@@ -246,22 +264,6 @@ to follow [Semantic Versioning](https://semver.org/).
   commit it was built from, `8b8106d`.
 
 ### Fixed
-
-- **`docs/ci.yml` Go matrix now covers 1.21 through 1.26.**
-  The (deliberately inactive, audit-only) workflow's test matrix stopped at
-  Go 1.23 while current releases had moved on. The upper end now tracks the
-  latest releases; 1.21 stays as the declared minimum in go.mod. The matrix
-  is data, not a gate primitive, so `make cicheck` still passes unchanged.
-
-- **`commandscheck` reported real environment variables as unread.**
-  The variable check searched `internal/` (Go `"CTXPACK_X"` literals) and the
-  two installers, but `scripts/check-release.sh` reads `CTXPACK_TAP` and
-  `CTXPACK_BUCKET` through `${CTXPACK_TAP:-…}` expansion — a genuine read
-  that the doc-command guard's narrow scope could not see, so documenting
-  those two variables in the README immediately turned the guard red. The
-  check now also greps `scripts/` with the same plain-name pattern the
-  installers use, and the README's Development section documents the
-  `releasecheck` gate that consumes them.
 
 - **`map --top` header no longer claims "by name" while ranking by tokens.**
   `--sort` defaults to `name`, which is not a ranking key in the flat top-N
