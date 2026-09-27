@@ -596,6 +596,34 @@ func TestDiffBadRefFails(t *testing.T) {
 	}
 }
 
+// TestDiffRangeExcludesWorktree pins that a two-revision range (`--ref A..B`)
+// compares the two commits only: a file changed in that window is listed,
+// while an untracked working-tree file is not — the range semantics that feed
+// `diff --ref HEAD~1..HEAD` from a script.
+func TestDiffRangeExcludesWorktree(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.txt"), []byte("one\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "one")
+	os.WriteFile(filepath.Join(src, "b.txt"), []byte("two\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "two")
+	os.WriteFile(filepath.Join(src, "untracked.txt"), []byte("new\n"), 0o644)
+
+	outCap := captureStdout(t)
+	if code := cmdDiff([]string{src, "--ref", "HEAD~1..HEAD", "--list"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "b.txt") {
+		t.Errorf("range must list the file added in that window:\n%s", out)
+	}
+	if strings.Contains(out, "untracked.txt") {
+		t.Errorf("range must exclude working-tree files:\n%s", out)
+	}
+}
+
 func TestDiffOutsideRepo(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
