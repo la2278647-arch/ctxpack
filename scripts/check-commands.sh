@@ -166,11 +166,14 @@ echo "--- documented environment variables are still read ---"
 # README names the CTXPACK_* variables a reader is told to set. Each must still
 # be read somewhere real, or the docs tell the reader to set a no-op. Three are
 # read by the CLI (internal/cli/cli.go); CTXPACK_INSTALL_DIR is read by the two
-# installers, not the binary - searching internal/ alone reports it wrongly.
+# installers, not the binary - searching internal/ alone reports it wrongly;
+# and CTXPACK_TAP / CTXPACK_BUCKET are read by scripts/check-release.sh, which
+# is neither the CLI nor an installer, so scripts/ is searched too.
 for v in $(grep -oE 'CTXPACK_[A-Z_]+' README.md | sort -u); do
   if grep -rq "\"$v\"" internal/ 2>/dev/null \
      || grep -q "$v" install.sh 2>/dev/null \
-     || grep -q "$v" install.ps1 2>/dev/null; then
+     || grep -q "$v" install.ps1 2>/dev/null \
+     || grep -rq "$v" scripts/ 2>/dev/null; then
     printf '  %s ok\n' "$v"
   else
     printf '  %s FAIL\n' "$v" >&2

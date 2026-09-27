@@ -226,6 +226,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`commandscheck` reported real environment variables as unread.**
+  The variable check searched `internal/` (Go `"CTXPACK_X"` literals) and the
+  two installers, but `scripts/check-release.sh` reads `CTXPACK_TAP` and
+  `CTXPACK_BUCKET` through `${CTXPACK_TAP:-…}` expansion — a genuine read
+  that the doc-command guard's narrow scope could not see, so documenting
+  those two variables in the README immediately turned the guard red. The
+  check now also greps `scripts/` with the same plain-name pattern the
+  installers use, and the README's Development section documents the
+  `releasecheck` gate that consumes them.
+
 - **`map --top` header no longer claims "by name" while ranking by tokens.**
   `--sort` defaults to `name`, which is not a ranking key in the flat top-N
   mode, so `map --top 5` printed "Top 5 files by name" while the list was
