@@ -71,7 +71,7 @@ func Run(args []string) int {
 				fmt.Println(version.JSON())
 			case "--short":
 				// The bare semantic version, for scripts that want
-				// "0.1.13" without parsing the prose banner.
+				// "0.1.14" without parsing the prose banner.
 				fmt.Println(version.Version)
 			}
 			return 0
@@ -189,7 +189,7 @@ FLAGS (doctor)
 
 FLAGS (version)
   --json               Emit the build identity as one JSON object
-  --short              Emit just the semantic version (e.g. 0.1.13)
+  --short              Emit just the semantic version (e.g. 0.1.14)
 
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
