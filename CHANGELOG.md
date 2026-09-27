@@ -6,7 +6,45 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/check-commands.sh` (`make commandscheck`) runs every ctxpack command
+  the current docs show a reader.**
+  README.md, docs/ci.yml, docs/examples.md and docs/promote.md together show a
+  dozen invocations, and nothing was running any of them. A reader copies them by
+  hand, so a wrong flag there is a documented lie. The guard extracts every
+  invocation from fenced blocks and inline spans, runs each against a real scratch
+  repository — six commits, so `--ref HEAD~5..HEAD` resolves as a range — and fails
+  on the first one the binary rejects. It also confirms each `CTXPACK_*` variable
+  README names is still read, by the CLI for three of them and by `install.sh` and
+  `install.ps1` for `CTXPACK_INSTALL_DIR`.
+
+  The extractor skips `docs/release-notes-*.md` on purpose: they are history, so
+  v0.1.1 may still quote a `--version` flag that is now a `version` command, and
+  one notes quotes `ctxpack models --bogus` as an example of the error message.
+  Both are correct prose and both would fail a run. What it does not skip silently
+  is a token that looks like a command name the binary does not have — `ctxpack
+  pac .` fails instead of being dropped as prose, which is the difference between a
+  guard and a filter.
+
+  Verified against eleven injected defects in a scratch copy: an invalid
+  `--format` value, `--list` on `pack`, `--csv` on `models`, `--dry-run` on
+  `map`, an unknown flag in docs/promote.md, two made-up command names, two
+  renamed environment variables, plus two cases it must keep ignoring — a
+  release note quoting a bad command and a sentence that merely mentions ctxpack.
+  All eleven behaved as intended, clean baseline passing.
+
 ### Fixed
+
+- **README.md's flag table made two claims the binary contradicts.**
+  `-o, --output FILE` was described as working on "all commands", but `ctxpack
+  mcp -o file` exits 2 with `flag provided but not defined: -o`: `mcp` speaks MCP
+  on stdio and takes no flags at all, and `version` and `help` parse none and
+  silently ignore it. `-q, --quiet` was described as suppressing `diff`'s "the
+  JSON status", but `diff`'s status is a plain-text line on stderr
+  (`ctxpack diff vs "WORKTREE": 1 file`) while its JSON goes to stdout; `--quiet`
+  removes the line and leaves the JSON alone. Both rows now say what the binary
+  actually does.
 
 - **`docs/examples.md` quoted numbers that no longer matched the demo, and its
   self-snapshot regeneration was not reproducible.**

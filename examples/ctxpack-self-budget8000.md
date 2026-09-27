@@ -600,7 +600,7 @@ func main() {
 
 ---
 
-## Omitted by budget (58 files, ~299221 tokens)
+## Omitted by budget (59 files, ~304860 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -658,6 +658,7 @@ func main() {
 - `internal/walker/walker_more_test.go`
 - `internal/walker/walker_test.go`
 - `scripts/check-ci.sh`
+- `scripts/check-commands.sh`
 - `scripts/check-examples.sh`
 - `scripts/smoke.sh`
 

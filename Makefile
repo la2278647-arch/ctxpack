@@ -71,7 +71,7 @@ smoke: build
 	bash scripts/smoke.sh '$(BIN)'
 
 ## check plus smoke: the whole CI gate from the command line.
-ci: check smoke cicheck examplescheck
+ci: check smoke cicheck examplescheck commandscheck
 
 ## Audit docs/ci.yml, the workflow that lives in docs/ because the token that
 ## publishes this repository lacks the `workflow` scope and so can never run it
@@ -89,6 +89,17 @@ cicheck:
 ## than failing, so this target is still useful on a bare clone. Requires bash.
 examplescheck: build
 	bash scripts/check-examples.sh
+
+## Run every ctxpack invocation the current docs show a reader. Extracts the
+## commands from README.md, docs/ci.yml, docs/examples.md and docs/promote.md,
+## runs each against a real scratch repository, and fails on the first one the
+## binary rejects, so a wrong flag or a rejected value cannot ship as an
+## instruction. Release notes are skipped on purpose: they are history, and one
+## quotes `ctxpack models --bogus` as an example of an error message. It also
+## confirms each CTXPACK_* variable README names is still read by the CLI or by
+## an installer. Requires bash + awk.
+commandscheck: build
+	bash scripts/check-commands.sh
 
 ## Cross-compile the release set into ./dist, then checksum them.
 release:

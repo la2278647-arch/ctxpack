@@ -304,10 +304,10 @@ Run `ctxpack <command> --help` for details.
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 31. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. `models`: sort by `name` (default), `window` (largest first), or `vendor`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
-| `-o, --output FILE` | Write to FILE instead of stdout (all commands). |
+| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `version` and `help` parse none, so they ignore it. |
 | `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
 | `--list` | `diff`: list the paths the bundle will name, one per line, without packing. Deletions are named too, since the pack names them in a `Deleted` section. |
-| `-q, --quiet` | Suppress stderr status messages (`pack`: the "wrote" line; `diff`: the JSON status). |
+| `-q, --quiet` | Suppress the stderr status line: `pack`'s "wrote ..." line and `diff`'s `ctxpack diff vs <ref>: N file`. Stdout is untouched — `diff --quiet` still emits its JSON. |
 
 Environment: `CTXPACK_MODEL`, `CTXPACK_FORMAT`, `CTXPACK_BUDGET`.
 
