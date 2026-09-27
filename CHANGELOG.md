@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **MCP `repo_map` gains a `top` argument.**
+  The CLI's `map --top N` has rendered a flat largest-files table since
+  before v0.1.4, but the MCP tool only ever returned the tree, so an agent
+  hunting for the expensive file in a large repository had to read the whole
+  outline. `repo_map top:N` now prints the same table — `Top N files`, ranked
+  by tokens, or by bytes with `sort:bytes` — while `format:json` keeps the
+  full tree regardless of `top`, matching how the CLI's JSON envelope ignores
+  the flag.
+
 - **MCP `list_models` gains `vendor`, `top` and `sort` arguments.**
   The CLI's `models` command has filtered and ordered the table since before
   v0.1.5, but the MCP tool only offered `format:json` — an agent could see the

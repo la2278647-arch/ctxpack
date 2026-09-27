@@ -74,6 +74,61 @@ func TestToolCallsReportARepositoryError(t *testing.T) {
 	}
 }
 
+// repo_map top switches the text output to a flat largest-files table, the
+// same rendering as the CLI's map --top, while format:json keeps the full tree.
+func TestRepoMapTopListsLargestFiles(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"small.txt": "hi\n",
+		"medium.go": strings.Repeat("package main\nvar x = 1\n", 15),
+		"large.go":  "package main\n" + strings.Repeat("// fill the buffer\nvar data = `x`\n", 300),
+	}
+	for p, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, p), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"top":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	if !strings.Contains(text, "Top 1 file by tokens") {
+		t.Errorf("top=1 output missing the header:\n%s", text)
+	}
+	if !strings.Contains(text, "large.go") || strings.Contains(text, "medium.go") {
+		t.Errorf("top=1 must name only the largest file:\n%s", text)
+	}
+
+	msgs = serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"top":2,"sort":"bytes"}}}`,
+		filepath.ToSlash(dir)))
+	text = toolText(t, msgs, "1")
+	if !strings.Contains(text, "by bytes") {
+		t.Errorf("sort=bytes not reflected in the top header:\n%s", text)
+	}
+	if !strings.Contains(text, "large.go") || !strings.Contains(text, "medium.go") {
+		t.Errorf("top=2 must name large.go and medium.go:\n%s", text)
+	}
+	if strings.Contains(text, "small.txt") {
+		t.Errorf("top=2 must not name the smallest file:\n%s", text)
+	}
+
+	// JSON ignores top: the full tree is returned so the envelope stays the
+	// same shape whether or not top was passed.
+	msgs = serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"top":1,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	text = toolText(t, msgs, "1")
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("repo_map json with top is not valid JSON: %v\n%s", err, text)
+	}
+	if _, ok := env["tree"]; !ok {
+		t.Errorf("repo_map json with top is missing the full tree envelope:\n%s", text)
+	}
+}
+
 // A repository large enough to exceed the smallest registered window must show
 // OVERFLOW, and the same run should still fit the largest model.
 func TestCountTokensReportsOverflow(t *testing.T) {

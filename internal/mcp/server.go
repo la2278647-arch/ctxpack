@@ -136,7 +136,7 @@ func tools() []map[string]any {
 		},
 		{
 			"name":        "repo_map",
-			"description": "Return a token-aware tree outline of a repository: each file/directory annotated with a token estimate and byte size. Use format:json for machine-readable output.",
+			"description": "Return a token-aware tree outline of a repository: each file/directory annotated with a token estimate and byte size. Use format:json for machine-readable output. top switches the text output to a flat list of the N largest files (largest tokens first, or largest bytes with sort:bytes), the same rendering as the CLI's map --top.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -146,7 +146,8 @@ func tools() []map[string]any {
 					"exclude":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Globs to exclude."},
 					"max_size":  map[string]any{"type": "integer", "description": "Read no more than N bytes of a file; larger files are still listed, without content."},
 					"max_depth": map[string]any{"type": "integer", "description": "Limit traversal to N levels below root (0 = unlimited)."},
-					"sort":      map[string]any{"type": "string", "enum": []string{"name", "tokens", "bytes"}, "default": "name", "description": "Sort children by: name (default), tokens (largest first), bytes (largest first)."},
+					"sort":      map[string]any{"type": "string", "enum": []string{"name", "tokens", "bytes"}, "default": "name", "description": "Sort children by: name (default), tokens (largest first), bytes (largest first). In top mode this selects what the flat list is ranked by."},
+					"top":       map[string]any{"type": "integer", "description": "Text output only: show a flat list of the N largest files instead of the tree. Ignored when format is json. Ranked by tokens, or by bytes when sort is bytes."},
 				},
 				"required": []string{"path"},
 			},
@@ -328,9 +329,80 @@ func callRepoMap(args map[string]any) (string, string) {
 		return repoMapJSON(root, tokens, bytes), ""
 	}
 	var sb strings.Builder
+	if top := toInt(args["top"]); top > 0 {
+		// The flat list ranks by tokens unless sort:bytes is given. The sortBy
+		// value is echoed in the header, so default the empty case to the actual
+		// ranking key rather than the CLI's "name" default, which would make the
+		// header lie about what the list is ordered by.
+		sortBy := toStr(args["sort"])
+		if sortBy == "" {
+			sortBy = "tokens"
+		}
+		renderRepoMapTop(&sb, root, top, sortBy, countRepoFiles(root))
+		return sb.String(), ""
+	}
 	fmt.Fprintf(&sb, "Repository: %s\nFiles: ~%d tokens, %d bytes\n\n", root.Name, tokens, bytes)
 	sb.WriteString(repomap.Render(root))
 	return sb.String(), ""
+}
+
+// renderRepoMapTop writes the flat top-N file table, mirroring the CLI's
+// `map --top` output: every file as an absolute-from-root path, ranked by
+// tokens (or by bytes when sortBy is "bytes"), truncated to N.
+func renderRepoMapTop(sb *strings.Builder, root *repomap.Node, top int, sortBy string, total int) {
+	type flatFile struct {
+		path   string
+		tokens int
+		bytes  int
+	}
+	var files []flatFile
+	var walk func(n *repomap.Node, prefix string)
+	walk = func(n *repomap.Node, prefix string) {
+		p := prefix + n.Name
+		if n.IsDir {
+			for _, c := range n.Children {
+				walk(c, p+"/")
+			}
+			return
+		}
+		files = append(files, flatFile{p, n.Tokens, n.Bytes})
+	}
+	walk(root, "")
+	sort.Slice(files, func(i, j int) bool {
+		if sortBy == "bytes" {
+			if files[i].bytes != files[j].bytes {
+				return files[i].bytes > files[j].bytes
+			}
+			return files[i].tokens > files[j].tokens
+		}
+		if files[i].tokens != files[j].tokens {
+			return files[i].tokens > files[j].tokens
+		}
+		return files[i].path < files[j].path
+	})
+	if top < len(files) {
+		files = files[:top]
+	}
+	fmt.Fprintf(sb, "Top %s by %s (of %d total):\n\n",
+		format.Plural(len(files), "file"), sortBy, total)
+	fmt.Fprintf(sb, "%-45s %10s %10s\n", "PATH", "TOKENS", "BYTES")
+	fmt.Fprintf(sb, "%-45s %10s %10s\n",
+		strings.Repeat("-", 45), strings.Repeat("-", 10), strings.Repeat("-", 10))
+	for _, f := range files {
+		fmt.Fprintf(sb, "%-45s %10d %10d\n", f.path, f.tokens, f.bytes)
+	}
+}
+
+// countRepoFiles returns the number of files (non-directories) in a tree.
+func countRepoFiles(n *repomap.Node) int {
+	if !n.IsDir {
+		return 1
+	}
+	total := 0
+	for _, c := range n.Children {
+		total += countRepoFiles(c)
+	}
+	return total
 }
 
 // repoMapJSON returns the JSON envelope for repo_map, the same shape as the
