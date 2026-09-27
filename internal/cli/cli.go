@@ -40,7 +40,13 @@ func Run(args []string) int {
 		if len(args) > 1 {
 			// `ctxpack help <command>`: same answer as `-h`/`--help` would give
 			// on that command — the one global help text — but the argument is
-			// validated so a typo is an error instead of being ignored.
+			// validated so a typo is an error instead of being ignored. The
+			// help flags themselves are the one exception: `help --help` and
+			// `help -h` mean "help about help", which is the same text.
+			if args[1] == "-h" || args[1] == "--help" {
+				printHelp(os.Stdout)
+				return 0
+			}
 			switch args[1] {
 			case "pack", "diff", "map", "tokens", "models", "mcp", "doctor", "version", "help":
 				printHelp(os.Stdout)

@@ -301,6 +301,8 @@ func TestRunDispatchExitCodes(t *testing.T) {
 		{[]string{"-h"}, 0},
 		{[]string{"help", "pack"}, 0},
 		{[]string{"help", "bogus"}, 2},
+		{[]string{"help", "--help"}, 0},
+		{[]string{"help", "-h"}, 0},
 		{[]string{"version"}, 0},
 		{[]string{"--version"}, 0},
 		{[]string{"-v"}, 0},
