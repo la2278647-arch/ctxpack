@@ -1449,6 +1449,30 @@ func TestMapTopShowsFlatList(t *testing.T) {
 	}
 }
 
+// TestMapJSONIgnoresTop pins that --top does not disturb the JSON envelope:
+// the json branch runs first, so the full tree is always returned, and a
+// script passing --top by mistake still gets complete data.
+func TestMapJSONIgnoresTop(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	for _, args := range [][]string{{src, "--top", "1", "--json"}, {src, "--json", "--top", "1"}} {
+		c := captureStdout(t)
+		if code := cmdMap(args); code != 0 {
+			t.Fatalf("cmdMap(%v) exit = %d", args, code)
+		}
+		var env mapEnvelope
+		if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+			t.Fatalf("cmdMap(%v) output is not valid JSON: %v\n%s", args, err, c.Content())
+		}
+		if env.Tree == nil {
+			t.Fatalf("cmdMap(%v) json is missing the full tree", args)
+		}
+		if strings.Contains(c.Content(), "Top ") {
+			t.Errorf("cmdMap(%v) rendered the top table despite --json", args)
+		}
+	}
+}
+
 func TestMapTopFewerThanAvailable(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
