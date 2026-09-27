@@ -6,6 +6,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`docs/ci.yml` release job now builds with Go 1.26.**
+  The test matrix was extended to 1.26 in v0.1.12, but the (inactive)
+  workflow's `packages` job still pinned `go-version: "1.23"` — the newest
+  row's warnings could never be exercised on the binaries users download. The
+  release job now uses the newest toolchain the matrix covers, so a warning
+  on the newest row cannot ship.
+
 ## [0.1.12] - 2026-09-27
 
 ### Added
