@@ -252,6 +252,22 @@ these have no format family, so a boolean flag is enough.
 }
 ```
 
+### `--csv` — the tables as CSV
+
+`models` and `tokens` also speak CSV, and the columns mirror the JSON field
+names, so a script can switch formats without changing its schema. Filters
+run before rendering either way:
+
+```console
+$ ctxpack models --csv --vendor anthropic
+name,context_window,vendor
+claude-3-haiku,200000,anthropic
+claude-3-opus,200000,anthropic
+$ ctxpack tokens . --csv --model gpt-4o
+model,used,limit,fits,pct_used
+gpt-4o,31842,123904,true,25.69
+```
+
 Three invariants worth relying on:
 
 - `tree.children` is always an array, never `null`. A file and an empty
