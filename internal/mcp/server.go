@@ -595,7 +595,13 @@ func callDiffRepo(args map[string]any) (string, string) {
 	}
 	changed := d.Changed
 	if len(changed) == 0 && len(d.Deleted) == 0 {
-		return "", "no changed files vs " + ref
+		// An empty diff is a successful result, not an error: the CLI reports
+		// it as a note with exit 0. json consumers must get a parseable
+		// envelope (mirroring the CLI's fix), everything else gets the note.
+		if outFmt == format.JSON {
+			return format.Render(&format.Bundle{}, format.JSON), ""
+		}
+		return "no changed files vs " + ref, ""
 	}
 	walkerOpts := walker.Options{
 		Include:          toStrSlice(args["include"]),

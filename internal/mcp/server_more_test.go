@@ -578,8 +578,23 @@ func TestToolCallDiffRepoNoChanges(t *testing.T) {
 	if !ok {
 		t.Fatalf("no result: %v", msg)
 	}
-	if result["isError"] != true {
-		t.Errorf("expected error for no changes, got: %v", result["content"])
+	if result["isError"] == true {
+		t.Errorf("no changes is a successful result, not an error: %v", result["content"])
+	}
+	text := toolText(t, msgs, "2")
+	if !strings.Contains(text, "no changed files") {
+		t.Errorf("expected a no-changes note, got: %q", text)
+	}
+
+	// json format must yield a parseable envelope even for an empty diff.
+	msgs = serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json"}}}`,
+	)
+	text = toolText(t, msgs, "2")
+	var env map[string]any
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Errorf("empty diff json must be a parseable envelope: %v\n%s", err, text)
 	}
 }
 

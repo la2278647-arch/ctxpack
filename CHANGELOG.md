@@ -8,6 +8,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **MCP `diff_repo` reports an empty diff as a success, not an error.**
+  The CLI's `diff` was fixed to emit a JSON envelope when nothing changed;
+  the MCP tool still returned `isError: true` with a "no changed files" note,
+  so an agent treating a tool error as a failure would see one on the most
+  routine outcome. An empty diff is now a successful result: `format: json`
+  yields the parseable empty envelope identical to the CLI's, and the other
+  formats get the note as content. json consumers always get valid JSON.
+
 - **`diff --format json` now emits an envelope even when nothing changed.**
   An empty diff short-circuited before the format branch, so json mode wrote
   nothing to stdout — only a stderr note — and a script that json-parses
