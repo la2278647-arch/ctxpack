@@ -1093,8 +1093,8 @@ func TestModelsTopAll(t *testing.T) {
 			modelLines++
 		}
 	}
-	if modelLines != 31 {
-		t.Errorf("expected 31 model lines (all models), got %d", modelLines)
+	if modelLines != 30 {
+		t.Errorf("expected 30 model lines (all models), got %d", modelLines)
 	}
 }
 
@@ -1415,8 +1415,8 @@ func TestDoctorShowsModelCount(t *testing.T) {
 	if !strings.Contains(out, "Models:") {
 		t.Errorf("output missing 'Models:' line:\n%s", out)
 	}
-	if !strings.Contains(out, "31 models") {
-		t.Errorf("output missing '31 models':\n%s", out)
+	if !strings.Contains(out, "30 models") {
+		t.Errorf("output missing '30 models':\n%s", out)
 	}
 }
 
@@ -1459,8 +1459,8 @@ func TestDoctorTopJSON(t *testing.T) {
 		t.Fatalf("JSON unmarshal failed: %v", err)
 	}
 	// --top only affects text output; JSON always shows full data.
-	if info["model_count"] != float64(31) {
-		t.Errorf("model_count = %v, want 31", info["model_count"])
+	if info["model_count"] != float64(30) {
+		t.Errorf("model_count = %v, want 30", info["model_count"])
 	}
 	if info["model_vendors"] != float64(7) {
 		t.Errorf("model_vendors = %v, want 7", info["model_vendors"])
@@ -1503,8 +1503,8 @@ func TestDoctorJSON(t *testing.T) {
 	if _, ok := data["version"]; !ok {
 		t.Errorf("JSON missing 'version' key")
 	}
-	if data["model_count"].(float64) != 31 {
-		t.Errorf("JSON model_count = %v, want 31", data["model_count"])
+	if data["model_count"].(float64) != 30 {
+		t.Errorf("JSON model_count = %v, want 30", data["model_count"])
 	}
 }
 
@@ -1969,8 +1969,8 @@ func TestTokensTopAll(t *testing.T) {
 			modelLines++
 		}
 	}
-	if modelLines != 31 {
-		t.Errorf("expected 31 model lines (all models), got %d", modelLines)
+	if modelLines != 30 {
+		t.Errorf("expected 30 model lines (all models), got %d", modelLines)
 	}
 }
 

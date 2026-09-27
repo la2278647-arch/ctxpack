@@ -118,6 +118,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`models` no longer advertises the legacy `qwen2.5` alias.**
+  `qwen2.5` was a leftover from v0.1.0 with no hyphen, and v0.1.5 added the
+  canonical `qwen-2.5-72b` (alibaba, 128k). Keeping both meant prefix lookups
+  like `--model qwen2` silently resolved to the legacy spelling and the table
+  listed the same model twice under different names. The alias is removed:
+  `qwen-2.5-72b` remains the one Qwen 2.5 72B entry, the table is back to 30
+  models across 7 vendors, and `LookupModel("qwen2.5")` now resolves to
+  nothing.
+
 - **`install.ps1` would not run on Windows PowerShell 5.1, which is what Windows
   ships.**
   The file contained two non-ASCII characters — an em dash in the header comment

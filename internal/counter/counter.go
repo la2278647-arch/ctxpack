@@ -155,7 +155,6 @@ var models = []Model{
 	{"mistral-large-2", 128000, "mistral"},
 	{"deepseek-v3", 128000, "deepseek"},
 	{"deepseek-r1", 128000, "deepseek"},
-	{"qwen2.5", 128000, "alibaba"},
 	{"qwen-2.5-72b", 128000, "alibaba"},
 }
 

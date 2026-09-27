@@ -115,6 +115,29 @@ func TestLookupModelPrefix(t *testing.T) {
 	}
 }
 
+func TestLookupQwenLegacyAliasRemoved(t *testing.T) {
+	// "qwen2.5" was a legacy duplicate of "qwen-2.5-72b" carried since
+	// v0.1.0; the R43 addition of the canonical name superseded it. The
+	// alias must no longer resolve to anything.
+	if _, ok := LookupModel("qwen2.5"); ok {
+		t.Error("LookupModel(\"qwen2.5\") matched after legacy alias removal")
+	}
+	if _, ok := LookupModel("qwen2"); ok {
+		t.Error("LookupModel(\"qwen2\") matched after legacy alias removal")
+	}
+	// The canonical entry still resolves exactly and case-insensitively.
+	m, ok := LookupModel("qwen-2.5-72b")
+	if !ok {
+		t.Fatal("LookupModel(\"qwen-2.5-72b\") not found")
+	}
+	if m.Name != "qwen-2.5-72b" || m.ContextWindow != 128000 || m.Vendor != "alibaba" {
+		t.Errorf("qwen-2.5-72b entry = %+v, want the canonical 128k alibaba model", m)
+	}
+	if _, ok := LookupModel("Qwen-2.5-72B"); !ok {
+		t.Error("LookupModel(\"Qwen-2.5-72B\") must match case-insensitively")
+	}
+}
+
 func TestLookupModelEmptyAndWhitespace(t *testing.T) {
 	// An empty query matched every registered model through
 	// HasPrefix(name, "") and returned the first one.
@@ -129,8 +152,8 @@ func TestLookupModelEmptyAndWhitespace(t *testing.T) {
 
 func TestModelsIsCopy(t *testing.T) {
 	all := Models()
-	if len(all) != 31 {
-		t.Fatalf("Models() returned %d entries, want 31", len(all))
+	if len(all) != 30 {
+		t.Fatalf("Models() returned %d entries, want 30", len(all))
 	}
 	seen := map[string]bool{}
 	for _, m := range all {
