@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-09-27
+
 ### Added
 
 - **MCP `repo_map` gains a `top` argument.**
@@ -1634,5 +1636,15 @@ First public release.
   `packer`/`repomap`/`gitutil` packages.
 - **Read-only** — no code path writes into the target tree.
 
+[0.1.11]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.11
+[0.1.10]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.10
+[0.1.9]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.9
+[0.1.8]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.8
+[0.1.7]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.7
+[0.1.6]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.6
+[0.1.5]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.5
+[0.1.4]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.4
+[0.1.3]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.3
+[0.1.2]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.2
 [0.1.1]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.1
 [0.1.0]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.0
