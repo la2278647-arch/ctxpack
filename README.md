@@ -353,7 +353,7 @@ Scripts should treat `2` as "the command line is wrong, fix the caller" and
 | `--budget N` | Cap output to ~N tokens; selects by priority. |
 | `--depth N` | Limit traversal to N levels below root. `0` = unlimited (default). |
 | `--top N` | `map`: show a flat list of the N largest files (by tokens or bytes). `tokens`/`models`: show only the N largest models by context window. `doctor`: show only the top N vendors by model count. |
-| `--csv` | `map`: output a flat CSV list of all files (path, tokens, bytes). |
+| `--csv` | `map`: output a flat CSV list of all files (path, tokens, bytes). `tokens`: the per-model fit as `model,used,limit,fits,pct_used`. `models`: the model table as `name,context_window,vendor`. |
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 30. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. `models`: sort by `name` (default), `window` (largest first), or `vendor`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
