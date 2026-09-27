@@ -37,7 +37,7 @@ var flagMatrix = map[string][]string{
 	},
 	"tokens": {
 		"--format", "--include", "--exclude", "--max-size", "--no-gitignore",
-		"--hidden", "--depth", "--json", "--sort", "--top", "--model",
+		"--hidden", "--depth", "--json", "--csv", "--sort", "--top", "--model",
 		"--output", "-o",
 	},
 	"models": {

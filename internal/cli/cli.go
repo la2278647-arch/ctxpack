@@ -123,8 +123,9 @@ FLAGS (map)
   -o, --output FILE    Write to FILE instead of stdout
 
 FLAGS (tokens)
-  --format F           text (default), json
+  --format F           text (default), json, csv
   --json               Emit JSON instead of the text output
+  --csv                Emit the per-model fit as CSV (model,used,limit,fits,pct_used)
   --sort BY            Sort the fit table by: name (default), pct, window
   --top N              Show only the N largest models by context window
   --model NAME         Show fit for one model instead of all
@@ -566,11 +567,12 @@ func cmdTokens(args []string) int {
 		hidden   = fs.Bool("hidden", false, "include dotfiles")
 		depth    = fs.Int("depth", 0, "limit traversal to N levels below root (0 = unlimited)")
 		jsonOut  = fs.Bool("json", false, "print the summary and per-model fit as JSON")
+		csvOut   = fs.Bool("csv", false, "print the per-model fit as CSV (model,used,limit,fits,pct_used)")
 		model    = fs.String("model", "", "show fit for one model only")
 		sortBy   = fs.String("sort", "name", "sort fit table by: name (default), pct, window")
 		topN     = fs.Int("top", 0, "show only the N largest models by context window")
 		output   = fs.String("output", "", "write to FILE instead of stdout")
-		formatF  = fs.String("format", "", "output format: text (default), json")
+		formatF  = fs.String("format", "", "output format: text (default), json, csv")
 	)
 	fs.Var(&includes, "include", "include glob (repeatable)")
 	fs.Var(&excludes, "exclude", "exclude glob (repeatable)")
@@ -578,10 +580,12 @@ func cmdTokens(args []string) int {
 	if err := fs.Parse(reorderArgs(fs, args)); err != nil {
 		return 2
 	}
-	// --format sets json flag for backward compatibility.
+	// --format sets the json/csv flags for backward compatibility.
 	switch strings.ToLower(*formatF) {
 	case "json":
 		*jsonOut = true
+	case "csv":
+		*csvOut = true
 	case "text", "":
 		// default
 	default:
@@ -625,6 +629,28 @@ func cmdTokens(args []string) int {
 			ReserveTokens: fitReserve,
 			Fits:          fits,
 		})
+	}
+	if *csvOut {
+		// Same pipeline as --json: build every fit, apply the same model/top
+		// filters, then the same sort, so a CSV consumer sees exactly the rows
+		// the JSON consumer would. Columns mirror the JSON field names.
+		fits := tokenFits(tokens)
+		if *model != "" {
+			fits = filterFits(fits, *model)
+		}
+		if *topN > 0 {
+			fits = topFits(fits, *topN)
+		}
+		sortFits(fits, *sortBy)
+		w, close := outputWriter(*output)
+		defer close()
+		bw := bufio.NewWriter(w)
+		defer bw.Flush()
+		fmt.Fprintln(bw, "model,used,limit,fits,pct_used")
+		for _, f := range fits {
+			fmt.Fprintf(bw, "%s,%d,%d,%t,%.2f\n", f.Model, f.Used, f.Limit, f.Fits, f.PctUsed)
+		}
+		return 0
 	}
 	if *model != "" {
 		if _, ok := counter.LookupModel(*model); !ok {

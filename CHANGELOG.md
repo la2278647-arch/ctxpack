@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`tokens` gains a `--csv` output.**
+  The per-model fit table is now available to scripted consumers as
+  `model,used,limit,fits,pct_used` — the columns mirror the `--json` field
+  names. `--format csv` works as the alias, and the same model/top filters and
+  the same sort run before rendering, so a CSV reader sees exactly the rows
+  the JSON envelope would carry for the same flags.
+
 - **`models` gains a `--csv` output.**
   The table is a static list of identifiers, so a scripted consumer gets
   `name,context_window,vendor` per row — the header doubles as the schema.

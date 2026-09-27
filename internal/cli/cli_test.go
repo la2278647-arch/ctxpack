@@ -1946,6 +1946,53 @@ func TestTokensFormatJSON(t *testing.T) {
 	}
 }
 
+func TestTokensCSVHeaderAndRows(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	for _, args := range [][]string{{src, "--format", "csv"}, {src, "--csv"}} {
+		c := captureStdout(t)
+		if code := cmdTokens(args); code != 0 {
+			t.Fatalf("cmdTokens(%v) exit = %d", args, code)
+		}
+		lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+		if lines[0] != "model,used,limit,fits,pct_used" {
+			t.Fatalf("cmdTokens(%v) header = %q, want model,used,limit,fits,pct_used", args, lines[0])
+		}
+		if len(lines) != len(counter.Models())+1 {
+			t.Errorf("cmdTokens(%v) rows = %d, want %d", args, len(lines)-1, len(counter.Models()))
+		}
+		for _, row := range lines[1:] {
+			parts := strings.Split(row, ",")
+			if len(parts) != 5 {
+				t.Errorf("cmdTokens(%v) row %q has %d fields, want 5", args, row, len(parts))
+				continue
+			}
+			if _, err := strconv.Atoi(parts[1]); err != nil {
+				t.Errorf("cmdTokens(%v) row %q has a non-numeric used", args, row)
+			}
+			if parts[3] != "true" && parts[3] != "false" {
+				t.Errorf("cmdTokens(%v) row %q has a non-boolean fits", args, row)
+			}
+		}
+	}
+}
+
+func TestTokensCSVSingleModel(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--csv", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected header + 1 row, got %d lines:\n%s", len(lines), c.Content())
+	}
+	if !strings.HasPrefix(lines[1], "gpt-4o,") {
+		t.Errorf("row = %q, want it to start with gpt-4o,", lines[1])
+	}
+}
+
 func TestTokensFormatUnknown(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
