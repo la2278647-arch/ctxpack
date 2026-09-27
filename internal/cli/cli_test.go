@@ -1114,6 +1114,49 @@ func TestModelsCSVFollowsFilters(t *testing.T) {
 	}
 }
 
+// TestModelsJSONTakesPrecedenceOverCSV pins the conflict resolution: when both
+// --json and --csv are given, JSON wins (it is checked first), so a script
+// that sets a format flag and also wants JSON is not surprised by a switch.
+func TestModelsJSONTakesPrecedenceOverCSV(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json", "--csv"},
+		{"--csv", "--json"},
+		{"--format", "csv", "--json"},
+		{"--format", "json", "--csv"},
+	} {
+		c := captureStdout(t)
+		if code := cmdModels(args); code != 0 {
+			t.Fatalf("cmdModels(%v) exit = %d", args, code)
+		}
+		trimmed := strings.TrimSpace(c.Content())
+		if !strings.HasPrefix(trimmed, "{") {
+			t.Errorf("cmdModels(%v) must output JSON, got:\n%s", args, trimmed)
+		}
+		var env modelsEnvelope
+		if err := json.Unmarshal([]byte(trimmed), &env); err != nil {
+			t.Errorf("cmdModels(%v) output is not parseable JSON: %v", args, err)
+		}
+	}
+}
+
+// TestMapTopTakesPrecedenceOverCSV pins that --top (a flat table) beats --csv
+// when both are given: the top branch runs before the csv branch.
+func TestMapTopTakesPrecedenceOverCSV(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "3", "--csv"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Top 3 files") {
+		t.Errorf("--top --csv must render the top table, got:\n%s", out)
+	}
+	if strings.HasPrefix(strings.TrimSpace(out), "path,tokens,bytes") {
+		t.Errorf("--top --csv rendered CSV; top must take precedence:\n%s", out)
+	}
+}
+
 func TestModelsFormatUnknown(t *testing.T) {
 	code := cmdModels([]string{"--format", "xml"})
 	if code != 2 {
