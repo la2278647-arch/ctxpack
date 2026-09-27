@@ -299,6 +299,7 @@ the changed file paths without packing.
 | `mcp`    | Run as an MCP server on stdio. |
 | `doctor` | Print environment diagnostics (version, git, models). |
 | `version` | Print the build identity (`--json` for scripted consumers). |
+| `help` | Show the full usage; `help <command>` validates a command name. |
 
 Run `ctxpack <command> --help` for details.
 
@@ -319,7 +320,7 @@ Run `ctxpack <command> --help` for details.
 | `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 30. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. `models`: sort by `name` (default), `window` (largest first), or `vendor`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
-| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `help` parses none; `version` accepts only `--json` and rejects anything else. |
+| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `help` accepts at most a command name and rejects anything else; `version` accepts only `--json` and rejects anything else. |
 | `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
 | `--list` | `diff`: list the paths the bundle will name, one per line, without packing. Deletions are named too, since the pack names them in a `Deleted` section. |
 | `-q, --quiet` | Suppress the stderr status line: `pack`'s "wrote ..." line and `diff`'s `ctxpack diff vs <ref>: N file`. Stdout is untouched — `diff --quiet` still emits its JSON. |
