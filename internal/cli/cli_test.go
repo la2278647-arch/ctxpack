@@ -1727,6 +1727,37 @@ func TestMapPathIsFileFails(t *testing.T) {
 	}
 }
 
+// TestMapHiddenExcludesDotfilesByDefault pins --hidden at the CLI layer: a
+// dotfile like .env is skipped by default, included with --hidden, and .git
+// stays out either way (VCS metadata is never walked).
+func TestMapHiddenExcludesDotfilesByDefault(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".git", "config"), []byte("[core]\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if out := c.Content(); strings.Contains(out, ".env") {
+		t.Errorf(".env must be excluded by default:\n%s", out)
+	}
+
+	c = captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, ".env") {
+		t.Errorf("--hidden must include .env:\n%s", out)
+	}
+	if strings.Contains(out, ".git/") || strings.Contains(out, ".git ") {
+		t.Errorf(".git must never be walked, even with --hidden:\n%s", out)
+	}
+}
+
 // TestMapNoGitignoreIncludesGitignoredFiles pins the flag at the CLI layer:
 // with .gitignore excluding a file, --no-gitignore walks it anyway (the
 // built-in denylist still applies; only .gitignore files are ignored).
