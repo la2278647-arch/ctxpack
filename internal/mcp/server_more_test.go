@@ -1292,6 +1292,13 @@ func TestToolCallCountTokensSortJSON(t *testing.T) {
 	if first["model"] == "" {
 		t.Errorf("fit is missing the model field: %v", first)
 	}
+	// window = limit + reserve must hold, like the CLI envelope.
+	win, _ := first["window"].(float64)
+	lim, _ := first["limit"].(float64)
+	res, _ := env["reserve_tokens"].(float64)
+	if win != lim+res {
+		t.Errorf("window (=%v) must equal limit (=%v) + reserve_tokens (=%v)", win, lim, res)
+	}
 }
 
 func TestHumanTokens(t *testing.T) {
