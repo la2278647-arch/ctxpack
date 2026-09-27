@@ -1,7 +1,7 @@
-<!-- fit: FITS model=gpt-4o used=7.8k/123.9k (6%) FITS -->
+<!-- fit: FITS model=gpt-4o used=7.7k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 9  | Tokens: ~7774  | Bytes: 18.8 KB  | Skipped: 3
+- Files: 9  | Tokens: ~7667  | Bytes: 18.5 KB  | Skipped: 3
 
 ---
 
@@ -324,6 +324,43 @@ in the release notes alongside the fix.
 
 ---
 
+## `docs/release-notes-v0.1.14.md` (600 tokens, 1.4 KB)
+
+```markdown
+# v0.1.14
+
+The parity release. The CLI's `tokens --json` fit envelope and the MCP
+`count_tokens` envelope are now identical field for field —
+`model`/`vendor`/`window`/`used`/`limit`/`fits`/`pct_used` — so a script
+consuming both interfaces needs exactly one parser, and the field naming no
+longer betrays whether the bytes came from the CLI or the server. Plus a
+smoke-suite guard so the installers' `--help` branch can never rot into a
+version install.
+
+## Added
+
+- **`tokens --json` fits now carry `vendor` and `window`.**
+  The MCP `count_tokens` envelope has included both fields; the CLI's
+  `tokens --json` did not, so a script reading both interfaces had to join
+  the model table by name. Each fit now carries `"vendor"` and `"window"`
+  (the raw context window, alongside `limit`, which is the window minus the
+  reply reserve). The csv output is unchanged — it stays a compact five
+  columns.
+
+- **MCP `count_tokens` fits rename `name` to `model`.**
+  The CLI's fit envelope used `model`; the MCP envelope used `name` for the
+  same field. The MCP fits field is now `model`, and the two envelopes are
+  identical field for field.
+
+- **`smoke` checks `install.sh --help` does not touch the network.**
+  The installers' `--help` branch prints the usage and exits before anything
+  is downloaded; a regression would turn `--help` into a version install.
+  The smoke suite now runs it (in-process, no network) so the branch cannot
+  rot silently.
+```
+
+---
+
 ## `examples/README.md` (791 tokens, 1.9 KB)
 
 ```markdown
@@ -476,64 +513,6 @@ go 1.21
 
 ---
 
-## `internal/version/version.go` (707 tokens, 1.7 KB)
-
-```go
-// Package version holds the build-time identity shared by the CLI and the MCP
-// server. It lives in its own package so the two do not have to import each
-// other just to print the same version string.
-package version
-
-import (
-	"encoding/json"
-	"runtime"
-)
-
-// Module is the import path of the ctxpack module.
-const Module = "github.com/la2278647-arch/ctxpack"
-
-// Version is the semantic version of the running binary. Override it at build
-// time with:
-//
-//	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.14"
-
-// BuildCommit is populated by CI when a tag is cut.
-var BuildCommit = "dev"
-
-// BuildDate is populated by CI when a tag is cut.
-var BuildDate = "unknown"
-
-// Info is a human-readable summary of how the binary was built.
-func Info() string {
-	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
-		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
-}
-
-// JSON is the build identity as a single JSON object, for scripted consumers
-// that need version, commit and build date without parsing the prose line.
-// The fields are all strings, so json.Marshal cannot fail on them.
-func JSON() string {
-	b, _ := json.Marshal(struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		OS      string `json:"os"`
-		Arch    string `json:"arch"`
-		Go      string `json:"go"`
-		Commit  string `json:"commit"`
-		Built   string `json:"built"`
-	}{"ctxpack", Version, runtime.GOOS, runtime.GOARCH, runtime.Version(), BuildCommit, BuildDate})
-	return string(b)
-}
-
-// UserAgent is a short product token for HTTP clients.
-func UserAgent() string {
-	return "ctxpack/" + Version
-}
-```
-
----
-
 ## `main.go` (380 tokens, 904 B)
 
 ```go
@@ -571,7 +550,7 @@ func main() {
 
 ---
 
-## Omitted by budget (68 files, ~368005 tokens)
+## Omitted by budget (69 files, ~368712 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -628,6 +607,7 @@ func main() {
 - `internal/packer/packer_test.go`
 - `internal/repomap/repomap.go`
 - `internal/repomap/repomap_test.go`
+- `internal/version/version.go`
 - `internal/version/version_test.go`
 - `internal/walker/walker.go`
 - `internal/walker/walker_more_test.go`
