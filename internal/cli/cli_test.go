@@ -2726,6 +2726,34 @@ func TestTokensSortByPct(t *testing.T) {
 
 // TestTokensModelWithTopOverFilter pins that --top alongside --model is a
 // no-op on the filtered singleton (topN >= len), never an error or a drop.
+// TestTokensIncludeFiltersTotal pins that the walk filters shape tokens'
+// total: --include *.go must drop the .txt file from the count.
+func TestTokensIncludeFiltersTotal(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package main\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "b.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	filtered := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envFiltered tokensEnvelope
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(filtered.Content()), &envFiltered); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envFiltered.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("--include *.go must cut the total below %d, got %d",
+			envFull.TotalTokens, envFiltered.TotalTokens)
+	}
+}
+
 func TestTokensModelWithTopOverFilter(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
