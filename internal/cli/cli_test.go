@@ -1411,6 +1411,24 @@ func TestModelsOutputJSON(t *testing.T) {
 	}
 }
 
+// TestModelsOutputDashIsStdout pins that `--output -` means stdout at the
+// command level (outputWriter already treats "-" as the terminal): a file
+// named "-" must never be created, and the csv must land on stdout.
+func TestModelsOutputDashIsStdout(t *testing.T) {
+	dir := t.TempDir()
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--output", "-"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	out := strings.TrimSpace(c.Content())
+	if !strings.HasPrefix(out, "name,context_window,vendor") {
+		t.Errorf("--output - must print the csv to stdout, got:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "-")); err == nil {
+		t.Errorf("--output - must not create a file named '-'")
+	}
+}
+
 func TestModelsTopShowsFewer(t *testing.T) {
 	c := captureStdout(t)
 
