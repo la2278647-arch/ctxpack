@@ -8,6 +8,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`docs/ci.yml` test job gains a `local audits` step.**
+  The (deliberately inactive, audit-only) workflow's test job ran gofmt, vet,
+  the test suite and smoke, but not the remaining `make ci` guards —
+  `commandscheck`, `installerscheck`, `examplescheck` and `cicheck`. A
+  workflow that ships without them would be *less* strict than a local
+  `make ci`. The new step runs exactly those four scripts; `make cicheck`
+  still audits this file's gate primitives and passes unchanged.
+
 - **`docs/ci.yml` release job ends with a checksum step.**
   The (deliberately inactive, see its header) workflow's release job built the
   eight platform binaries but never produced `SHA256SUMS.txt` — the artifact

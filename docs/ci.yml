@@ -114,6 +114,18 @@ jobs:
           go build -o "$B" .
           bash scripts/smoke.sh "$B"
 
+      - name: local audits
+        shell: bash
+        run: |
+          # The remaining `make ci` guards, run exactly as a local checkout
+          # would: documented commands, installer cross-checks, example
+          # snapshots, and the workflow's own gate (which audits this file).
+          set -euo pipefail
+          bash scripts/check-commands.sh
+          bash scripts/check-installers.sh
+          bash scripts/check-examples.sh
+          bash scripts/check-ci.sh
+
       - name: verify the ldflags version stamp
         shell: bash
         run: |
