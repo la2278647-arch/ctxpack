@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`docs/ci.yml` release job ends with a checksum step.**
+  The (deliberately inactive, see its header) workflow's release job built the
+  eight platform binaries but never produced `SHA256SUMS.txt` — the artifact
+  both installers and `make releasecheck` parse, in the exact text-mode
+  format `sha256sum -t` emits. A `checksum` job now downloads every platform
+  artifact, writes the manifest with the same command `make release` uses,
+  and re-uploads the tree. `make cicheck` still passes: the new run: block
+  parses and the gate primitives did not drift.
+
 - **`smoke` now verifies the completion tables against the help text.**
   The bash/zsh/fish completion scripts' flag tables are maintained by hand,
   and nothing checked them against `--help`. The smoke suite now extracts

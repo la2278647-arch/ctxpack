@@ -184,3 +184,31 @@ jobs:
         with:
           name: ${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
+
+  checksum:
+    name: checksums
+    runs-on: ubuntu-latest
+    needs: packages
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: checksum
+        shell: bash
+        run: |
+          # Same text-mode manifest as `make release`, install.sh and
+          # install.ps1: each installer parses this exact format, so the
+          # artifact tree must reproduce it byte for byte.
+          cd dist
+          sha256sum -t * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-with-checksums
+          path: dist/*
