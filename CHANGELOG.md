@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-09-27
+
 ### Added
 
 - **`install.sh --help` (and `-h`) prints the usage and exits 0.**
@@ -1801,6 +1803,7 @@ First public release.
   `packer`/`repomap`/`gitutil` packages.
 - **Read-only** — no code path writes into the target tree.
 
+[0.1.13]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.13
 [0.1.12]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.12
 [0.1.11]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.11
 [0.1.10]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.10
