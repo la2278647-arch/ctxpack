@@ -1,4 +1,4 @@
-# install.ps1 — download the right ctxpack binary for Windows from the latest
+# install.ps1  -  download the right ctxpack binary for Windows from the latest
 # GitHub release, verify it against the published SHA256SUMS.txt, and put it in
 # a directory on PATH.
 #
@@ -30,7 +30,7 @@ if (-not $Version) {
     # hour, which turns a routine install into a 403 on a busy machine. The
     # releases/latest page 302-redirects to /releases/tag/vX.Y.Z instead and is
     # not rate-limited at all, so it is the fallback.
-    Write-Host 'Detecting latest release…' -ForegroundColor Cyan
+    Write-Host 'Detecting latest release...' -ForegroundColor Cyan
     try {
         $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Owner/$Repo/releases/latest" -Headers $Headers
         if ($rel.tag_name) { $Version = $rel.tag_name }

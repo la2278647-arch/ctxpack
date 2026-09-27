@@ -10,10 +10,15 @@
 # reader hits it.
 #
 # What this checks, all of it against files that are actually built:
-#   1. install.sh parses. install.ps1 parses - with [scriptblock]::Create, which
-#      parses without executing and is still permitted in a PowerShell that
-#      denies the Parser API and generic type instantiation. If no PowerShell is
-#      on PATH, that half reports SKIP.
+#   1. Syntax. install.sh parses under bash -n. install.ps1 is ASCII-only, so a
+#      shell that guesses the encoding wrong still decodes the same bytes - and
+#      it is then parsed with EVERY PowerShell on PATH, oldest first, not just
+#      the first one found. pwsh 7 accepts source Windows PowerShell 5.1
+#      rejects, and 5.1 is what Windows ships, so "the newest shell on PATH is
+#      happy" is not a pass. Parsing tries Parser::ParseFile, which reads the
+#      file's own bytes, and falls back to [scriptblock]::Create where a
+#      restricted installation denies the type literal. If no PowerShell is on
+#      PATH the parse half reports SKIP, but the ASCII assertion still runs.
 #   2. Asset naming. For every row of the Makefile's OSARCHES the asset name
 #      the recipe writes out must equal the name install.sh requests, and for
 #      the windows rows also the name install.ps1 requests. Both sides are
@@ -51,7 +56,16 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 W="$(mktemp -d)"
 trap 'rm -rf "$W"' EXIT
 
-PSH="$(command -v pwsh 2>/dev/null || command -v powershell.exe 2>/dev/null || true)"
+# Every PowerShell on PATH, oldest first: Windows PowerShell 5.1 before pwsh 7.
+# The order is load-bearing - see the parse loop in section 1. pwsh 7 accepts
+# source that 5.1 rejects, so checking only the newest shell on PATH passed a
+# file that would not run for a reader on a stock Windows install.
+PSHS=()
+for _c in powershell.exe pwsh; do
+  _p="$(command -v "$_c" 2>/dev/null || true)"
+  if [ -n "$_p" ]; then PSHS+=("$_p"); fi
+done
+PSH="${PSHS[0]:-}"
 SKIP_PS=0
 [ -n "$PSH" ] || SKIP_PS=1
 
@@ -68,23 +82,67 @@ echo "--- 1. syntax ---"
 bash -n install.sh || fail "install.sh does not parse"
 echo "  install.sh  bash -n ok"
 
+# install.ps1 is delivered over http and parsed by whatever PowerShell the
+# reader happens to have. Windows ships 5.1, and 5.1 reads a script with no BOM
+# in a single-byte code page: one em dash in a comment turned
+# 'Detecting latest release…' into an unterminated string and the whole file
+# failed to parse, while pwsh 7 read the same bytes as UTF-8 and accepted it.
+# So the check is the source bytes, not what a shell happens to decode them as.
+hi="$(printf '\200-\377')"
+nonascii="$(tr -cd '\200-\377' < install.ps1 | wc -c | tr -d ' ')"
+if [ "$nonascii" != 0 ]; then
+  printf 'FAIL: install.ps1 has %s non-ASCII byte(s). Without a BOM Windows\n' "$nonascii" >&2
+  printf '      PowerShell 5.1 decodes it in a single-byte code page and stops\n' >&2
+  printf '      parsing, so the install dies before it has done anything. An\n' >&2
+  printf '      added BOM is not the fix: if the U+FEFF survives the decode that\n' >&2
+  printf '      irm | iex performs it glues to the first token and both shells\n' >&2
+  printf '      refuse to invoke the result. ASCII is encoding-independent.\n' >&2
+  printf '      Offending lines:\n' >&2
+  LC_ALL=C grep -n "[${hi}]" install.ps1 >&2 | sed 's/^/        /'
+  exit 1
+fi
+echo "  install.ps1  ASCII only, so every code page decodes it identically"
+
 if [ "$SKIP_PS" -eq 0 ]; then
+  # Parser::ParseFile reads the file's own bytes and so reports the error a
+  # reader would get. It is used first because it is the faithful check, but
+  # some restricted PowerShell installations deny it - the type literal and the
+  # generic array it needs are both blocked - so fall back to
+  # [scriptblock]::Create, which is still permitted there. Note the fallback is
+  # the weaker of the two: Get-Content -Raw decodes in the host's code page and
+  # leaves a stray quote intact, which is exactly why it cannot see the defect
+  # the ASCII check above does.
   cat > "$W/_parse.ps1" <<'PSEOF'
 param([string]$Path)
 try {
-    [scriptblock]::Create((Get-Content -Raw $Path)) | Out-Null
-    Write-Output 'parse errors: 0'
+    $errs = $null
+    $null = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$errs)
+    if ($errs -and $errs.Count -gt 0) {
+        Write-Output ('parse errors: ' + $errs.Count)
+        foreach ($e in $errs) { Write-Output ('  line ' + $e.Extent.StartLineNumber + '  ' + $e.Message) }
+        exit 1
+    }
+    Write-Output 'parse errors: 0 (Parser::ParseFile)'
 } catch {
-    Write-Output 'parse errors: 1'
-    Write-Output ("  " + $_.Exception.Message)
-    exit 3
+    try {
+        [scriptblock]::Create((Get-Content -Raw $Path)) | Out-Null
+        Write-Output 'parse errors: 0 ([scriptblock]::Create fallback)'
+    } catch {
+        Write-Output 'parse errors: 1'
+        Write-Output ('  ' + $_.Exception.Message)
+        exit 1
+    }
 }
 PSEOF
-  out=$("$PSH" -NoProfile -NoLogo -File "$(nativify "$W/_parse.ps1")" \
-    -Path "$(nativify "$ROOT/install.ps1")" 2>&1)
-  printf '%s\n' "$out" | sed 's/^/  /'
-  printf '%s\n' "$out" | grep -q '^parse errors: 0$' \
-    || fail "install.ps1 does not parse"
+  for _p in "${PSHS[@]}"; do
+    _v="$("$_p" -NoProfile -NoLogo -Command '$PSVersionTable.PSVersion.ToString()' 2>/dev/null)"
+    [ -n "$_v" ] || _v=unknown
+    out="$("$_p" -NoProfile -NoLogo -File "$(nativify "$W/_parse.ps1")" \
+      -Path "$(nativify "$ROOT/install.ps1")" 2>&1)"
+    printf '  install.ps1  powershell %-8s %s\n' "$_v" "$(printf '%s\n' "$out" | head -1)"
+    printf '%s\n' "$out" | grep -q '^parse errors: 0' \
+      || fail "install.ps1 does not parse under PowerShell $_v"
+  done
 else
   echo "  install.ps1  SKIP - no pwsh or powershell.exe on PATH"
 fi

@@ -118,6 +118,44 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`install.ps1` would not run on Windows PowerShell 5.1, which is what Windows
+  ships.**
+  The file contained two non-ASCII characters — an em dash in the header comment
+  and an ellipsis in `Write-Host 'Detecting latest release…'` — and no UTF-8 BOM.
+  Windows PowerShell 5.1 reads a BOM-less script in a single-byte code page, so
+  the ellipsis's three UTF-8 bytes were not the characters they looked like and
+  the closing quote was not recognised as one. The whole file failed to parse
+  before doing anything: `Missing type name after '['` at line 59, with an
+  unclosed block reported at line 28. PowerShell 7 read the same bytes as UTF-8
+  and accepted them, so the install worked for anyone who had installed pwsh and
+  was a hard failure for everyone else — exactly the majority. Bisecting the file
+  by line count localised it: a prefix ending at line 20 parsed clean, and the
+  first error appeared at line 33, the ellipsis.
+
+  Both installers were run against the live release as part of this fix, and that
+  is how it came to light: `install.sh v0.1.10` and `install.ps1 v0.1.10` each
+  downloaded the real asset, verified the published SHA256, installed, and ran
+  `ctxpack version`, on PowerShell 7. `install.ps1` on 5.1 died at parse time.
+
+  The fix is to make the file ASCII, so the encoding the interpreter assumes no
+  longer matters. Adding a BOM was considered and rejected: a BOM that survives
+  the decode `irm | iex` performs arrives as U+FEFF glued to the first token, and
+  both PowerShell 7 and 5.1 then refuse to invoke it, reporting the first token
+  as an unrecognised command — even though `[scriptblock]::Create` had accepted
+  the text. ASCII needs no such reasoning.
+
+  `scripts/check-installers.sh` now asserts the source is ASCII, and parses
+  `install.ps1` with every PowerShell on PATH, oldest first, rather than the first
+  one it finds — which had been `pwsh`, the one version that accepts the broken
+  source. It prefers `Parser::ParseFile`, which reads the file's own bytes and so
+  reports what a reader would get, falling back to `[scriptblock]::Create` where a
+  restricted installation denies the type literal. The fallback is the weaker of
+  the two: `Get-Content -Raw` decodes in the host's code page and leaves the
+  stray quote intact, which is precisely why the guard as it stood could not see
+  this defect. Verified against five injected defects — an em dash in a comment,
+  an ellipsis in a string, an arrow in a string, a single stray high byte, and a
+  leading BOM — all caught, with the clean baseline passing.
+
 - **README.md's flag table made two claims the binary contradicts.**
   `-o, --output FILE` was described as working on "all commands", but `ctxpack
   mcp -o file` exits 2 with `flag provided but not defined: -o`: `mcp` speaks MCP
