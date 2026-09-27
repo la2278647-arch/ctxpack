@@ -1299,6 +1299,34 @@ func TestModelsVendorJSONFilters(t *testing.T) {
 	}
 }
 
+// TestModelsVendorSortWindow pins that a --sort given alongside --vendor
+// re-orders the filtered set, not the whole table: every returned model is
+// from the vendor, and windows are non-increasing (with name tiebreak).
+func TestModelsVendorSortWindow(t *testing.T) {
+	c := captureStdout(t)
+
+	if code := cmdModels([]string{"--json", "--vendor", "anthropic", "--sort", "window"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v\n%s", err, c.Content())
+	}
+	if len(env.Models) == 0 {
+		t.Fatal("no anthropic models")
+	}
+	prev := int(^uint(0) >> 1) // max int
+	for _, m := range env.Models {
+		if m.Vendor != "anthropic" {
+			t.Fatalf("vendor filter leaked %q", m.Vendor)
+		}
+		if m.ContextWindow > prev {
+			t.Errorf("sort=window is not non-increasing: %d after %d", m.ContextWindow, prev)
+		}
+		prev = m.ContextWindow
+	}
+}
+
 func TestModelsFormatText(t *testing.T) {
 	c := captureStdout(t)
 
