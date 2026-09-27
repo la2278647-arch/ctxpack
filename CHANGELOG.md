@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **MCP `version` tool.**
+  The server exposed six tools for the six file-oriented CLI commands and
+  left `version` out, so an agent that only wanted to check whether the
+  server was current had to call `doctor` and read through the whole
+  environment report. The new tool answers with the build identity alone — in
+  text (`ctxpack 0.1.11 (…, commit …, built …)`) or, with `format:"json"`,
+  the exact envelope the CLI's `version --json` prints. Its schema accepts
+  only `text`/`json`, matching `doctor`.
+
 - **`-h`/`--help` now returns 0 on every subcommand, and `help <command>`
   validates its argument.**
   `ctxpack pack -h` used to exit 2 — the flag parser treats an undefined

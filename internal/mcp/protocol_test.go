@@ -62,6 +62,7 @@ func TestToolsSchema(t *testing.T) {
 		"list_models":  true,
 		"diff_repo":    true,
 		"doctor":       true,
+		"version":      true,
 	}
 	// Every tool but list_models and doctor takes a path, so only they require
 	// one. Both take none: list_models reports the model registry and doctor

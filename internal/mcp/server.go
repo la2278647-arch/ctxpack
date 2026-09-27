@@ -1,7 +1,7 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio.
 //
 // It speaks JSON-RPC 2.0 with newline-delimited messages (the MCP stdio
-// transport) and exposes six tools that any MCP-capable agent (Claude Desktop,
+// transport) and exposes seven tools that any MCP-capable agent (Claude Desktop,
 // Cursor, Codex, ...) can call:
 //
 //   - pack_repo    -> pack a repository into one context document
@@ -10,6 +10,7 @@
 //   - list_models  -> the model table, with each model's effective limit
 //   - diff_repo    -> pack only the files changed against a git ref
 //   - doctor       -> the environment this server runs in
+//   - version      -> the version this server was built from
 //
 // Argument names, types, defaults and per-argument descriptions are declared
 // once, in tools(), and documented nowhere else. This file used to repeat the
@@ -40,6 +41,7 @@ import (
 	"github.com/la2278647-arch/ctxpack/internal/gitutil"
 	"github.com/la2278647-arch/ctxpack/internal/packer"
 	"github.com/la2278647-arch/ctxpack/internal/repomap"
+	"github.com/la2278647-arch/ctxpack/internal/version"
 	"github.com/la2278647-arch/ctxpack/internal/walker"
 )
 
@@ -219,6 +221,16 @@ func tools() []map[string]any {
 				},
 			},
 		},
+		{
+			"name":        "version",
+			"description": "Report the version, build commit and build date of this ctxpack server, and the platform it runs on. Weighs less than doctor, which reports the whole environment: use version when all you need is whether the server is current. Use format:json for machine-readable output.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"format": map[string]any{"type": "string", "enum": []string{"text", "json"}, "default": "text", "description": "Output format. json returns the structured envelope."},
+				},
+			},
+		},
 	}
 }
 
@@ -248,6 +260,8 @@ func (s *server) handleToolCall(id any, params any) {
 		text, callErr = callDiffRepo(args)
 	case "doctor":
 		text, callErr = callDoctor(args)
+	case "version":
+		text, callErr = callVersion(args)
 	default:
 		s.writeError(id, -32602, "Unknown tool: "+name)
 		return
@@ -727,6 +741,21 @@ func listModelsJSON(models []counter.Model) string {
 		return fmt.Sprintf("error marshaling JSON: %v", err)
 	}
 	return string(b)
+}
+
+// callVersion reports the version this server was built from. It exists
+// because doctor answers the same question inside a wall of environment
+// details; version is one short answer, and its JSON form carries exactly the
+// fields the CLI's `version --json` does.
+func callVersion(args map[string]any) (string, string) {
+	f := strings.ToLower(getString(args, "format", "text"))
+	if f != "text" && f != "json" {
+		return "", fmt.Sprintf("unknown format %q (want text or json)", f)
+	}
+	if f == "json" {
+		return version.JSON(), ""
+	}
+	return version.Info(), ""
 }
 
 // callDoctor reports the environment this server runs in. Unlike the packing

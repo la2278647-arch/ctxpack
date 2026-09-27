@@ -15,7 +15,7 @@ import (
 // doc says "exposes six tools" and lists them, so this fails if the list in the
 // doc and the list in tools() stop matching.
 var documentedToolNames = []string{
-	"pack_repo", "repo_map", "count_tokens", "list_models", "diff_repo", "doctor",
+	"pack_repo", "repo_map", "count_tokens", "list_models", "diff_repo", "doctor", "version",
 }
 
 func TestToolSchemasDocumentEveryProperty(t *testing.T) {

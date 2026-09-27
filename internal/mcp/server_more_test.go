@@ -1324,3 +1324,42 @@ func distinctVendors() int {
 	}
 	return len(seen)
 }
+
+// --- version ---
+
+func TestVersionToolText(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version","arguments":{}}}`)
+	text := toolText(t, msgs, "1")
+	if !strings.Contains(text, "ctxpack ") || !strings.Contains(text, "commit ") {
+		t.Errorf("version text = %q, want the build identity", text)
+	}
+}
+
+func TestVersionToolJSON(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version","arguments":{"format":"json"}}}`)
+	text := toolText(t, msgs, "1")
+	var v map[string]any
+	if err := json.Unmarshal([]byte(text), &v); err != nil {
+		t.Fatalf("version json is not valid JSON: %v\n%s", err, text)
+	}
+	for _, field := range []string{"name", "version", "os", "arch", "go", "commit", "built"} {
+		if _, ok := v[field]; !ok {
+			t.Errorf("version json missing %q: %v", field, v)
+		}
+	}
+	if v["name"] != "ctxpack" {
+		t.Errorf("version json name = %v, want ctxpack", v["name"])
+	}
+}
+
+func TestVersionToolUnknownFormat(t *testing.T) {
+	msgs := serveLines(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version","arguments":{"format":"xml"}}}`)
+	msg := respByID(msgs, 1)
+	if msg == nil {
+		t.Fatal("no response")
+	}
+	res, _ := msg["result"].(map[string]any)
+	if isErr, _ := res["isError"].(bool); !isErr {
+		t.Errorf("version with format:xml must set isError: %v", msg)
+	}
+}

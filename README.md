@@ -408,8 +408,9 @@ Claude Desktop and Cursor read this from their config; Codex and any other MCP
 client work the same way. Exposed tools:
 
 Every tool accepts `format`. The two packing tools (`pack_repo`, `diff_repo`)
-offer `xml` / `markdown` / `json` / `text`; the four analytic tools
-(`repo_map`, `count_tokens`, `list_models`, `doctor`) offer `text` / `json`.
+offer `xml` / `markdown` / `json` / `text`; the five analytic tools
+(`repo_map`, `count_tokens`, `list_models`, `doctor`, `version`) offer
+`text` / `json`.
 With `format: "json"` a tool's output matches the corresponding CLI
 `--format json` shape, so scripts can consume either interface without a second
 parser — including when `model` is set. The packing tools carry the same fit
@@ -426,6 +427,7 @@ gives `fit: {"model": "...", "unknown": true}` instead of a verdict.
 | `list_models` | `format?`, `vendor?`, `top?`, `sort?` |
 | `diff_repo` | `path`, `ref?`, `format?`, `budget?`, `model?`, `include?`, `exclude?`, `max_size?`, `no_gitignore?`, `hidden?`, `max_depth?`, `list?` |
 | `doctor` | `format?`, `top?` |
+| `version` | `format?` |
 
 `list_models` and `doctor` take no required argument: the first reports the
 whole table so a client can pick a valid model name before calling

@@ -218,7 +218,7 @@ LIST="$(printf '%s\n%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
   | "$B" mcp | tail -n 1)"
-for t in pack_repo repo_map count_tokens list_models diff_repo doctor; do
+for t in pack_repo repo_map count_tokens list_models diff_repo doctor version; do
   grep -q "\"name\":\"$t\"" <<< "$LIST" || fail "tools/list does not advertise $t"
 done
 
