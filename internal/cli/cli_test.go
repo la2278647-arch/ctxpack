@@ -2369,6 +2369,28 @@ func TestTokensSortByPct(t *testing.T) {
 	}
 }
 
+// TestTokensModelWithTopOverFilter pins that --top alongside --model is a
+// no-op on the filtered singleton (topN >= len), never an error or a drop.
+func TestTokensModelWithTopOverFilter(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--json", "--model", "gpt-4o", "--top", "5"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if len(env.Fits) != 1 {
+		t.Fatalf("expected the single filtered fit, got %d", len(env.Fits))
+	}
+	if env.Fits[0].Model != "gpt-4o" {
+		t.Errorf("fit model = %q, want gpt-4o", env.Fits[0].Model)
+	}
+}
+
 // TestTokensCSVTopTruncates pins that --top works in csv mode too: exactly
 // the N largest windows, header included, with the largest first.
 func TestTokensCSVTopTruncates(t *testing.T) {
