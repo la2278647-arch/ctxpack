@@ -113,6 +113,21 @@ commandscheck: build
 installerscheck:
 	bash scripts/check-installers.sh
 
+## Verify a published release against this repository. The only target that opens
+## a network connection, so it is deliberately not in `ci`: a release is
+## published from another machine by another process, and a green test suite
+## says nothing about what a reader actually receives. Fetches the manifest and
+## checks its line endings and text-mode format, confirms it names exactly the
+## assets the Makefile would build, re-hashes the archive the Homebrew formula
+## points at, and compares every scoop bucket hash with the manifest. --install
+## also runs install.sh against a temp dir. --base takes a mirror url so the
+## check can be pointed at a local fixture instead of upstream. The tap and
+## bucket are read from ../../homebrew-tap and ../../scoop-bucket, or from
+## CTXPACK_TAP and CTXPACK_BUCKET, and report SKIP when absent. Requires
+## curl + awk + sha256sum (or shasum).
+releasecheck:
+	bash scripts/check-release.sh
+
 ## Cross-compile the release set into ./dist, then checksum them.
 release:
 	rm -rf dist && mkdir -p dist

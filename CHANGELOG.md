@@ -68,6 +68,49 @@ to follow [Semantic Versioning](https://semver.org/).
   installer, and a host with no PowerShell on PATH. Every defect was caught, the
   missing-PowerShell case SKIPped as designed, and the clean baseline passes.
 
+- **`scripts/check-release.sh` (`make releasecheck`) verifies a published release
+  against the repository.**
+  Nothing in `make check` opens a network connection, which is deliberate: a test
+  suite builds against a scratch directory. A release is different — it is what a
+  reader actually receives, published from another machine by another process, so a
+  green test suite says nothing about it. And three documents outside the repository
+  make claims about it: `install.sh`'s download URL, the Homebrew formula's sha256,
+  and the scoop bucket's per-architecture hashes. No check compared them.
+
+  The guard fetches the manifest and checks its line endings and text-mode format,
+  then confirms it names exactly the assets the Makefile would build — the same
+  set-equality test the installer guard runs, in both directions, so a dropped
+  asset and an added one both fail. It then re-hashes the archive the Homebrew
+  formula points at and compares every scoop bucket hash with the manifest, and
+  `--install` additionally runs `install.sh` against a temp dir.
+
+  It is deliberately not in `ci`, which stays hermetic. `--base` takes a mirror
+  url instead of assuming upstream, because a guard that cannot be pointed at a
+  fixture cannot be tested; the tap and bucket are read from
+  `../../homebrew-tap` and `../../scoop-bucket`, or from `CTXPACK_TAP` and
+  `CTXPACK_BUCKET`, and report SKIP when absent, so the check still works on a
+  bare clone.
+
+  Verified against a local fixture built with the Makefile's own recipe — eight
+  binaries, a real checksum run, a source archive, and tap and bucket copies with
+  file:// urls — against twelve injected defects: CRLF manifest, binary-mode
+  manifest, a dropped asset, an added asset, a manifest that lists itself, a
+  corrupted manifest hash, a version drift in each distro, a wrong formula sha256,
+  a wrong bucket hash, a bucket that stops reading the manifest, and a bucket that
+  points at an unlisted asset. All twelve were caught and the clean fixture
+  passes. Three defects in the guard itself were found and fixed along the way:
+  `command -v` returns a full path, so a bare-name comparison never matched and
+  the guard fell through to a missing `shasum`; a JSON member without a trailing
+  comma left its closing quote behind; and the asset-name list ran together
+  because the helper prints without a newline.
+
+  The published v0.1.10 release was checked for real: the manifest is in text
+  mode with LF endings and names the eight assets the Makefile builds, the
+  Homebrew formula's sha256 matches the published archive, all three scoop
+  hashes match the manifest, and `install.sh v0.1.10` downloads, verifies the
+  checksum, installs and runs `ctxpack version` end to end. It also reports the
+  commit it was built from, `8b8106d`.
+
 ### Fixed
 
 - **README.md's flag table made two claims the binary contradicts.**
