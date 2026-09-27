@@ -8,6 +8,12 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`tokens --json` fits now carry `window`.**
+  With the previous `vendor` addition, the CLI fit envelope now matches the
+  MCP `count_tokens` envelope field for field (`model`/`vendor`/`window`/
+  `used`/`limit`/`fits`/`pct_used`), so a script reading both interfaces
+  never has to join the model table.
+
 - **`tokens --json` fits now carry `vendor`.**
   The MCP `count_tokens` envelope has included `vendor` per fit since v0.1.11,
   but the CLI's `tokens --json` did not — a script reading both interfaces had

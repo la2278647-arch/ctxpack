@@ -2603,6 +2603,9 @@ func TestTokensJSONHasVendor(t *testing.T) {
 	if env.Fits[0].Vendor != "openai" {
 		t.Errorf("fit vendor = %q, want openai", env.Fits[0].Vendor)
 	}
+	if env.Fits[0].Window != 128000 {
+		t.Errorf("fit window = %d, want 128000 (gpt-4o)", env.Fits[0].Window)
+	}
 }
 
 func TestTokensFormatJSON(t *testing.T) {

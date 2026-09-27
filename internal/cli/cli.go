@@ -1152,11 +1152,12 @@ type tokensEnvelope struct {
 
 // fitEntry is one model's fit against a token total.
 type fitEntry struct {
-	Model   string  `json:"model"`
-	Vendor  string  `json:"vendor"`
-	Used    int     `json:"used"`
-	Limit   int     `json:"limit"`
-	Fits    bool    `json:"fits"`
+	Model  string  `json:"model"`
+	Vendor string  `json:"vendor"`
+	Window int     `json:"window"`
+	Used   int     `json:"used"`
+	Limit  int     `json:"limit"`
+	Fits   bool    `json:"fits"`
 	PctUsed float64 `json:"pct_used"`
 }
 
@@ -1215,6 +1216,7 @@ func tokenFits(tokens int) []fitEntry {
 		out = append(out, fitEntry{
 			Model:   m.Name,
 			Vendor:  m.Vendor,
+			Window:  m.ContextWindow,
 			Used:    f.Used,
 			Limit:   f.Limit,
 			Fits:    f.Fits,

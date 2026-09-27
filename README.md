@@ -249,7 +249,7 @@ these have no format family, so a boolean flag is enough.
   "total_bytes": 145728,
   "reserve_tokens": 4096,
   "fits": [
-    { "model": "gpt-4o", "vendor": "openai", "used": 31842, "limit": 123904, "fits": true, "pct_used": 25.7 }
+    { "model": "gpt-4o", "vendor": "openai", "window": 128000, "used": 31842, "limit": 123904, "fits": true, "pct_used": 25.7 }
   ]
 }
 ```
