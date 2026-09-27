@@ -1344,6 +1344,35 @@ func TestModelsTopShowsFewer(t *testing.T) {
 	}
 }
 
+// TestModelsTopIgnoresSort pins that --top truncates by window descending and
+// then returns, exactly as the CLI documents — a --sort given alongside is
+// ignored, so a script cannot be surprised by a vendor-ordered top list.
+func TestModelsTopIgnoresSort(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--top", "2", "--sort", "vendor", "--json"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env modelsEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
+	}
+	if len(env.Models) != 2 {
+		t.Fatalf("top=2 returned %d models, want 2", len(env.Models))
+	}
+	// The top branch sorts by window descending; the largest registered window
+	// must lead, regardless of the --sort vendor request.
+	maxWin := 0
+	for _, m := range counter.Models() {
+		if m.ContextWindow > maxWin {
+			maxWin = m.ContextWindow
+		}
+	}
+	if env.Models[0].ContextWindow != maxWin {
+		t.Errorf("top[0].context_window = %d, want the largest %d (--sort vendor must be ignored)",
+			env.Models[0].ContextWindow, maxWin)
+	}
+}
+
 func TestModelsTopJSON(t *testing.T) {
 	c := captureStdout(t)
 
