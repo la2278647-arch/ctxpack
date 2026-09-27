@@ -86,8 +86,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
   It is deliberately not in `ci`, which stays hermetic. `--base` takes a mirror
   url instead of assuming upstream, because a guard that cannot be pointed at a
-  fixture cannot be tested; the tap and bucket are read from
-  `../../homebrew-tap` and `../../scoop-bucket`, or from `CTXPACK_TAP` and
+  fixture cannot be tested; the tap and bucket are siblings of this repository,
+  read from `../homebrew-tap` and `../scoop-bucket`, or from `CTXPACK_TAP` and
   `CTXPACK_BUCKET`, and report SKIP when absent, so the check still works on a
   bare clone.
 
@@ -98,11 +98,16 @@ to follow [Semantic Versioning](https://semver.org/).
   corrupted manifest hash, a version drift in each distro, a wrong formula sha256,
   a wrong bucket hash, a bucket that stops reading the manifest, and a bucket that
   points at an unlisted asset. All twelve were caught and the clean fixture
-  passes. Three defects in the guard itself were found and fixed along the way:
+  passes. Four defects in the guard itself were found and fixed along the way:
   `command -v` returns a full path, so a bare-name comparison never matched and
   the guard fell through to a missing `shasum`; a JSON member without a trailing
-  comma left its closing quote behind; and the asset-name list ran together
-  because the helper prints without a newline.
+  comma left its closing quote behind; the asset-name list ran together because
+  the helper prints without a newline; and the default tap and bucket paths sat
+  one level too deep, which the fixture test never noticed because it always
+  passed `CTXPACK_TAP` and `CTXPACK_BUCKET` — the first run against the real
+  repositories reported SKIP for both, which is how it came to light. A fixture
+  that exercises every path is not one that exercises the paths you did not
+  override.
 
   The published v0.1.10 release was checked for real: the manifest is in text
   mode with LF endings and names the eight assets the Makefile builds, the

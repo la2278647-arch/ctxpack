@@ -122,9 +122,9 @@ installerscheck:
 ## points at, and compares every scoop bucket hash with the manifest. --install
 ## also runs install.sh against a temp dir. --base takes a mirror url so the
 ## check can be pointed at a local fixture instead of upstream. The tap and
-## bucket are read from ../../homebrew-tap and ../../scoop-bucket, or from
-## CTXPACK_TAP and CTXPACK_BUCKET, and report SKIP when absent. Requires
-## curl + awk + sha256sum (or shasum).
+## bucket are siblings of this repository, read from ../homebrew-tap and
+## ../scoop-bucket, or from CTXPACK_TAP and CTXPACK_BUCKET, and report SKIP
+## when absent. Requires curl + awk + sha256sum (or shasum).
 releasecheck:
 	bash scripts/check-release.sh
 

@@ -19,8 +19,9 @@
 # --install additionally runs install.sh against a temp dir, which downloads
 # the binary. --base takes a mirror URL and defaults to upstream; it exists
 # because a guard that cannot be pointed at a fixture cannot be tested.
-# The tap and bucket are read from ../../homebrew-tap and ../../scoop-bucket,
-# or from CTXPACK_TAP and CTXPACK_BUCKET, and are skipped when absent.
+# The tap and bucket are siblings of this repository, read from ../homebrew-tap
+# and ../scoop-bucket, or from CTXPACK_TAP and CTXPACK_BUCKET, and are skipped
+# when absent.
 #
 # Exit codes: 0 ok, 1 the release disagrees with the repository,
 #             2 the manifest could not be fetched, so nothing was checked.
@@ -136,7 +137,11 @@ fi
 printf '  assets: %s, the same set the Makefile builds\n' "$(awk 'NF==2' "$MAN" | wc -l | tr -d ' ')"
 
 echo "--- 2. homebrew tap ---"
-TAP="${CTXPACK_TAP:-$ROOT/../../homebrew-tap}"
+# One level up: the tap and bucket are siblings of this repository, so a
+# checkout of all three has them beside it. This path is not exercised by the
+# fixture test, which always passes CTXPACK_TAP, so it is asserted directly
+# below against the real layout.
+TAP="${CTXPACK_TAP:-$ROOT/../homebrew-tap}"
 if [ -d "$TAP" ]; then
   F="$TAP/Formula/ctxpack.rb"
   [ -f "$F" ] || fail "no Formula/ctxpack.rb in $TAP"
@@ -161,7 +166,7 @@ else
 fi
 
 echo "--- 3. scoop bucket ---"
-BUCK="${CTXPACK_BUCKET:-$ROOT/../../scoop-bucket}"
+BUCK="${CTXPACK_BUCKET:-$ROOT/../scoop-bucket}"
 if [ -d "$BUCK" ]; then
   BJSON="$(find "$BUCK" -name 'ctxpack.json' | head -1)"
   [ -n "$BJSON" ] && [ -f "$BJSON" ] || fail "no ctxpack.json under $BUCK"
