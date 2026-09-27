@@ -10,13 +10,17 @@ to follow [Semantic Versioning](https://semver.org/).
 
 - **`smoke` now verifies the completion tables against the help text.**
   The bash/zsh/fish completion scripts' flag tables are maintained by hand,
-  and nothing checked them against `--help` — the comment said "regenerate
-  by hand from printHelp" and trusted it. The smoke suite now extracts every
-  command's `FLAGS (…)` section from `--help` and asserts, in both
-  directions, that the bash completion function offers exactly those flags
-  (walk flags excepted, being documented in the shared group). The first run
-  caught a real drift: `pack`/`diff` accept `-q, --quiet` but the scripts
-  only offered `-q`, so the long form is now included in all three scripts.
+  and nothing checked them against `--help`. The smoke suite now extracts
+  every command's `FLAGS (…)` section from `--help` and asserts, in both
+  directions for all three scripts — the bash function by executing it, the
+  zsh and fish scripts by parsing their case arms and `-n` command lists —
+  that the offered flags are exactly the documented ones (walk flags excepted,
+  being documented in the shared group). The check caught a real drift in its
+  first run: `pack`/`diff` accept `-q, --quiet` but the scripts only offered
+  `-q`, so the long form is now included in all three scripts, and the fish
+  parser had to be pinned to the quoted `-n` list so a description containing
+  a command name ("…the pack will name") cannot leak a flag onto the wrong
+  command.
 
 - **MCP `version` tool.**
   The server exposed six tools for the six file-oriented CLI commands and

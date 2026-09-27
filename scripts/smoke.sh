@@ -318,16 +318,60 @@ for cmd in pack diff map tokens models doctor version; do
 done
 echo "completion flags match the help text"
 
+# --- zsh completion flags match the help text (static) ---
+# Same bidirectional check for the zsh script, parsed statically: each case
+# arm prints its flag list after "print -l", with the walk flags expanded.
+zsh_flags() {
+  line="$(sed -n "s/^[[:space:]]*$1)[[:space:]]*print -l \(.*\);;$/\1/p" \
+    "$ROOT/scripts/completion.zsh")"
+  [ -n "$line" ] || return 0
+  line="${line/\$_ctxpack_walk/$_ctxpack_walk}"
+  printf '%s\n' $line | sort | tr '\n' ' '
+}
+for cmd in pack diff map tokens models doctor version; do
+  want="$(flags_for "$cmd" | sort | tr '\n' ' ')"
+  got="$(zsh_flags "$cmd")"
+  for f in $want; do
+    case " $got " in *" $f "*) ;; *)
+      fail "completion.zsh does not offer $cmd's documented flag $f" ;; esac
+  done
+  for f in $got; do
+    case " $want $WALK_FLAGS " in *" $f "*) ;; *)
+      fail "completion.zsh offers $f for $cmd but the help text does not" ;; esac
+  done
+done
+echo "zsh completion flags match the help text"
+
 # --- fish completion (static) ---
-# No fish interpreter is assumed on this machine, so hold the script to a
-# structural check: it must define a completion for every command and for the
-# handful of flags that are easy to forget. A missed flag here is a missed
-# flag everywhere.
+# No fish interpreter is assumed on this machine, so hold the script to the
+# same bidirectional check the bash function gets: every flag a command's
+# FLAGS section documents must have a fish complete line, and every fish line
+# must name a documented flag. A missed flag here is a missed flag everywhere.
 FISH_CMDS="$(grep -c '^complete -c ctxpack' "$ROOT/scripts/completion.fish")"
 [ "$FISH_CMDS" -ge 40 ] || fail "completion.fish has only $FISH_CMDS complete lines"
-for want in '-l vendor' '-l csv' '-l list' '-l ref' '-l budget' '-l json' '-l hidden'; do
-  grep -q -- "$want" "$ROOT/scripts/completion.fish" \
-    || fail "completion.fish is missing $want"
+fish_flags() {
+  # One complete line can serve several commands (the walk flags do); match
+  # the -n __fish_seen_subcommand_from list containing the command, then turn
+  # -l long into --long and -s short into -short. [^']* keeps the match inside
+  # the quoted -n value, so a description that happens to contain the command
+  # name ("...the pack will name") cannot leak a flag onto the wrong command.
+  grep "complete -c ctxpack" "$ROOT/scripts/completion.fish" \
+    | grep "subcommand_from[^']*$1" \
+    | grep -oE -- '-l [a-z-]+|-s [a-z]' \
+    | awk '{ printf "%s", ($1 == "-l" ? "--" : "-") $2 " " }' \
+    | sort | tr '\n' ' '
+}
+for cmd in pack diff map tokens models doctor version; do
+  want="$(flags_for "$cmd" | sort | tr '\n' ' ')"
+  got="$(fish_flags "$cmd")"
+  for f in $want; do
+    case " $got " in *" $f "*) ;; *)
+      fail "completion.fish does not offer $cmd's documented flag $f" ;; esac
+  done
+  for f in $got; do
+    case " $want $WALK_FLAGS " in *" $f "*) ;; *)
+      fail "completion.fish offers $f for $cmd but the help text does not" ;; esac
+  done
 done
 echo "fish completion ok"
 
