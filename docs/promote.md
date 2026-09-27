@@ -37,7 +37,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.12
 >
 > Other install paths: `brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`, Scoop on Windows, `docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo`, or `curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash`.
 >
-> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 66 files it omitted and why.
+> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 67 files it omitted and why.
 >
 > The budget model is the interesting bit and also the bit I'd like feedback
 > on. Files are tiered: READMEs and licenses first, then entry points, then
