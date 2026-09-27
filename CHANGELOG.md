@@ -8,6 +8,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`version` accepts `--json`.**
+  Every other command already had a machine-readable mode; `version` only
+  printed prose, so a script that wanted the commit or build date parsed the
+  human line. `ctxpack version --json` now emits one compact JSON object with
+  `name`, `version`, `os`, `arch`, `go`, `commit` and `built`. Anything beyond
+  that single flag is rejected with exit code 2 instead of being silently
+  ignored.
+
 - **`scripts/check-commands.sh` (`make commandscheck`) runs every ctxpack command
   the current docs show a reader.**
   README.md, docs/ci.yml, docs/examples.md and docs/promote.md together show a

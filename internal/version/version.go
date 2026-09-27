@@ -3,7 +3,10 @@
 // other just to print the same version string.
 package version
 
-import "runtime"
+import (
+	"encoding/json"
+	"runtime"
+)
 
 // Module is the import path of the ctxpack module.
 const Module = "github.com/la2278647-arch/ctxpack"
@@ -24,6 +27,22 @@ var BuildDate = "unknown"
 func Info() string {
 	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
 		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
+}
+
+// JSON is the build identity as a single JSON object, for scripted consumers
+// that need version, commit and build date without parsing the prose line.
+// The fields are all strings, so json.Marshal cannot fail on them.
+func JSON() string {
+	b, _ := json.Marshal(struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		OS      string `json:"os"`
+		Arch    string `json:"arch"`
+		Go      string `json:"go"`
+		Commit  string `json:"commit"`
+		Built   string `json:"built"`
+	}{"ctxpack", Version, runtime.GOOS, runtime.GOARCH, runtime.Version(), BuildCommit, BuildDate})
+	return string(b)
 }
 
 // UserAgent is a short product token for HTTP clients.

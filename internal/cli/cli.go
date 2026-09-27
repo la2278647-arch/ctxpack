@@ -40,6 +40,14 @@ func Run(args []string) int {
 		printHelp(os.Stdout)
 		return 0
 	case "version", "--version", "-v":
+		if len(args) > 1 && (args[1] != "--json" || len(args) > 2) {
+			fmt.Fprintln(os.Stderr, "ctxpack: version takes at most --json")
+			return 2
+		}
+		if len(args) > 1 {
+			fmt.Println(version.JSON())
+			return 0
+		}
 		fmt.Println(version.Info())
 		return 0
 	case "pack":
@@ -77,7 +85,7 @@ COMMANDS
   models               List known LLMs and their context windows.
   mcp                  Run as a Model Context Protocol server on stdio.
   doctor               Print environment diagnostics (version, git, models).
-  version              Print the build identity.
+  version [--json]      Print the build identity (--json for scripted consumers).
   help                 Show this help.
 
 WALK FLAGS (pack / diff / map / tokens; models and doctor reject these)

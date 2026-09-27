@@ -1,6 +1,7 @@
 package version
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -52,6 +53,42 @@ func TestUserAgent(t *testing.T) {
 	Version = "1.2.3"
 	if got := UserAgent(); got != "ctxpack/1.2.3" {
 		t.Errorf("UserAgent() = %q, want ctxpack/1.2.3", got)
+	}
+}
+
+func TestJSONIsValidAndComplete(t *testing.T) {
+	got := JSON()
+	var v struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		OS      string `json:"os"`
+		Arch    string `json:"arch"`
+		Go      string `json:"go"`
+		Commit  string `json:"commit"`
+		Built   string `json:"built"`
+	}
+	if err := json.Unmarshal([]byte(got), &v); err != nil {
+		t.Fatalf("JSON() = %s is not valid JSON: %v", got, err)
+	}
+	if v.Name != "ctxpack" || v.Version != Version || v.OS != runtime.GOOS ||
+		v.Arch != runtime.GOARCH || v.Go != runtime.Version() ||
+		v.Commit != BuildCommit || v.Built != BuildDate {
+		t.Errorf("JSON() = %s does not match the build identity", got)
+	}
+	if strings.Contains(got, "  ") || !strings.HasSuffix(got, "}") {
+		t.Errorf("JSON() = %s should be compact, single-line output", got)
+	}
+}
+
+func TestJSONUsesOverrides(t *testing.T) {
+	ov, oc, od := Version, BuildCommit, BuildDate
+	defer func() { Version, BuildCommit, BuildDate = ov, oc, od }()
+	Version, BuildCommit, BuildDate = "9.9.9", "abc1234", "2026-01-02"
+	got := JSON()
+	for _, want := range []string{`"version":"9.9.9"`, `"commit":"abc1234"`, `"built":"2026-01-02"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("JSON() = %s, missing %q", got, want)
+		}
 	}
 }
 

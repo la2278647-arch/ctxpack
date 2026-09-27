@@ -1,7 +1,7 @@
-<!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
+<!-- fit: FITS model=gpt-4o used=7.8k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 10  | Tokens: ~7893  | Bytes: 19.0 KB  | Skipped: 3
+- Files: 9  | Tokens: ~7774  | Bytes: 18.8 KB  | Skipped: 3
 
 ---
 
@@ -466,54 +466,6 @@ filtered: the file is gone, and there is no content left to size or skip.
 
 ---
 
-## `examples/diff-demo/diff.xml` (382 tokens, 865 B)
-
-```
-<!-- ctxpack diff vs "HEAD~1..HEAD": 2 files -->
-<repository>
-  <meta>
-    <root>diffdemo</root>
-    <fileCount>2</fileCount>
-    <totalTokens>141</totalTokens>
-    <totalBytes>328</totalBytes>
-    <skipped>0</skipped>
-  </meta>
-  <files>
-    <file path="src/app.go" tokens="72" bytes="167">
-      <content><![CDATA[package app
-
-// Run starts the server.
-func Run() {
-	println("listening")
-}
-
-// Serve handles a single request.
-func Serve(req string) string {
-	return "ok: " + req
-}
-]]></content>
-    </file>
-    <file path="src/util.go" tokens="69" bytes="161">
-      <content><![CDATA[package app
-
-// TitleCase uppercases the first letter of s.
-func TitleCase(s string) string {
-	if s == "" {
-		return s
-	}
-	return string([]rune(s)[0]) + s[1:]
-}
-]]></content>
-    </file>
-  </files>
-  <deleted count="1">
-    <path>src/legacy.go</path>
-  </deleted>
-</repository>
-```
-
----
-
 ## `go.mod` (23 tokens, 50 B)
 
 ```
@@ -524,7 +476,7 @@ go 1.21
 
 ---
 
-## `internal/version/version.go` (444 tokens, 1.0 KB)
+## `internal/version/version.go` (707 tokens, 1.7 KB)
 
 ```go
 // Package version holds the build-time identity shared by the CLI and the MCP
@@ -532,7 +484,10 @@ go 1.21
 // other just to print the same version string.
 package version
 
-import "runtime"
+import (
+	"encoding/json"
+	"runtime"
+)
 
 // Module is the import path of the ctxpack module.
 const Module = "github.com/la2278647-arch/ctxpack"
@@ -553,6 +508,22 @@ var BuildDate = "unknown"
 func Info() string {
 	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
 		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
+}
+
+// JSON is the build identity as a single JSON object, for scripted consumers
+// that need version, commit and build date without parsing the prose line.
+// The fields are all strings, so json.Marshal cannot fail on them.
+func JSON() string {
+	b, _ := json.Marshal(struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		OS      string `json:"os"`
+		Arch    string `json:"arch"`
+		Go      string `json:"go"`
+		Commit  string `json:"commit"`
+		Built   string `json:"built"`
+	}{"ctxpack", Version, runtime.GOOS, runtime.GOARCH, runtime.Version(), BuildCommit, BuildDate})
+	return string(b)
 }
 
 // UserAgent is a short product token for HTTP clients.
@@ -600,7 +571,7 @@ func main() {
 
 ---
 
-## Omitted by budget (61 files, ~320547 tokens)
+## Omitted by budget (62 files, ~322011 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -620,6 +591,7 @@ func main() {
 - `docs/release-notes-v0.1.7.md`
 - `docs/release-notes-v0.1.8.md`
 - `docs/release-notes-v0.1.9.md`
+- `examples/diff-demo/diff.xml`
 - `examples/diff-demo/make.sh`
 - `install.ps1`
 - `install.sh`

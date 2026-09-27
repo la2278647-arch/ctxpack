@@ -301,6 +301,7 @@ func TestRunDispatchExitCodes(t *testing.T) {
 		{[]string{"version"}, 0},
 		{[]string{"--version"}, 0},
 		{[]string{"-v"}, 0},
+		{[]string{"version", "--json"}, 0},
 		{[]string{"models"}, 0},
 		{[]string{"models", "-h"}, 0},
 		{[]string{"totally-unknown"}, 2},
@@ -308,6 +309,27 @@ func TestRunDispatchExitCodes(t *testing.T) {
 		if got := Run(tc.args); got != tc.want {
 			t.Errorf("Run(%v) = %d, want %d", tc.args, got, tc.want)
 		}
+	}
+}
+
+func TestRunVersionJSON(t *testing.T) {
+	outCap := captureStdout(t)
+	if code := Run([]string{"version", "--json"}); code != 0 {
+		t.Fatalf("Run(version --json) exit = %d", code)
+	}
+	var v struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		OS      string `json:"os"`
+	}
+	if err := json.Unmarshal([]byte(outCap.Content()), &v); err != nil {
+		t.Fatalf("version --json output is not valid JSON: %v\n%s", err, outCap.Content())
+	}
+	if v.Name != "ctxpack" || v.Version == "" || v.OS == "" {
+		t.Errorf("version --json = %+v, want a complete build identity", v)
+	}
+	if got := Run([]string{"version", "--json", "--json"}); got != 2 {
+		t.Errorf("Run(version --json --json) = %d, want 2 (extra flags rejected)", got)
 	}
 }
 

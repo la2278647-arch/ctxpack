@@ -113,6 +113,8 @@ Requires Go 1.21+. No modules are fetched; `go.sum` is empty by design.
 ```sh
 ctxpack version
 # ctxpack 0.1.10 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
+ctxpack version --json
+# {"name":"ctxpack","version":"0.1.10","os":"linux","arch":"amd64","go":"go1.26.5","commit":"abc1234","built":"2026-09-22"}
 ```
 
 Pin build identity at release time:
@@ -301,10 +303,10 @@ Run `ctxpack <command> --help` for details.
 | `--depth N` | Limit traversal to N levels below root. `0` = unlimited (default). |
 | `--top N` | `map`: show a flat list of the N largest files (by tokens or bytes). `tokens`/`models`: show only the N largest models by context window. `doctor`: show only the top N vendors by model count. |
 | `--csv` | `map`: output a flat CSV list of all files (path, tokens, bytes). |
-| `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 31. |
+| `--model NAME` | `pack`: annotate fit for a named model. `tokens`: show fit for one model instead of all 30. |
 | `--sort BY` | `map`: sort children by `name` (default, dirs first), `tokens` (largest first), or `bytes` (largest first). `tokens`: sort fit table by `name` (default), `pct`, or `window`. `models`: sort by `name` (default), `window` (largest first), or `vendor`. |
 | `--vendor NAME` | `models`: show only models from this vendor (case-insensitive). |
-| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `version` and `help` parse none, so they ignore it. |
+| `-o, --output FILE` | Write to FILE instead of stdout — on `pack`, `diff`, `map`, `tokens`, `models` and `doctor`. `mcp` takes no flags at all and rejects it; `help` parses none; `version` accepts only `--json` and rejects anything else. |
 | `--dry-run` | `pack`/`diff`: show what would be packed without writing output. |
 | `--list` | `diff`: list the paths the bundle will name, one per line, without packing. Deletions are named too, since the pack names them in a `Deleted` section. |
 | `-q, --quiet` | Suppress the stderr status line: `pack`'s "wrote ..." line and `diff`'s `ctxpack diff vs <ref>: N file`. Stdout is untouched — `diff --quiet` still emits its JSON. |
