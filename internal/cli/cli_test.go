@@ -602,6 +602,27 @@ func TestPackModelAnnotatesXML(t *testing.T) {
 	}
 }
 
+// TestPackIncludeFiltersFiles pins --include at the pack command level: only
+// matching files enter the bundle (the walk flags are shared with map, but
+// pack's application of them deserves its own integration guard).
+func TestPackIncludeFiltersFiles(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "b.txt"), []byte("b\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "==== a.go") {
+		t.Errorf("--include *.go must pack a.go:\n%s", out)
+	}
+	if strings.Contains(out, "==== b.txt") {
+		t.Errorf("--include *.go must drop b.txt:\n%s", out)
+	}
+}
+
 // TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
 // not an error: a well-formed envelope with no files and zero tokens, exit 0.
 func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
