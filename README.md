@@ -59,6 +59,8 @@ irm https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.ps1 | 
 The installers detect your OS/architecture, download the matching binary
 from the [latest release](https://github.com/la2278647-arch/ctxpack/releases),
 and put it on your `PATH`. Set `CTXPACK_INSTALL_DIR` to override the target.
+To see the options without downloading anything, run the installer with
+`--help` (shell) or `-Version --help` (PowerShell).
 
 Both download to a scratch directory and move into place only after verifying
 the binary against the release's `SHA256SUMS.txt`. A mismatch, a missing
