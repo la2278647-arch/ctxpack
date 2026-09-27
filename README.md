@@ -176,6 +176,12 @@ ctxpack diff ./myrepo --ref HEAD~5..HEAD
 
 # Squeeze into a small window.
 ctxpack pack ./myrepo --budget 20000
+
+# The ten most expensive files, ranked.
+ctxpack map ./myrepo --top 10
+
+# The model table as CSV, for scripts.
+ctxpack models --csv
 ```
 
 ### `tokens` — what is this repo worth?
