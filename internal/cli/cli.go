@@ -183,8 +183,10 @@ EXAMPLES
   ctxpack diff . --ref HEAD~5..HEAD    # the last 5 commits, as history
   ctxpack pack . --budget 60000 --model gpt-4o
   ctxpack map . --json                 # the tree as JSON, for scripting
-  ctxpack tokens . --json              # per-model fit as JSON
-  ctxpack models --json                # the model table as JSON
+  ctxpack map . --top 10               # the 10 largest files, ranked
+  ctxpack tokens . --csv               # per-model fit as CSV
+  ctxpack models --csv                 # the model table as CSV
+  ctxpack version --json               # build identity as JSON
   ctxpack mcp                          # for Claude Desktop / Cursor config
 
 Project: https://github.com/la2278647-arch/ctxpack
