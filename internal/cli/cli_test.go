@@ -503,6 +503,28 @@ func TestPackBudgetCapsFiles(t *testing.T) {
 	}
 }
 
+// TestPackBudgetZeroMeansUnlimited pins that an explicit --budget 0 is the
+// same as the default: no cap, so nothing is omitted by the budget.
+func TestPackBudgetZeroMeansUnlimited(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text", "--budget", "0"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(strings.ToLower(out), "omitted by budget") {
+		t.Errorf("--budget 0 must not omit anything by budget:\n%s", out)
+	}
+	// Every file the repo holds must be present.
+	for _, f := range []string{"README.md", "src/a.go", "src/b.go", "notes.txt"} {
+		if !strings.Contains(out, "==== "+f) {
+			t.Errorf("--budget 0 pack is missing %s", f)
+		}
+	}
+}
+
 func TestPackMissingPathFails(t *testing.T) {
 	code := cmdPack([]string{filepath.Join(t.TempDir(), "no-such-dir"),
 		"-o", filepath.Join(t.TempDir(), "x.json")})
