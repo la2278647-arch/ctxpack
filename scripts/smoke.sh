@@ -375,4 +375,10 @@ for cmd in pack diff map tokens models doctor version; do
 done
 echo "fish completion ok"
 
+echo "--- installer --help ---"
+# The installers' --help must print the usage and exit without touching the
+# network (a regression would turn --help into a version install).
+bash "$ROOT/install.sh" --help >/dev/null 2>&1 \
+  || fail "install.sh --help failed"
+
 echo "smoke passed"

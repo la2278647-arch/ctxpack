@@ -6,6 +6,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`smoke` checks `install.sh --help` does not touch the network.**
+  The installers' `--help` branch prints the usage and exits before anything
+  is downloaded; a regression would turn `--help` into a version install.
+  The smoke suite now runs it (in-process, no network) so the branch cannot
+  rot silently.
+
 ## [0.1.13] - 2026-09-27
 
 ### Added
