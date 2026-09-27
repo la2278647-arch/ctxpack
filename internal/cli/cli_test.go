@@ -1985,6 +1985,26 @@ func TestMapNoGitignoreIncludesGitignoredFiles(t *testing.T) {
 	}
 }
 
+// TestMapMultipleIncludeFlagsMerge pins the "repeatable" promise in the help
+// text: two --include globs are a union, not a last-wins replacement.
+func TestMapMultipleIncludeFlagsMerge(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "b.go"), []byte("package b\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "c.txt"), []byte("c\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.go", "--include", "c.*"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	for _, want := range []string{"a.go", "b.go", "c.txt"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("repeated --include must union the globs, missing %s:\n%s", want, out)
+		}
+	}
+}
+
 // TestMapIncludeNoMatch pins that an --include matching nothing is not an
 // error: the walk yields an empty tree, exit 0, so a script can rely on the
 // shape of the output rather than exit codes to detect an empty result.
