@@ -617,6 +617,32 @@ func TestDiffBadRefFails(t *testing.T) {
 	}
 }
 
+// TestDiffRefHEADEqualsWorktree pins that `--ref HEAD` is the same as the
+// default (working-tree changes, incl. untracked files) on a repo with
+// commits — gitutil special-cases HEAD alongside "" and "WORKTREE".
+func TestDiffRefHEADEqualsWorktree(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "untracked.txt"), []byte("new\n"), 0o644)
+
+	dflt := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	head := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--ref", "HEAD"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(dflt.Content(), "untracked.txt") ||
+		!strings.Contains(head.Content(), "untracked.txt") {
+		t.Errorf("both default and --ref HEAD must list the untracked file:\ndefault:\n%s\nhead:\n%s",
+			dflt.Content(), head.Content())
+	}
+}
+
 // TestDiffRangeExcludesWorktree pins that a two-revision range (`--ref A..B`)
 // compares the two commits only: a file changed in that window is listed,
 // while an untracked working-tree file is not — the range semantics that feed
