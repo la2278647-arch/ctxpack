@@ -48,7 +48,7 @@ ctxpack makes all three visible and controllable:
 # Linux / macOS / WSL / git-bash
 curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
 # pin a version:
-curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.11
+curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash -s -- v0.1.12
 ```
 
 ```powershell
@@ -89,7 +89,7 @@ docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo
 docker run --rm -v "$(pwd):/repo:ro" ctxpack pack /repo --budget 8000 --format markdown
 
 # build with a version stamp
-docker build -t ctxpack --build-arg VERSION=0.1.11 --build-arg COMMIT=$(git rev-parse --short HEAD) .
+docker build -t ctxpack --build-arg VERSION=0.1.12 --build-arg COMMIT=$(git rev-parse --short HEAD) .
 ```
 
 The image is a multi-stage build: a static binary compiled with `CGO_ENABLED=0`
@@ -124,18 +124,18 @@ Tab offers `--sort`, `--top`, `--vendor` and the rest.
 
 ```sh
 ctxpack version
-# ctxpack 0.1.11 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
+# ctxpack 0.1.12 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)
 ctxpack version --json
-# {"name":"ctxpack","version":"0.1.11","os":"linux","arch":"amd64","go":"go1.26.5","commit":"abc1234","built":"2026-09-22"}
+# {"name":"ctxpack","version":"0.1.12","os":"linux","arch":"amd64","go":"go1.26.5","commit":"abc1234","built":"2026-09-22"}
 ctxpack version --short
-# 0.1.11
+# 0.1.12
 ```
 
 Pin build identity at release time:
 
 ```sh
 go build -ldflags "\
-  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.11 \
+  -X github.com/la2278647-arch/ctxpack/internal/version.Version=v0.1.12 \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildCommit=$(git rev-parse --short HEAD) \
   -X github.com/la2278647-arch/ctxpack/internal/version.BuildDate=$(date -u +%Y-%m-%d)" \
   -o ctxpack .

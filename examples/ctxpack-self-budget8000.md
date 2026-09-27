@@ -496,7 +496,7 @@ const Module = "github.com/la2278647-arch/ctxpack"
 // time with:
 //
 //	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
-var Version = "0.1.11"
+var Version = "0.1.12"
 
 // BuildCommit is populated by CI when a tag is cut.
 var BuildCommit = "dev"
@@ -571,7 +571,7 @@ func main() {
 
 ---
 
-## Omitted by budget (66 files, ~349259 tokens)
+## Omitted by budget (66 files, ~349315 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
