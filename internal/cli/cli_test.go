@@ -1675,6 +1675,23 @@ func TestMapTopShowsFlatList(t *testing.T) {
 	}
 }
 
+// TestMapPathIsFileFails pins that the walk commands take a directory: a file
+// path is a usage-level runtime error (exit 1), not a silent empty tree, and
+// the message names the problem.
+func TestMapPathIsFileFails(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	file := filepath.Join(src, "README.md")
+
+	errCap := captureStderr(t)
+	if code := cmdMap([]string{file}); code != 1 {
+		t.Fatalf("cmdMap with a file path = %d, want 1", code)
+	}
+	if !strings.Contains(errCap.Content(), "not a directory") {
+		t.Errorf("file-path error should say it is not a directory, got:\n%s", errCap.Content())
+	}
+}
+
 // TestMapIncludeNoMatch pins that an --include matching nothing is not an
 // error: the walk yields an empty tree, exit 0, so a script can rely on the
 // shape of the output rather than exit codes to detect an empty result.
