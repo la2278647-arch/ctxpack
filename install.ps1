@@ -21,6 +21,12 @@
 param([string]$Version = "")
 
 $ErrorActionPreference = 'Stop'
+
+if ($Version -in @('-h', '--help')) {
+    Get-Content $MyInvocation.MyCommand.Path | Select-Object -First 20
+    exit 0
+}
+
 $Owner = 'la2278647-arch'
 $Repo = 'ctxpack'
 $Headers = @{ 'User-Agent' = 'ctxpack-installer' }

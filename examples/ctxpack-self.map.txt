@@ -1,7 +1,7 @@
 Repository: ctxpack
-Files: ~366680 tokens, 832.4 KB
+Files: ~367174 tokens, 833.6 KB
 
-ctxpack/  [366680t, 832.4KB]
+ctxpack/  [367174t, 833.6KB]
   docs/  [38806t, 90.8KB]
     ci.yml  [3519t, 8.3KB]
     examples.md  [1245t, 3.0KB]
@@ -82,7 +82,7 @@ ctxpack/  [366680t, 832.4KB]
     completion.fish  [3056t, 6.4KB]
     completion.zsh  [568t, 1.4KB]
     smoke.sh  [8275t, 18.8KB]
-  CHANGELOG.md  [42894t, 103.4KB]
+  CHANGELOG.md  [43133t, 104.0KB]
   CODE_OF_CONDUCT.md  [1404t, 3.6KB]
   CONTRIBUTING.md  [1232t, 2.9KB]
   Dockerfile  [620t, 1.4KB]
@@ -91,6 +91,6 @@ ctxpack/  [366680t, 832.4KB]
   README.md  [9588t, 22.2KB]
   SECURITY.md  [1457t, 3.6KB]
   go.mod  [23t, 50B]
-  install.ps1  [2541t, 6.0KB]
-  install.sh  [2390t, 5.4KB]
+  install.ps1  [2593t, 6.1KB]
+  install.sh  [2593t, 5.9KB]
   main.go  [380t, 904B]

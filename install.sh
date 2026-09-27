@@ -14,6 +14,22 @@
 #                        when writable, else $HOME/.local/bin).
 set -euo pipefail
 
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    cat <<'EOF'
+install.sh — install the latest ctxpack release binary.
+
+Usage:
+  curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash
+  # or pin a version:
+  curl -fsSL ... | bash -s -- v0.1.12
+
+Environment:
+  CTXPACK_INSTALL_DIR  override the install directory (default: /usr/local/bin
+                       when writable, else $HOME/.local/bin).
+EOF
+    exit 0
+fi
+
 OWNER="la2278647-arch"
 REPO="ctxpack"
 

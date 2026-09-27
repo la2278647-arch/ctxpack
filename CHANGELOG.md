@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`install.sh --help` (and `-h`) prints the usage and exits 0.**
+  The installer's options lived only in the header comment — fine for anyone
+  who reads the raw script, useless for someone who just got told to run it
+  and wonders what `v0.1.12` or `CTXPACK_INSTALL_DIR` mean. `--help`/`-h`
+  now print the usage block and exit 0 before anything is downloaded.
+  `install.ps1` gets the same branch for `--help`/`-h` (reachable as
+  `install.ps1 -Version --help`; PowerShell's own `Get-Help` also works), and
+  `make installerscheck` still passes with the new parse.
+
 - **`commandscheck` now also runs the invocations in
   `examples/diff-demo/README.md`.**
   The doc-command guard covered README.md, docs/ci.yml, docs/examples.md and
