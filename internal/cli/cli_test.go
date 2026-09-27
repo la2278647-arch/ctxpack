@@ -602,6 +602,26 @@ func TestPackModelAnnotatesXML(t *testing.T) {
 	}
 }
 
+// TestPackExcludeFiltersFiles pins --exclude at the pack command level: the
+// excluded files stay out of the bundle while everything else comes in.
+func TestPackExcludeFiltersFiles(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "a_test.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text", "--exclude", "*_test.go"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "==== a.go") {
+		t.Errorf("--exclude *_test.go must keep a.go:\n%s", out)
+	}
+	if strings.Contains(out, "==== a_test.go") {
+		t.Errorf("--exclude *_test.go must drop a_test.go:\n%s", out)
+	}
+}
+
 // TestPackIncludeFiltersFiles pins --include at the pack command level: only
 // matching files enter the bundle (the walk flags are shared with map, but
 // pack's application of them deserves its own integration guard).
