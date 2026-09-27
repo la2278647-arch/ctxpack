@@ -2775,6 +2775,20 @@ func TestTokensSortByWindow(t *testing.T) {
 	if !strings.Contains(out, "Per-model fit") {
 		t.Errorf("output missing 'Per-model fit':\n%s", out)
 	}
+	// The first model row is the largest context window.
+	first := ""
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "[") && strings.Contains(line, "/") {
+			first = line
+			break
+		}
+	}
+	if !strings.Contains(first, "gemini") {
+		t.Errorf("sort=window must put the largest window first, got %q:\n%s", first, out)
+	}
+	if !strings.Contains(out, "gemini-2.5-pro") {
+		t.Errorf("expected gemini-2.5-pro among the sorted rows:\n%s", out)
+	}
 }
 
 func TestTokensSortJSON(t *testing.T) {
