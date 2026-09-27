@@ -129,6 +129,27 @@ func TestRepoMapTopListsLargestFiles(t *testing.T) {
 	}
 }
 
+// TestRepoMapEmptyDirJSON pins that mapping an empty directory in json format
+// yields a parseable envelope with a tree node (children []), not an error.
+func TestRepoMapEmptyDirJSON(t *testing.T) {
+	dir := t.TempDir()
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		Tree struct {
+			Children []any `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("repo_map empty-dir json is not a parseable envelope: %v\n%s", err, text)
+	}
+	if len(env.Tree.Children) != 0 {
+		t.Errorf("empty dir repo_map tree has %d children, want 0", len(env.Tree.Children))
+	}
+}
+
 // TestRepoMapJSONSortsByBytes pins that repo_map's sort argument orders the
 // JSON tree the same way it orders the text outline (and the CLI's map --json
 // does): children come largest-first when sorting by bytes.
