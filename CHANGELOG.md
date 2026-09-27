@@ -237,6 +237,12 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`docs/ci.yml` Go matrix now covers 1.21 through 1.26.**
+  The (deliberately inactive, audit-only) workflow's test matrix stopped at
+  Go 1.23 while current releases had moved on. The upper end now tracks the
+  latest releases; 1.21 stays as the declared minimum in go.mod. The matrix
+  is data, not a gate primitive, so `make cicheck` still passes unchanged.
+
 - **`commandscheck` reported real environment variables as unread.**
   The variable check searched `internal/` (Go `"CTXPACK_X"` literals) and the
   two installers, but `scripts/check-release.sh` reads `CTXPACK_TAP` and

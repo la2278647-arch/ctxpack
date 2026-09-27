@@ -70,7 +70,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go: ["1.21", "1.22", "1.23"]
+        # 1.21 is the declared minimum (go.mod); the upper end tracks current
+        # releases. Nothing in the module can require a newer toolchain, so a
+        # failure on any row means a real regression, not an upgrade.
+        go: ["1.21", "1.22", "1.23", "1.24", "1.25", "1.26"]
     steps:
       - uses: actions/checkout@v4
 
