@@ -2172,6 +2172,38 @@ func TestTokensSortByPct(t *testing.T) {
 	}
 }
 
+// TestTokensCSVTopTruncates pins that --top works in csv mode too: exactly
+// the N largest windows, header included, with the largest first.
+func TestTokensCSVTopTruncates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--csv", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("--top 3 csv should be header + 3 rows, got %d lines:\n%s", len(lines), c.Content())
+	}
+	first := strings.Split(lines[1], ",")
+	if len(first) != 5 {
+		t.Fatalf("first data row malformed: %q", lines[1])
+	}
+	// The largest registered window must lead (see TestTokensTopJSON).
+	maxWin := 0
+	for _, m := range counter.Models() {
+		if m.ContextWindow > maxWin {
+			maxWin = m.ContextWindow
+		}
+	}
+	limit, err := strconv.Atoi(first[2])
+	if err != nil || limit != maxWin-fitReserve {
+		t.Errorf("csv top[0].limit = %v (%v), want the largest window minus reserve %d",
+			first[2], err, maxWin-fitReserve)
+	}
+}
+
 // TestTokensCSVSortsByPct pins that --sort pct orders the csv rows the same
 // way it orders the text table: descending pct_used.
 func TestTokensCSVSortsByPct(t *testing.T) {
