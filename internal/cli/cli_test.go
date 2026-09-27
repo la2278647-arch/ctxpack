@@ -1729,6 +1729,31 @@ func TestMapIncludeNoMatch(t *testing.T) {
 	}
 }
 
+// TestMapJSONTreeSortsBySortBy pins that --sort orders the JSON tree the
+// same way it orders the text outline: children come largest-first when
+// sorting by bytes.
+func TestMapJSONTreeSortsBySortBy(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("b", 20)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--json", "--sort", "bytes"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var env mapEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if env.Tree == nil || len(env.Tree.Children) == 0 {
+		t.Fatal("JSON tree has no children")
+	}
+	if env.Tree.Children[0].Name != "big.txt" {
+		t.Errorf("sort=bytes should put the largest file first, got %q",
+			env.Tree.Children[0].Name)
+	}
+}
+
 // TestMapJSONIgnoresTop pins that --top does not disturb the JSON envelope:
 // the json branch runs first, so the full tree is always returned, and a
 // script passing --top by mistake still gets complete data.
