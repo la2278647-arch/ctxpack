@@ -511,6 +511,13 @@ deletion reported in each format, and the MCP server over stdio - `tools/list`
 plus all five tools and four error paths.
 `make ci` runs both.
 
+`make releasecheck` is the publish-side gate: it fetches a published
+release's manifest and checks its format and asset set against the Makefile,
+re-hashes the archive the Homebrew formula points at, cross-checks every
+scoop bucket hash, and with `--install` runs a real install via `install.sh`
+against a throwaway directory. The `homebrew-tap` and `scoop-bucket`
+repositories are read from `../` (or `CTXPACK_TAP`/`CTXPACK_BUCKET`).
+
 The smoke suite is [scripts/smoke.sh](scripts/smoke.sh), a standalone script
 that `make smoke` delegates to rather than duplicating. It finds the
 repository root from its own path, so it runs from any working directory, and
