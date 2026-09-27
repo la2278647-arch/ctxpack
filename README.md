@@ -349,7 +349,7 @@ Scripts should treat `2` as "the command line is wrong, fix the caller" and
 | Flag | Meaning |
 | ---- | ------- |
 | `--format F` | `pack`/`diff`: `xml` (default), `markdown`, `json`, `text`. `map`: `text` (default), `json`, `csv`. `tokens`/`models`: `text` (default), `json`, `csv`. `doctor`: `text` (default), `json`. |
-| `--include GLOB` | Restrict to matching paths. Repeatable; basename globs like `*.go` work. |
+| `--include GLOB` | Restrict to matching paths. Repeatable; basename globs like `*.go` work, and path globs like `src/*` span subdirectories. |
 | `--exclude GLOB` | Drop matching paths. Repeatable. |
 | `--max-size N` | Read no more than N bytes of a file. Larger files are still listed — without content — so the pack shows the name but not the body. `0` = unlimited. |
 | `--no-gitignore` | Ignore `.gitignore` (the built-in denylist still applies). |
