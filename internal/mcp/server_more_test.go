@@ -638,6 +638,30 @@ func TestToolCallDiffRepoList(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoListIgnoresFormat pins that list wins over format at
+// the MCP layer too (matching the CLI): with list:true and format:json, the
+// answer is a plain path list, not a JSON envelope.
+func TestToolCallDiffRepoListIgnoresFormat(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("new file"), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","list":true,"format":"json"}}}`,
+	)
+	text := toolText(t, msgs, "2")
+	if !strings.Contains(text, "b.txt") {
+		t.Errorf("list:true must name the new file:\n%s", text)
+	}
+	if strings.HasPrefix(strings.TrimSpace(text), "{") {
+		t.Errorf("list:true must win over format:json, got an envelope:\n%s", text)
+	}
+}
+
 // A range ref compares two revisions as history, so the working tree's
 // untracked file must not leak in — it exists in neither side of the range.
 // This pins the gitutil range semantics at the MCP layer.
