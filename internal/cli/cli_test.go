@@ -1940,7 +1940,8 @@ func TestMapSortByNameDefault(t *testing.T) {
 
 func TestMapSortByTokens(t *testing.T) {
 	src := t.TempDir()
-	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("package s\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("// filler line\n", 40)), 0o644)
 	c := captureStdout(t)
 
 	code := cmdMap([]string{src, "--sort", "tokens"})
@@ -1950,6 +1951,10 @@ func TestMapSortByTokens(t *testing.T) {
 	out := c.Content()
 	if !strings.Contains(out, "Repository:") {
 		t.Errorf("output missing Repository header with --sort tokens:\n%s", out)
+	}
+	// The largest file by tokens must be listed before the smaller one.
+	if strings.Index(out, "big.go") > strings.Index(out, "small.go") {
+		t.Errorf("sort=tokens must put the larger file first:\n%s", out)
 	}
 }
 
