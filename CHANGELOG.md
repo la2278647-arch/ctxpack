@@ -6,6 +6,21 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`commandscheck` now also runs the invocations in
+  `examples/diff-demo/README.md`.**
+  The doc-command guard covered README.md, docs/ci.yml, docs/examples.md and
+  docs/promote.md, but the diff-demo's README shows `ctxpack diff` over a
+  range and its `<repo>` placeholder was skipped, so a broken diff invocation
+  there could ship unchecked. The extractor now rewrites `<repo>` to the
+  scratch repository **before** its line splitting (the `>` in the
+  placeholder is also a command separator), and the emitted diff commands run
+  for real. Two awk/shell pitfalls surfaced while wiring this in: an
+  apostrophe in a comment line inside the single-quoted awk program closed
+  the quote and broke `bash -n`, and placeholder replacement after splitting
+  had to move before it.
+
 ### Fixed
 
 - **`tokens --top` now means "the N largest context windows".**

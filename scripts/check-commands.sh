@@ -3,7 +3,8 @@
 #
 # docs/examples.md already had a guard that executes the doc's own command.
 # This is the same idea for the rest of the surface: README.md, docs/ci.yml,
-# docs/examples.md and docs/promote.md together show dozens of invocations,
+# docs/examples.md, docs/promote.md and examples/diff-demo/README.md together
+# show dozens of invocations,
 # and nothing was building or running any of them. A reader copies them by
 # hand, so a wrong flag there is a documented lie - the `--list`-on-`pack`
 # mistake, or a value the binary rejects, ships as instructions.
@@ -44,7 +45,7 @@ CMDS=$("$B" --help 2>&1 | awk '/^COMMANDS/{f=1;next} f&&/^$/{exit} f{print $1}' 
   | tr '\n' ' ' | sed 's/ $//')
 [ -n "$CMDS" ] || fail "could not read the command list from \`ctxpack --help\`"
 
-DOCS=(README.md docs/ci.yml docs/examples.md docs/promote.md)
+DOCS=(README.md docs/ci.yml docs/examples.md docs/promote.md examples/diff-demo/README.md)
 for d in "${DOCS[@]}"; do
   [ -f "$d" ] || fail "docs file $d is missing"
 done
@@ -88,6 +89,7 @@ mapfile -t CMDCAND < <(awk -v REPO="$R" -v CMDS="$CMDS" '
     sub(/^[ \t]+/, "", u)
     sub(/[ \t]+$/, "", u)
     sub(/^ *[A-Za-z0-9_.-]+ *=.*/, "", u)      # drop VAR=... prefixes
+    gsub(/<repo>/, REPO, u)                    # diff-demo scratch-repo placeholder
     if (u !~ /^ctxpack[ \t]/) return
     if (u ~ /<[^>]*>/) return                  # <command> is a placeholder
     n = split(u, toks, /[ \t]+/)
@@ -105,7 +107,8 @@ mapfile -t CMDCAND < <(awk -v REPO="$R" -v CMDS="$CMDS" '
     print u
   }
   function emit_line(line,   n, segs, i) {
-    gsub(/[;|>&]/, ";", line)                  # each of these starts a new command
+    gsub(/<repo>/, REPO, line)               # before splitting: > is a separator
+    gsub(/[;|>&]/, ";", line)                # each of these starts a new command
     n = split(line, segs, ";")
     for (i = 1; i <= n; i++) emit_unit(segs[i])
   }
