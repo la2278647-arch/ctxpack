@@ -2172,6 +2172,37 @@ func TestTokensSortByPct(t *testing.T) {
 	}
 }
 
+// TestTokensCSVSortsByPct pins that --sort pct orders the csv rows the same
+// way it orders the text table: descending pct_used.
+func TestTokensCSVSortsByPct(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--csv", "--sort", "pct"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected header + rows:\n%s", c.Content())
+	}
+	prev := 1.0 // pct_used values exceed 1.0 for the smallest windows
+	for _, row := range lines[1:] {
+		parts := strings.Split(row, ",")
+		if len(parts) != 5 {
+			t.Fatalf("row %q has %d fields, want 5", row, len(parts))
+		}
+		pct, err := strconv.ParseFloat(parts[4], 64)
+		if err != nil {
+			t.Fatalf("row %q has a non-numeric pct_used", row)
+		}
+		if pct > prev {
+			t.Errorf("csv --sort pct is not descending: %v after %v", pct, prev)
+		}
+		prev = pct
+	}
+}
+
 func TestTokensSortByWindow(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
