@@ -1923,6 +1923,30 @@ func TestModelsSortJSON(t *testing.T) {
 
 // --- map --sort ---
 
+// TestMapMaxSizeUsesEstimate pins map's --max-size: a file over the cap is
+// still listed, but with the bytes/4 estimate instead of a content read, so
+// the flag constrains reading (and the tokens column) on map too.
+func TestMapMaxSizeUsesEstimate(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdMap([]string{src}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdMap([]string{src, "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if !strings.Contains(capped.Content(), "big.txt") {
+		t.Fatalf("--max-size must still list the file:\n%s", capped.Content())
+	}
+	if full.Content() == capped.Content() {
+		t.Errorf("--max-size 10 must change the tokens estimate for a 500-byte file:\nfull:\n%s\ncapped:\n%s",
+			full.Content(), capped.Content())
+	}
+}
+
 func TestMapSortByNameDefault(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
