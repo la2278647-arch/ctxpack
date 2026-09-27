@@ -379,7 +379,21 @@ func cmdDiff(args []string) int {
 	}
 	changed := d.Changed
 	if len(changed) == 0 && len(d.Deleted) == 0 {
-		fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+		if outFmt == format.JSON {
+			// A JSON consumer must always receive a parseable envelope, and the
+			// empty case is no different from a bundle whose files were all
+			// filtered out. The stderr note is informational and respects
+			// --quiet exactly like the packed json path below.
+			if !*quiet {
+				fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+			}
+			if err := writeOutput(*output, format.Render(&format.Bundle{}, format.JSON)); err != nil {
+				fmt.Fprintln(os.Stderr, "ctxpack:", err)
+				return 1
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+		}
 		return 0
 	}
 	walkerOpts := walker.Options{

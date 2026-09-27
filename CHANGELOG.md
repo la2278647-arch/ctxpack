@@ -6,6 +6,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`diff --format json` now emits an envelope even when nothing changed.**
+  An empty diff short-circuited before the format branch, so json mode wrote
+  nothing to stdout — only a stderr note — and a script that json-parses
+  `ctxpack diff` output would fail on the one repo where there was nothing to
+  say. The empty diff now renders the empty envelope (`files: null`, zero
+  tokens) exactly like a bundle whose files were all filtered out; the stderr
+  note stays and respects `--quiet` like the packed json path.
+
 ## [0.1.14] - 2026-09-27
 
 ### Added

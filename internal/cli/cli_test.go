@@ -667,6 +667,41 @@ func TestDiffRefHEADEqualsWorktree(t *testing.T) {
 	}
 }
 
+// TestDiffNoChangesJSONEmitsEnvelope pins that an empty diff still yields a
+// parseable json envelope on stdout (never a bare stderr note), so a script
+// can always json-parse the output; --quiet silences the note.
+func TestDiffNoChangesJSONEmitsEnvelope(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src) // no files, no commits: nothing changed vs WORKTREE
+
+	c := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src, "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files *[]any `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("empty diff json must be a parseable envelope: %v\n%s", err, c.Content())
+	}
+	if !strings.Contains(errCap.Content(), "no changed files") {
+		t.Errorf("stderr should carry the no-changes note:\n%s", errCap.Content())
+	}
+
+	c2 := captureStdout(t)
+	errCap2 := captureStderr(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--quiet"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if err := json.Unmarshal([]byte(c2.Content()), &env); err != nil {
+		t.Fatalf("quiet empty diff must still emit the envelope: %v", err)
+	}
+	if errCap2.Content() != "" {
+		t.Errorf("--quiet must silence the no-changes note:\n%s", errCap2.Content())
+	}
+}
+
 // TestDiffRangeExcludesWorktree pins that a two-revision range (`--ref A..B`)
 // compares the two commits only: a file changed in that window is listed,
 // while an untracked working-tree file is not — the range semantics that feed
