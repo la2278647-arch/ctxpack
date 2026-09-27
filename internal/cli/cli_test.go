@@ -2604,6 +2604,33 @@ func TestTokensModelWithTopOverFilter(t *testing.T) {
 	}
 }
 
+// TestTokensJSONReserveField pins the reserve_tokens field in the json
+// envelope: a script can compute the fit threshold itself (limit = window -
+// reserve) from the published value, and it must match the documented 4096.
+func TestTokensJSONReserveField(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--json", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if env.ReserveTokens != 4096 {
+		t.Errorf("reserve_tokens = %d, want the documented 4096", env.ReserveTokens)
+	}
+	if len(env.Fits) != 1 {
+		t.Fatalf("expected 1 fit, got %d", len(env.Fits))
+	}
+	if env.Fits[0].Window != env.Fits[0].Limit+env.ReserveTokens {
+		t.Errorf("window (=%d) must equal limit (=%d) + reserve (=%d)",
+			env.Fits[0].Window, env.Fits[0].Limit, env.ReserveTokens)
+	}
+}
+
 // TestTokensCSVTopTruncates pins that --top works in csv mode too: exactly
 // the N largest windows, header included, with the largest first.
 func TestTokensCSVTopTruncates(t *testing.T) {
