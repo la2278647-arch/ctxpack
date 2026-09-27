@@ -12,13 +12,12 @@ makes the token budget bite.
 The demo's README embeds ctxpack's own output captured on that project, which
 is a more useful illustration than any hand-written sample:
 
-- `ctxpack tokens .` reports 39212 estimated tokens and marks two small-window
-  models `[OVERFLOW]` — `gpt-3.5-turbo` at 319% of its window, `gpt-4` at 957%.
-- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 66.8% of the whole
+- `ctxpack tokens .` reports 42187 estimated tokens and marks two small-window
+  models `[OVERFLOW]` — `gpt-3.5-turbo` at 343% of its window, `gpt-4` at 1030%.
+- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 62.1% of the whole
   tree, so the ranking problem is visible at a glance.
-- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 13 files at
-  ~4973 tokens, then lists the twelve files it cut with their individual token
-  counts.
+- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 17 files at
+  ~4986 tokens, then lists the eight files it cut.
 
 That last list is the feature. A budget that truncates mid-file hides what it
 lost; a budget that names what it cut lets you decide.
@@ -49,10 +48,26 @@ of something a reader would actually point it at.
 ## Regenerating
 
 ```sh
-ctxpack map . > examples/ctxpack-self.map.txt
+ctxpack map . \
+  --exclude examples/ctxpack-self.map.txt \
+  --exclude examples/ctxpack-self-budget8000.md \
+  > examples/ctxpack-self.map.txt
 ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
+  --exclude examples/ctxpack-self.map.txt \
+  --exclude examples/ctxpack-self-budget8000.md \
   -o examples/ctxpack-self-budget8000.md
 ```
 
+The `--exclude` flags are load-bearing, not cosmetic. A pack of this repository
+that lists itself cannot be reproduced: pass one reads the size of the committed
+snapshot and writes a different one, so every regeneration shifts the totals.
+With the snapshots excluded from their own walk the regeneration is a fixed
+point — run it twice and the second run is byte-identical to the first. The
+demo project hits the same problem with its own README and excludes it for the
+same reason.
+
 Both snapshots reflect the tree at the commit they were generated. The
 estimates move as the tree changes, so regenerate before tagging a release.
+`scripts/check-examples.sh` (wired into `make ci`) fails if the committed
+snapshots no longer match a fresh run, so a tree change that skips this step
+shows up as drift instead of shipping quietly.

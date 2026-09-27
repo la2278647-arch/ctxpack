@@ -71,7 +71,7 @@ smoke: build
 	bash scripts/smoke.sh '$(BIN)'
 
 ## check plus smoke: the whole CI gate from the command line.
-ci: check smoke cicheck
+ci: check smoke cicheck examplescheck
 
 ## Audit docs/ci.yml, the workflow that lives in docs/ because the token that
 ## publishes this repository lacks the `workflow` scope and so can never run it
@@ -80,6 +80,15 @@ ci: check smoke cicheck
 ## exist, and fails if its gate drifts from `make check`. Requires bash + awk.
 cicheck:
 	bash scripts/check-ci.sh
+
+## Check the committed examples. Regenerates the two self-snapshots and fails
+## if they no longer match a fresh run, so a tree change that skips the
+## regeneration step shows up as drift instead of shipping. Also re-derives the
+## demo numbers documented in docs/examples.md from a ../ctxpack-demo checkout
+## when one is beside this repository; without one that half reports SKIP rather
+## than failing, so this target is still useful on a bare clone. Requires bash.
+examplescheck: build
+	bash scripts/check-examples.sh
 
 ## Cross-compile the release set into ./dist, then checksum them.
 release:

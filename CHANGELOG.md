@@ -8,6 +8,36 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`docs/examples.md` quoted numbers that no longer matched the demo, and its
+  self-snapshot regeneration was not reproducible.**
+  Every figure in the `ctxpack-demo` paragraph had been written when that checkout
+  held ~39212 tokens; it now holds 42187, so each downstream number was wrong by
+  the same ratio: gpt-3.5-turbo was listed at 319% of its window (actually 343%),
+  gpt-4 at 957% (actually 1030%), `data/seed.json` at 66.8% of the tree (actually
+  62.1%), a budget-5000 pack keeping 13 files at ~4973 tokens (actually 17 files
+  at ~4986), and "the twelve files it cut" (actually eight). One claim was not
+  stale but false: it said the pack lists the files it cut "with their individual
+  token counts", but the omitted list is paths only, with a single aggregate for
+  the whole. Separately, the documented regeneration of the two self-snapshots
+  omitted an `--exclude`, so each snapshot listed itself: pass one reads the size
+  of the committed file and writes a different one, so regenerating was not a
+  fixed point and the totals moved on every run. Both files are regenerated with
+  `--exclude` for each other and are now byte-identical across passes. The
+  `ctxpack-demo` README had already reached the same conclusion about itself with
+  `--exclude README.md`, so this is the same fix applied to this repository's own
+  examples.
+
+  `scripts/check-examples.sh` (`make examplescheck`, wired into `make ci`) now
+  stops it rotting again. Rather than grep for flags it should see, it extracts
+  the fenced command block from the doc and runs it verbatim in a scratch copy of
+  the tree with the binary on PATH, then compares its output byte-for-byte with
+  what is committed, so a stale snapshot or a broken documented command both fail.
+  It re-derives each demo figure from a real run, so a wrong number fails with the
+  correct value in the message. Verified against fourteen injected defects in a
+  scratch copy — a changed source file with no regeneration, both dropped
+  `--exclude` flags, a broken command, a removed section, seven misstated figures
+  and one rewrapping edit — every one caught, clean baseline passing.
+
 - **`docs/ci.yml` shipped a comment naming a directory that does not exist, and
   its "identical gate" claim was drifting.**
   The smoke step explained its throwaway build directory by saying `./ctxpack`

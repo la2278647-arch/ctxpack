@@ -1,7 +1,7 @@
-<!-- fit: FITS model=gpt-4o used=8.0k/123.9k (6%) FITS -->
+<!-- fit: FITS model=gpt-4o used=7.9k/123.9k (6%) FITS -->
 # Repository: ctxpack
 
-- Files: 9  | Tokens: ~7971  | Bytes: 19.3 KB  | Skipped: 1
+- Files: 10  | Tokens: ~7893  | Bytes: 19.0 KB  | Skipped: 3
 
 ---
 
@@ -324,71 +324,6 @@ in the release notes alongside the fix.
 
 ---
 
-## `docs/examples.md` (904 tokens, 2.1 KB)
-
-```markdown
-# Examples
-
-Two ways to see ctxpack in action.
-
-## [ctxpack-demo](https://github.com/la2278647-arch/ctxpack-demo)
-
-A real project, not ctxpack itself. It is a FastAPI microservice
-(hello-service v0.3.1): one table, five endpoints, cursor pagination,
-pydantic validation, a test per behaviour, and a 58 KB synthetic catalog that
-makes the token budget bite.
-
-The demo's README embeds ctxpack's own output captured on that project, which
-is a more useful illustration than any hand-written sample:
-
-- `ctxpack tokens .` reports 39212 estimated tokens and marks two small-window
-  models `[OVERFLOW]` — `gpt-3.5-turbo` at 319% of its window, `gpt-4` at 957%.
-- `ctxpack map .` shows `data/seed.json` at 26178 tokens, 66.8% of the whole
-  tree, so the ranking problem is visible at a glance.
-- `ctxpack pack . --budget 5000` fits `gpt-4o` at 4% and keeps 13 files at
-  ~4973 tokens, then lists the twelve files it cut with their individual token
-  counts.
-
-That last list is the feature. A budget that truncates mid-file hides what it
-lost; a budget that names what it cut lets you decide.
-
-Clone it and try your own numbers:
-
-```sh
-git clone https://github.com/la2278647-arch/ctxpack-demo
-cd ctxpack-demo
-ctxpack tokens .
-ctxpack map .
-ctxpack pack . --model gpt-4o --format markdown --budget 5000
-```
-
-Try `--budget 2000` and watch the omitted list grow. Try `--max-size 10000`
-and see the 58 KB catalog stop being read.
-
-## [`examples/`](../examples/)
-
-ctxpack run on **itself**: a token-aware tree of this repository, and a pack
-of this repository capped at 8000 tokens. Useful as a self-contained artifact
-because it has no dependency on a second checkout.
-
-The two approaches are complementary. The self-snapshots are stable and
-shippable; the demo project shows the tool against a codebase with the shape
-of something a reader would actually point it at.
-
-## Regenerating
-
-```sh
-ctxpack map . > examples/ctxpack-self.map.txt
-ctxpack pack . --format markdown --budget 8000 --model gpt-4o \
-  -o examples/ctxpack-self-budget8000.md
-```
-
-Both snapshots reflect the tree at the commit they were generated. The
-estimates move as the tree changes, so regenerate before tagging a release.
-```
-
----
-
 ## `examples/README.md` (791 tokens, 1.9 KB)
 
 ```markdown
@@ -531,12 +466,99 @@ filtered: the file is gone, and there is no content left to size or skip.
 
 ---
 
+## `examples/diff-demo/diff.xml` (382 tokens, 865 B)
+
+```
+<!-- ctxpack diff vs "HEAD~1..HEAD": 2 files -->
+<repository>
+  <meta>
+    <root>diffdemo</root>
+    <fileCount>2</fileCount>
+    <totalTokens>141</totalTokens>
+    <totalBytes>328</totalBytes>
+    <skipped>0</skipped>
+  </meta>
+  <files>
+    <file path="src/app.go" tokens="72" bytes="167">
+      <content><![CDATA[package app
+
+// Run starts the server.
+func Run() {
+	println("listening")
+}
+
+// Serve handles a single request.
+func Serve(req string) string {
+	return "ok: " + req
+}
+]]></content>
+    </file>
+    <file path="src/util.go" tokens="69" bytes="161">
+      <content><![CDATA[package app
+
+// TitleCase uppercases the first letter of s.
+func TitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return string([]rune(s)[0]) + s[1:]
+}
+]]></content>
+    </file>
+  </files>
+  <deleted count="1">
+    <path>src/legacy.go</path>
+  </deleted>
+</repository>
+```
+
+---
+
 ## `go.mod` (23 tokens, 50 B)
 
 ```
 module github.com/la2278647-arch/ctxpack
 
 go 1.21
+```
+
+---
+
+## `internal/version/version.go` (444 tokens, 1.0 KB)
+
+```go
+// Package version holds the build-time identity shared by the CLI and the MCP
+// server. It lives in its own package so the two do not have to import each
+// other just to print the same version string.
+package version
+
+import "runtime"
+
+// Module is the import path of the ctxpack module.
+const Module = "github.com/la2278647-arch/ctxpack"
+
+// Version is the semantic version of the running binary. Override it at build
+// time with:
+//
+//	go build -ldflags "-X github.com/la2278647-arch/ctxpack/internal/version.Version=v1.2.3"
+var Version = "0.1.10"
+
+// BuildCommit is populated by CI when a tag is cut.
+var BuildCommit = "dev"
+
+// BuildDate is populated by CI when a tag is cut.
+var BuildDate = "unknown"
+
+// Info is a human-readable summary of how the binary was built.
+func Info() string {
+	return "ctxpack " + Version + " (" + runtime.GOOS + "/" + runtime.GOARCH +
+		", " + runtime.Version() + ", commit " + BuildCommit + ", built " + BuildDate + ")"
+}
+
+// UserAgent is a short product token for HTTP clients.
+func UserAgent() string {
+	return "ctxpack/" + Version
+}
 ```
 
 ---
@@ -578,13 +600,14 @@ func main() {
 
 ---
 
-## Omitted by budget (59 files, ~300988 tokens)
+## Omitted by budget (58 files, ~299221 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
 - `Makefile`
 - `README.md`
 - `docs/ci.yml`
+- `docs/examples.md`
 - `docs/promote.md`
 - `docs/release-notes-v0.1.0.md`
 - `docs/release-notes-v0.1.1.md`
@@ -597,9 +620,6 @@ func main() {
 - `docs/release-notes-v0.1.7.md`
 - `docs/release-notes-v0.1.8.md`
 - `docs/release-notes-v0.1.9.md`
-- `examples/ctxpack-self-budget8000.md`
-- `examples/ctxpack-self.map.txt`
-- `examples/diff-demo/diff.xml`
 - `examples/diff-demo/make.sh`
 - `install.ps1`
 - `install.sh`
@@ -633,10 +653,11 @@ func main() {
 - `internal/packer/packer_test.go`
 - `internal/repomap/repomap.go`
 - `internal/repomap/repomap_test.go`
-- `internal/version/version.go`
 - `internal/version/version_test.go`
 - `internal/walker/walker.go`
 - `internal/walker/walker_more_test.go`
 - `internal/walker/walker_test.go`
+- `scripts/check-ci.sh`
+- `scripts/check-examples.sh`
 - `scripts/smoke.sh`
 

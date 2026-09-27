@@ -10,10 +10,11 @@
 #   git push
 #
 # It only runs once it is under .github/workflows/. Until then the checks it
-# describes are available locally via `make check` (see the Makefile), which
-# runs the identical gate: gofmt cleanliness, go vet, the test suite, and the
-# stdlib-only assertion that go.sum stays empty and `go list -m all` reports
-# exactly one module.
+# describes are available locally: `make check` (see the Makefile) for the
+# gate - gofmt cleanliness, go vet, the test suite, and the stdlib-only
+# assertion that go.sum stays empty and `go list -m all` reports exactly one
+# module - and `make smoke` for the CLI exercise below. `make ci` runs both
+# plus the local audits.
 #
 # A workflow that never runs rots silently - a shell block that no longer
 # parses, a script that was moved, a gate that quietly drifts from the local
