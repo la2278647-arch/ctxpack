@@ -652,6 +652,33 @@ func TestDiffListOnly(t *testing.T) {
 	}
 }
 
+// TestDiffListIgnoresFormat pins that --list wins over --format: it names
+// paths (for `while read f; do` loops), so a JSON request must not make it
+// emit an envelope instead.
+func TestDiffListIgnoresFormat(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	os.WriteFile(filepath.Join(src, "new.go"), []byte("package main\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	outCap := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "modified.go") {
+		t.Errorf("--list --format json must still name the file:\n%s", out)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(out), "{") {
+		// Expected: plain path lines, no JSON envelope.
+		return
+	}
+	t.Errorf("--list --format json emitted a JSON envelope; list must win:\n%s", out)
+}
+
 // A deletion has no content to pack, but a diff must still report it: a removed
 // file that the bundle never mentions would look like it never existed.
 func TestDiffListHonoursInclude(t *testing.T) {
