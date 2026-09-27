@@ -734,6 +734,7 @@ func TestDiffBudgetTinyDropsFiles(t *testing.T) {
 	}
 
 	caseFor(1, 0)    // too small for any file
+	caseFor(0, 1)    // 0 means no cap, like pack --budget 0
 	caseFor(-1, 1)   // no budget: everything
 }
 
