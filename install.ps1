@@ -92,9 +92,14 @@ $Dest = Join-Path $InstallDir 'ctxpack.exe'
 $Tmp = Join-Path $env:TEMP "ctxpack-$Ver-$PID.exe"
 $SumsTmp = Join-Path $env:TEMP "ctxpack-$Ver-$PID.sha256sums"
 # A reset connection or a transient 5xx from GitHub aborts an install, and
-# Invoke-WebRequest has no retry of its own. Back off and try again a few times
-# before giving up.
-function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$Attempts = 4) {
+# Invoke-WebRequest has no retry of its own. Back off and try again a few
+# times before giving up.
+# 5 total attempts, i.e. one initial try plus 4 retries - the same total as
+# install.sh's `--retry 4`, which retries 4 EXTRA times after the first. An
+# unequal total here is a real defect: it was what let install.sh fail a live
+# install while install.ps1 succeeded on the same connection, and CHANGELOG.md
+# records that.
+function DownloadWithRetry([string]$Uri, [string]$OutFile, [int]$Attempts = 5) {
     for ($i = 1; $i -le $Attempts; $i++) {
         try {
             Invoke-WebRequest -Uri $Uri -OutFile $OutFile -Headers $Headers -UseBasicParsing

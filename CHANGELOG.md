@@ -34,6 +34,40 @@ to follow [Semantic Versioning](https://semver.org/).
   release note quoting a bad command and a sentence that merely mentions ctxpack.
   All eleven behaved as intended, clean baseline passing.
 
+- **`scripts/check-installers.sh` (`make installerscheck`) cross-checks the two
+  installers against each other and against what `make release` publishes.**
+  The installers are what a reader runs blind, and `make check` touched neither
+  of them. The asset name is written in three places and nothing compared them:
+  the Makefile's `-o` template, `install.sh`'s `ASSET` line, and `install.ps1`'s
+  `$Asset` expression. Neither installer's checksum parsing had been exercised
+  end to end.
+
+  The guard runs each source's own asset-name template against every row of
+  `OSARCHES`, and it does not translate the templates into shell and retype them,
+  because that mistake is how this script lost the OS from a name twice. It then
+  builds a real `dist/` with three fake assets, runs the Makefile's own checksum
+  recipe over it, and feeds the result through each installer's own parser, which
+  it extracts from the source rather than retyping. Both parsers must return the
+  same hash, and a name that is not listed must not match at all.
+
+  It also requires the two installers to retry the same number of times and to
+  agree on owner, module, User-Agent and checksum filename. The filename is
+  compared exactly rather than as a substring: a rename to `SHA256SUMS.txt.bak`
+  still contains `SHA256SUMS.txt`, so a substring check would have let the rename
+  through while it 404s on every real download.
+
+  `install.sh` is parsed with `bash -n`. `install.ps1` is parsed with
+  `[scriptblock]::Create`, which parses without executing. It reports SKIP when
+  no `pwsh` or `powershell.exe` is on PATH, because the Parser API is denied in a
+  restricted PowerShell; the rest of the guard runs either way.
+
+  Verified against eleven injected defects in a scratch copy: an asset-pattern
+  rename in the Makefile, another in `install.ps1`, an awk that compares the hash
+  instead of the filename, an inverted comparison, an attempt-count drift in each
+  installer, a renamed owner, a renamed checksum file, a syntax error in each
+  installer, and a host with no PowerShell on PATH. Every defect was caught, the
+  missing-PowerShell case SKIPped as designed, and the clean baseline passes.
+
 ### Fixed
 
 - **README.md's flag table made two claims the binary contradicts.**
@@ -217,7 +251,11 @@ to follow [Semantic Versioning](https://semver.org/).
   `install.sh v0.1.10` failed on its first attempt with
   `curl: (28) Failed to connect to github.com:443` and aborted with exit 28,
   while `install.ps1 v0.1.10` ran to completion on the same connection. Both
-  downloads now retry 4 times on any error, matching `install.ps1`.
+  downloads now use `--retry 4 --retry-all-errors` - one initial try plus 4
+  retries, 5 total - and `install.ps1`'s `DownloadWithRetry` was raised from 4
+  attempts to the same 5. That matters because `--retry N` retries N EXTRA
+  times after the first, so the two installers were previously off by one and
+  the earlier claim that they matched was false.
 
 - **`go test ./...` failed in a downloaded source archive.**
   `TestCommandsAdvertiseTheFlagsTheyAccept` runs every command against every
@@ -229,6 +267,16 @@ to follow [Semantic Versioning](https://semver.org/).
   contributor unzips to inspect the module. The test now creates a repository
   of its own and passes it to `diff` explicitly, so the suite no longer depends
   on the working directory.
+
+- **`install.sh`'s download comment cited the wrong call.**
+  It justified `--retry` by saying "as on the release-detection call above", but
+  that call uses `--retry 3` while the downloads use `--retry 4`, so the citation
+  explained nothing about the downloads. The comment now states the count it is
+  describing - `--retry 4` is one initial try plus 4 retries, 5 total, the same
+  total `install.ps1` retries - and says why `--retry-all-errors` is there too:
+  by default curl retries only a short fixed list, timeout, transient network
+  failure, 429 and 500/502/503/504, so an uncategorised failure would still abort
+  the install on its first attempt.
 
 ## [0.1.10] - 2026-09-26
 

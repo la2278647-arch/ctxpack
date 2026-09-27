@@ -85,10 +85,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 # Download to a scratch directory and move into place only after the checksum
 # is verified, so a truncated or tampered download cannot leave a bad binary
-# sitting on PATH. --retry, as on the release-detection call above: this is the
-# transfer that gets reset. Without it one transient failure aborts the install
-# on a flaky connection to github.com; install.ps1's DownloadWithRetry already
-# covered this, and the two installers now behave the same way.
+# sitting on PATH. --retry 4 means one initial try plus 4 retries, 5 total;
+# install.ps1's DownloadWithRetry defaults to the same 5, so the two installers
+# agree on what a transient failure means.
+# --retry-all-errors on top of --retry: by default curl retries only a short
+# fixed list (timeout, transient network failure, 429, 500/502/503/504), so
+# an uncategorised failure aborts the install on the first try.
 echo "Downloading ${BASE}/${ASSET}" >&2
 curl -fsSL --retry 4 --retry-all-errors "${BASE}/${ASSET}" -o "${TMP}/ctxpack"
 curl -fsSL --retry 4 --retry-all-errors "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA256SUMS.txt"
@@ -98,10 +100,12 @@ curl -fsSL --retry 4 --retry-all-errors "${BASE}/SHA256SUMS.txt" -o "${TMP}/SHA2
 # platform-dependent: GNU coreutils 8.32 defaults to binary mode when given
 # file arguments, so a checksum file produced on one machine is not guaranteed
 # to parse on another. Accept both and compare the name after stripping the
-# marker.
+# marker. A re-uploaded file may also carry Windows line endings, and awk's
+# default field separator is not guaranteed to treat \r as whitespace, so drop
+# it before comparing.
 # || true: an awk that prints nothing would otherwise abort under "set -e" and
 # skip the message below.
-WANT="$(awk -v a="${ASSET}" '{ n = $NF; sub(/^\*/, "", n); if (n == a) { print $1; exit } }' "${TMP}/SHA256SUMS.txt" || true)"
+WANT="$(awk -v a="${ASSET}" '{ gsub(/\r/, ""); n = $NF; sub(/^\*/, "", n); if (n == a) { print $1; exit } }' "${TMP}/SHA256SUMS.txt" || true)"
 if [ -z "$WANT" ]; then
     echo "ctxpack: ${ASSET} is not listed in SHA256SUMS.txt" >&2
     exit 1

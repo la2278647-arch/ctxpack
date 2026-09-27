@@ -600,7 +600,7 @@ func main() {
 
 ---
 
-## Omitted by budget (59 files, ~304860 tokens)
+## Omitted by budget (60 files, ~311553 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -660,5 +660,6 @@ func main() {
 - `scripts/check-ci.sh`
 - `scripts/check-commands.sh`
 - `scripts/check-examples.sh`
+- `scripts/check-installers.sh`
 - `scripts/smoke.sh`
 

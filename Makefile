@@ -71,7 +71,7 @@ smoke: build
 	bash scripts/smoke.sh '$(BIN)'
 
 ## check plus smoke: the whole CI gate from the command line.
-ci: check smoke cicheck examplescheck commandscheck
+ci: check smoke cicheck examplescheck commandscheck installerscheck
 
 ## Audit docs/ci.yml, the workflow that lives in docs/ because the token that
 ## publishes this repository lacks the `workflow` scope and so can never run it
@@ -100,6 +100,18 @@ examplescheck: build
 ## an installer. Requires bash + awk.
 commandscheck: build
 	bash scripts/check-commands.sh
+
+## Cross-check the two installers against each other and against what the Makefile
+## publishes. The installers are what a reader runs blind, and nothing in `check`
+## touches them. Runs every row of OSARCHES through the asset name each of the
+## three sources computes, feeds a real Makefile-produced SHA256SUMS.txt through
+## each installer's own parser, and asserts both installers retry the same number
+## of times. Parses install.sh with `bash -n` and install.ps1 with
+## [scriptblock]::Create; that second check reports SKIP when no pwsh or
+## powershell.exe is on PATH, since the Parser API is denied in a restricted
+## PowerShell. Requires bash + awk.
+installerscheck:
+	bash scripts/check-installers.sh
 
 ## Cross-compile the release set into ./dist, then checksum them.
 release:
