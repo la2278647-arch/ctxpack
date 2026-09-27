@@ -693,8 +693,9 @@ func cmdTokens(args []string) int {
 		}
 		if *topN > 0 {
 			fits = topFits(fits, *topN)
+		} else {
+			sortFits(fits, *sortBy)
 		}
-		sortFits(fits, *sortBy)
 		w, close, err := outputWriter(*output)
 		if err != nil {
 			return outputFileError(err)
@@ -718,8 +719,9 @@ func cmdTokens(args []string) int {
 		}
 		if *topN > 0 {
 			fits = topFits(fits, *topN)
+		} else {
+			sortFits(fits, *sortBy)
 		}
-		sortFits(fits, *sortBy)
 		w, close, err := outputWriter(*output)
 		if err != nil {
 			return outputFileError(err)
@@ -772,24 +774,35 @@ func cmdTokens(args []string) int {
 			}{Model: m, Fit: counter.FitsModel(counter.Estimate{Tokens: tokens}, m, fitReserve)}
 		}
 		if *topN > 0 && *topN < len(fits) {
-			fits = fits[:*topN]
-		}
-		sort.Slice(fits, func(i, j int) bool {
-			switch *sortBy {
-			case "pct":
-				if fits[i].Fit.PctUsed != fits[j].Fit.PctUsed {
-					return fits[i].Fit.PctUsed > fits[j].Fit.PctUsed
-				}
-				return fits[i].Model.Name < fits[j].Model.Name
-			case "window":
+			// Same contract as the json/csv branches and the models command:
+			// --top means the N largest context windows, so rank by window
+			// descending before cutting, and skip the sortBy reorder below so
+			// the window ordering survives.
+			sort.Slice(fits, func(i, j int) bool {
 				if fits[i].Model.ContextWindow != fits[j].Model.ContextWindow {
 					return fits[i].Model.ContextWindow > fits[j].Model.ContextWindow
 				}
 				return fits[i].Model.Name < fits[j].Model.Name
-			default:
-				return fits[i].Model.Name < fits[j].Model.Name
-			}
-		})
+			})
+			fits = fits[:*topN]
+		} else {
+			sort.Slice(fits, func(i, j int) bool {
+				switch *sortBy {
+				case "pct":
+					if fits[i].Fit.PctUsed != fits[j].Fit.PctUsed {
+						return fits[i].Fit.PctUsed > fits[j].Fit.PctUsed
+					}
+					return fits[i].Model.Name < fits[j].Model.Name
+				case "window":
+					if fits[i].Model.ContextWindow != fits[j].Model.ContextWindow {
+						return fits[i].Model.ContextWindow > fits[j].Model.ContextWindow
+					}
+					return fits[i].Model.Name < fits[j].Model.Name
+				default:
+					return fits[i].Model.Name < fits[j].Model.Name
+				}
+			})
+		}
 		fmt.Fprintln(w, "Per-model fit (est. tokens / context window):")
 		for _, f := range fits {
 			mark := "fits"
@@ -1225,7 +1238,14 @@ func topFits(fits []fitEntry, n int) []fitEntry {
 	if n <= 0 || n >= len(fits) {
 		return fits
 	}
-	return fits[:n]
+	// The documented contract is "the N largest models by context window",
+	// the same as the models command's --top. Sort a copy by window descending
+	// (Limit = context window - reply reserve, strictly monotone in the
+	// window) and cut; the caller then skips its own sort so the window
+	// ordering survives.
+	sorted := append([]fitEntry(nil), fits...)
+	sortFits(sorted, "window")
+	return sorted[:n]
 }
 
 func sortFits(fits []fitEntry, sortBy string) {

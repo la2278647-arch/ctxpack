@@ -2411,6 +2411,19 @@ func TestTokensTopJSON(t *testing.T) {
 	if len(env.Fits) != 5 {
 		t.Errorf("expected 5 fits, got %d", len(env.Fits))
 	}
+	// --top's documented contract is "N largest by context window"; the first
+	// entry must carry the largest window in the registry. This used to be the
+	// first N entries of the registration order (gpt-3.5-turbo & co).
+	maxWin := 0
+	for _, m := range counter.Models() {
+		if m.ContextWindow > maxWin {
+			maxWin = m.ContextWindow
+		}
+	}
+	if env.Fits[0].Limit != maxWin-fitReserve {
+		t.Errorf("top[0].limit = %d, want the largest window minus reserve (%d)",
+			env.Fits[0].Limit, maxWin-fitReserve)
+	}
 }
 
 func TestTokensTopAll(t *testing.T) {

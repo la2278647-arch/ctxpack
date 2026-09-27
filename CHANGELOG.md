@@ -8,6 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`tokens --top` now means "the N largest context windows".**
+  The help text said exactly that, and the `models` command honoured it, but
+  `tokens` cut the first N entries of the registration order — which is why
+  `--top 3` listed `gpt-3.5-turbo`/`gpt-4` instead of the 2M-window Gemini
+  models — and then re-sorted, losing even that. All three output formats
+  (text/json/csv) now rank by context window descending, cut to N, and skip
+  the format's own sort when `--top` is in effect, matching `models --top`.
+  A regression test pins that the first row of `tokens --top 5 --json` is the
+  largest window in the registry.
+
 - **A bad `--output` path no longer calls `os.Exit(1)`.**
   `outputWriter` created the target file and, on failure, printed to stderr
   and called `os.Exit(1)` — bypassing every deferred close in the caller and
