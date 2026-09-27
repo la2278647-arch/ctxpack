@@ -115,6 +115,7 @@ Shell completion:
 ```sh
 source scripts/completion.bash   # bash — add to ~/.bashrc to keep it
 source scripts/completion.zsh    # zsh — add to ~/.zshrc to keep it
+# fish: keep scripts/completion.fish in ~/.config/fish/completions/
 ```
 
 The scripts complete command names and each command's own flags: typing

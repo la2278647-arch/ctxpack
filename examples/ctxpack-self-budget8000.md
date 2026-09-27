@@ -571,7 +571,7 @@ func main() {
 
 ---
 
-## Omitted by budget (65 files, ~336529 tokens)
+## Omitted by budget (66 files, ~339860 tokens)
 
 - `CHANGELOG.md`
 - `Dockerfile`
@@ -636,6 +636,7 @@ func main() {
 - `scripts/check-installers.sh`
 - `scripts/check-release.sh`
 - `scripts/completion.bash`
+- `scripts/completion.fish`
 - `scripts/completion.zsh`
 - `scripts/smoke.sh`
 

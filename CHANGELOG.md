@@ -8,14 +8,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Bash and zsh shell completion.**
-  `scripts/completion.bash` and `scripts/completion.zsh` complete command
-  names and each command's own flags — typing `ctxpack tokens ` then Tab
-  offers `--format`, `--csv`, `--sort`, `--top`, `--model` and the walk
-  flags, and `ctxpack models ` then Tab offers `--vendor` and friends. The
-  flag tables in the scripts are the executable form of the `FLAGS (...)`
-  sections in `--help`. Source one from your shell rc to keep completion
-  available. bash completion is exercised in `scripts/smoke.sh`.
+- **Bash, zsh and fish shell completion.**
+  `scripts/completion.bash`, `scripts/completion.zsh` and
+  `scripts/completion.fish` complete command names and each command's own
+  flags — typing `ctxpack tokens ` then Tab offers `--format`, `--csv`,
+  `--sort`, `--top`, `--model` and the walk flags, and `ctxpack models ` then
+  Tab offers `--vendor` and friends. The flag tables in the scripts are the
+  executable form of the `FLAGS (...)` sections in `--help`. Source the bash
+  or zsh script from your shell rc, or drop the fish script into
+  `~/.config/fish/completions/`. bash completion is exercised in
+  `scripts/smoke.sh`, and the fish script gets a structural check.
 
 ## [0.1.11] - 2026-09-27
 

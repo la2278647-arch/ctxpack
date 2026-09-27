@@ -286,4 +286,17 @@ COMP_WORDS=(ctxpack models --v); COMP_CWORD=2; _ctxpack
 grep -q -- '--vendor' <<< "${COMPREPLY[*]}" || fail "completion did not offer --vendor"
 echo "completion ok"
 
+# --- fish completion (static) ---
+# No fish interpreter is assumed on this machine, so hold the script to a
+# structural check: it must define a completion for every command and for the
+# handful of flags that are easy to forget. A missed flag here is a missed
+# flag everywhere.
+FISH_CMDS="$(grep -c '^complete -c ctxpack' "$ROOT/scripts/completion.fish")"
+[ "$FISH_CMDS" -ge 40 ] || fail "completion.fish has only $FISH_CMDS complete lines"
+for want in '-l vendor' '-l csv' '-l list' '-l ref' '-l budget' '-l json' '-l hidden'; do
+  grep -q -- "$want" "$ROOT/scripts/completion.fish" \
+    || fail "completion.fish is missing $want"
+done
+echo "fish completion ok"
+
 echo "smoke passed"
