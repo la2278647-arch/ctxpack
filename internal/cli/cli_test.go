@@ -579,6 +579,27 @@ func TestPackBadFlagFails(t *testing.T) {
 
 // --- diff requires git ---
 
+// TestDiffBadRefFails pins that an unresolvable --ref reports the git error.
+func TestDiffEmptyRepoListsUntrackedWorktree(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("hi\n"), 0o644)
+	gitInit(t, src) // no commits: HEAD does not exist
+
+	for _, args := range [][]string{
+		{src, "--list"},
+		{src, "--list", "--ref", "HEAD"},
+	} {
+		outCap := captureStdout(t)
+		if code := cmdDiff(args); code != 0 {
+			t.Fatalf("cmdDiff(%v) exit = %d, want 0 in a repo with no commits", args, code)
+		}
+		out := outCap.Content()
+		if !strings.Contains(out, "f.txt") {
+			t.Errorf("cmdDiff(%v) must list the untracked file in an empty repo:\n%s", args, out)
+		}
+	}
+}
+
 func TestDiffBadRefFails(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
