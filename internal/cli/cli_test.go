@@ -1575,6 +1575,26 @@ func TestMapTopShowsFlatList(t *testing.T) {
 	}
 }
 
+// TestMapIncludeNoMatch pins that an --include matching nothing is not an
+// error: the walk yields an empty tree, exit 0, so a script can rely on the
+// shape of the output rather than exit codes to detect an empty result.
+func TestMapIncludeNoMatch(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.nonexistent-ext"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d, want 0 for an empty match", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "0 tokens") {
+		t.Errorf("empty --include match should report an empty tree, got:\n%s", out)
+	}
+	if strings.Contains(out, "README.md") {
+		t.Errorf("--include matching nothing leaked a file:\n%s", out)
+	}
+}
+
 // TestMapJSONIgnoresTop pins that --top does not disturb the JSON envelope:
 // the json branch runs first, so the full tree is always returned, and a
 // script passing --top by mistake still gets complete data.
