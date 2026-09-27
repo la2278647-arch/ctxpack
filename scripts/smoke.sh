@@ -138,16 +138,17 @@ echo "--- diff reports a deletion ---"
   || fail "diff markdown has no Deleted heading"
 "$B" diff --format json --ref HEAD~1 "$R" | grep -q '"deleted"' \
   || fail "diff json has no deleted array"
-# --list must never name a deletion: it feeds `while read f; do` loops that
-# would choke on a path whose content is gone. The untracked.txt still sitting
-# in the worktree IS listed, because a plain ref diffs against the worktree —
-# so assert the absence of a.txt specifically, not an empty result.
+# --list names every path the pack will name, deletions included: the pack
+# reports them in a Deleted section, so a path whose content is gone still
+# appears, exactly as it does in the pack. Assert a.txt (the deletion) IS
+# listed; the untracked.txt still sitting in the worktree is also listed,
+# because a plain ref diffs against the worktree.
 LISTED="$("$B" diff --list --ref HEAD~1 "$R")"
-if grep -q 'a\.txt' <<< "$LISTED"; then
-  echo "FAIL: --list must not name deleted files"
+if ! grep -q 'a\.txt' <<< "$LISTED"; then
+  echo "FAIL: --list must name the deleted file"
   exit 1
 fi
-echo "PASS: --list names the worktree file, not the deletion"
+echo "PASS: --list names the deletion, matching the pack's Deleted section"
 
 echo "--- filter flags ---"
 # The text header is "Files: N | Tokens: ~T | Bytes: ...". Both helpers read
