@@ -702,6 +702,26 @@ func TestDiffNoChangesJSONEmitsEnvelope(t *testing.T) {
 	}
 }
 
+// TestDiffNoChangesTextNotesOnStderr pins the non-json empty diff: a stderr
+// note, empty stdout, exit 0 — scripts parsing stdout for text stay empty,
+// while the human sees why.
+func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src) // no files, no commits
+
+	c := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if c.Content() != "" {
+		t.Errorf("text empty diff should leave stdout empty, got:\n%s", c.Content())
+	}
+	if !strings.Contains(errCap.Content(), "no changed files") {
+		t.Errorf("stderr should carry the note:\n%s", errCap.Content())
+	}
+}
+
 // TestDiffRangeExcludesWorktree pins that a two-revision range (`--ref A..B`)
 // compares the two commits only: a file changed in that window is listed,
 // while an untracked working-tree file is not — the range semantics that feed
