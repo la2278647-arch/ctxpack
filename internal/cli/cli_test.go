@@ -334,6 +334,28 @@ func TestRunVersionJSON(t *testing.T) {
 	}
 }
 
+// TestVersionJSONAllAliases pins that the three version spellings accept
+// --json and produce byte-identical output, so a script cannot depend on one
+// alias and break when a user types another.
+func TestVersionJSONAllAliases(t *testing.T) {
+	var outs []string
+	for _, alias := range []string{"version", "--version", "-v"} {
+		outCap := captureStdout(t)
+		if code := Run([]string{alias, "--json"}); code != 0 {
+			t.Fatalf("Run(%s --json) exit = %d", alias, code)
+		}
+		out := outCap.Content()
+		var v map[string]any
+		if err := json.Unmarshal([]byte(out), &v); err != nil {
+			t.Fatalf("%s --json is not valid JSON: %v\n%s", alias, err, out)
+		}
+		if len(outs) > 0 && out != outs[0] {
+			t.Errorf("%s --json differs from --version --json:\n%s\nvs\n%s", alias, out, outs[0])
+		}
+		outs = append(outs, out)
+	}
+}
+
 // --- pack end to end ---
 
 func writeRepo(t *testing.T, dir string) {
