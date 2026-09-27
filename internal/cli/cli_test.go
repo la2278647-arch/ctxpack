@@ -577,6 +577,30 @@ func TestPackBadFlagFails(t *testing.T) {
 	}
 }
 
+// TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
+// not an error: a well-formed envelope with no files and zero tokens, exit 0.
+func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
+	src := t.TempDir()
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files       *[]any `json:"files"`
+		TotalTokens int    `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	got := 0
+	if env.Files != nil {
+		got = len(*env.Files)
+	}
+	if got != 0 || env.TotalTokens != 0 {
+		t.Errorf("empty dir pack = %d files, %d tokens; want 0, 0", got, env.TotalTokens)
+	}
+}
+
 // --- diff requires git ---
 
 // TestDiffBadRefFails pins that an unresolvable --ref reports the git error.
