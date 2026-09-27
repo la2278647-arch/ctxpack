@@ -2583,6 +2583,28 @@ func TestTokensFormatText(t *testing.T) {
 	}
 }
 
+// TestTokensJSONHasVendor pins that each fit in the json envelope carries the
+// model's vendor, matching the MCP count_tokens envelope (CLI/MCP parity).
+func TestTokensJSONHasVendor(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+
+	if code := cmdTokens([]string{src, "--json", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if len(env.Fits) != 1 {
+		t.Fatalf("expected 1 fit, got %d", len(env.Fits))
+	}
+	if env.Fits[0].Vendor != "openai" {
+		t.Errorf("fit vendor = %q, want openai", env.Fits[0].Vendor)
+	}
+}
+
 func TestTokensFormatJSON(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)

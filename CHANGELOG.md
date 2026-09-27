@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`tokens --json` fits now carry `vendor`.**
+  The MCP `count_tokens` envelope has included `vendor` per fit since v0.1.11,
+  but the CLI's `tokens --json` did not — a script reading both interfaces had
+  to join the model table to learn a model's vendor. Each fit now has
+  `"vendor"` next to `"model"`, matching the MCP envelope. The csv output is
+  unchanged (it stays a compact five columns).
+
 - **`smoke` checks `install.sh --help` does not touch the network.**
   The installers' `--help` branch prints the usage and exits before anything
   is downloaded; a regression would turn `--help` into a version install.
