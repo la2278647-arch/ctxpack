@@ -1871,6 +1871,27 @@ func TestMapPathIsFileFails(t *testing.T) {
 	}
 }
 
+// TestMapIncludeDoesNotExposeDotfiles pins that --include cannot sneak a
+// hidden file past the default dotfile exclusion: .env needs --hidden even
+// when a glob names it directly. The explicit flag stays the only way in.
+func TestMapIncludeDoesNotExposeDotfiles(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.txt"), []byte("x\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.env"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(out, ".env") {
+		t.Errorf("--include must not expose a hidden file without --hidden:\n%s", out)
+	}
+	if strings.Contains(out, "keep.txt") {
+		t.Errorf("keep.txt does not match *.env and must be filtered out:\n%s", out)
+	}
+}
+
 // TestMapHiddenExcludesDotfilesByDefault pins --hidden at the CLI layer: a
 // dotfile like .env is skipped by default, included with --hidden, and .git
 // stays out either way (VCS metadata is never walked).
