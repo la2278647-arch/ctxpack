@@ -1093,6 +1093,23 @@ func TestPackDryRunShowsFiles(t *testing.T) {
 	}
 }
 
+// TestPackDryRunQuietKeepsReport pins that --quiet does not swallow the
+// dry-run report: quiet silences the "wrote" status line for --output, while
+// a dry run's report is the command's main output, so it stays on stderr.
+func TestPackDryRunQuietKeepsReport(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	errCap := captureStderr(t)
+
+	if code := cmdPack([]string{src, "--dry-run", "--quiet"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "dry run:") {
+		t.Errorf("--dry-run --quiet must keep the report on stderr:\n%s", out)
+	}
+}
+
 func TestPackDryRunNoOutputFile(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
