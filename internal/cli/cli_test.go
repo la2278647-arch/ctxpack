@@ -802,6 +802,27 @@ func TestDiffDryRunShowsFiles(t *testing.T) {
 	}
 }
 
+// TestDiffDryRunQuietKeepsReport pins that --quiet does not swallow diff's
+// dry-run report either (mirror of TestPackDryRunQuietKeepsReport): quiet
+// silences status lines, while a dry run's report is the command's output.
+func TestDiffDryRunQuietKeepsReport(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src, "--dry-run", "--quiet"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "dry run vs") {
+		t.Errorf("--dry-run --quiet must keep the report on stderr:\n%s", out)
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
