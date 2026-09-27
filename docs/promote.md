@@ -37,7 +37,7 @@ Release: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.11
 >
 > Other install paths: `brew tap la2278647-arch/tap https://github.com/la2278647-arch/homebrew-tap && brew install ctxpack`, Scoop on Windows, `docker run --rm -v "$(pwd):/repo:ro" ctxpack map /repo`, or `curl -fsSL https://raw.githubusercontent.com/la2278647-arch/ctxpack/main/install.sh | bash`.
 >
-> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 37 files it omitted and why.
+> You can see it run on itself: [examples/ctxpack-self-budget8000.md](https://github.com/la2278647-arch/ctxpack/blob/main/examples/ctxpack-self-budget8000.md) packs the ctxpack repo to an 8000-token budget and lists the 66 files it omitted and why.
 >
 > The budget model is the interesting bit and also the bit I'd like feedback
 > on. Files are tiered: READMEs and licenses first, then entry points, then
@@ -222,10 +222,11 @@ enough; more reads as astroturfing.
 
 ## Not shipped: the CI workflow
 
-`.github/workflows/ci.yml` is written and saved locally at `C:\tmp\ci.yml`,
-but it was **not** pushed. The GitHub token in this environment has `repo`
-scope, and GitHub refuses to let a token without `workflow` scope create or
-modify files under `.github/workflows/`. Pushing it fails with:
+The GitHub Actions workflow is written and versioned under
+[docs/ci.yml](ci.yml), not under `.github/workflows/`. The GitHub token in
+this environment has `repo` scope, and GitHub refuses to let a token without
+`workflow` scope create or modify files under `.github/workflows/`. Pushing
+it fails with:
 
 ```
 ! [remote rejected] main -> main (refusing to allow an OAuth App to create or
@@ -237,14 +238,16 @@ To ship it:
 ```sh
 gh auth refresh -h github.com -s workflow          # needs a browser
 cd ctxpack
-git add .github/workflows/ci.yml
-git commit -m "ci: add GitHub Actions workflow"
+git mv docs/ci.yml .github/workflows/ci.yml
+git commit -m "ci: activate GitHub Actions workflow"
 git push
 ```
 
 Everything the workflow checks is already runnable locally via `make check`
 (gofmt cleanliness, `go vet`, the test suite, and the stdlib-only assertion
-that `go.sum` stays empty and `go list -m all` reports exactly one module).
-The workflow was additionally cross-compiling eight binaries and running a
-smoke test — the eight binaries are in the release, built and checksummed by
-hand, so `make release` will reproduce them once CI exists.
+that `go.sum` stays empty and `go list -m all` reports exactly one module)
+and `make ci` (smoke, cicheck, examplescheck, commandscheck,
+installerscheck). `make releasecheck` verifies a published release end to
+end, including `--install` running `install.sh` for real. Because a workflow
+that never runs rots, `make cicheck` audits docs/ci.yml against `make check`
+every time, so what ships later is the exact gate verified today.
