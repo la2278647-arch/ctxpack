@@ -120,7 +120,7 @@ COMMANDS
   models               List known LLMs and their context windows.
   mcp                  Run as a Model Context Protocol server on stdio.
   doctor               Print environment diagnostics (version, git, models).
-  version [--json]      Print the build identity (--json for scripted consumers).
+  version [--json|--short]   Print the build identity (--json, or --short for a bare version).
   help [command]        Show this help, or validate a command name.
 
 WALK FLAGS (pack / diff / map / tokens; models and doctor reject these)

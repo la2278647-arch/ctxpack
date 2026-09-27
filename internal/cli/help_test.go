@@ -293,8 +293,8 @@ func TestPrintHelpVersionSection(t *testing.T) {
 			t.Errorf("FLAGS (version) must not document %s", f)
 		}
 	}
-	if !strings.Contains(text, "version [--json]") {
-		t.Error("COMMANDS list does not advertise version [--json]")
+	if !strings.Contains(text, "version [--json|--short]") {
+		t.Error("COMMANDS list does not advertise version [--json|--short]")
 	}
 }
 
