@@ -6,6 +6,17 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Bash and zsh shell completion.**
+  `scripts/completion.bash` and `scripts/completion.zsh` complete command
+  names and each command's own flags — typing `ctxpack tokens ` then Tab
+  offers `--format`, `--csv`, `--sort`, `--top`, `--model` and the walk
+  flags, and `ctxpack models ` then Tab offers `--vendor` and friends. The
+  flag tables in the scripts are the executable form of the `FLAGS (...)`
+  sections in `--help`. Source one from your shell rc to keep completion
+  available. bash completion is exercised in `scripts/smoke.sh`.
+
 ## [0.1.11] - 2026-09-27
 
 ### Added

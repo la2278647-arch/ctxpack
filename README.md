@@ -110,6 +110,17 @@ go install github.com/la2278647-arch/ctxpack@latest
 
 Requires Go 1.21+. No modules are fetched; `go.sum` is empty by design.
 
+Shell completion:
+
+```sh
+source scripts/completion.bash   # bash — add to ~/.bashrc to keep it
+source scripts/completion.zsh    # zsh — add to ~/.zshrc to keep it
+```
+
+The scripts complete command names and each command's own flags: typing
+`ctxpack tokens ` then Tab offers the tokens flags, `ctxpack models ` then
+Tab offers `--sort`, `--top`, `--vendor` and the rest.
+
 ```sh
 ctxpack version
 # ctxpack 0.1.11 (linux/amd64, go1.26.5, commit abc1234, built 2026-09-22)

@@ -271,4 +271,19 @@ mcp_call diff_repo '{"path":".","ref":"not-a-ref"}' \
 mcp_call doctor '{"format":"xml"}' \
   | grep -q 'isError' || fail "doctor accepted an unknown format"
 
+# --- shell completion ---
+# completion.bash must parse and, once sourced, offer command names and the
+# per-command flags. Run it in-process exactly as an interactive bash would
+# after sourcing the file. The zsh script cannot be run here, but shares the
+# flag tables.
+bash -n "$ROOT/scripts/completion.bash" || fail "completion.bash does not parse"
+source "$ROOT/scripts/completion.bash"
+COMP_WORDS=(ctxpack m); COMP_CWORD=1; _ctxpack
+grep -q 'map' <<< "${COMPREPLY[*]}" || fail "completion did not offer map for 'm'"
+COMP_WORDS=(ctxpack tokens --s); COMP_CWORD=2; _ctxpack
+grep -q -- '--sort' <<< "${COMPREPLY[*]}" || fail "completion did not offer --sort"
+COMP_WORDS=(ctxpack models --v); COMP_CWORD=2; _ctxpack
+grep -q -- '--vendor' <<< "${COMPREPLY[*]}" || fail "completion did not offer --vendor"
+echo "completion ok"
+
 echo "smoke passed"
