@@ -577,6 +577,30 @@ func TestPackBadFlagFails(t *testing.T) {
 	}
 }
 
+// TestPackModelAnnotatesXML pins --model at the pack command level: the xml
+// output carries a fit comment naming the model, and an unknown model is a
+// note, not an error (pack annotates; it does not filter like tokens).
+func TestPackModelAnnotatesXML(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if out := c.Content(); !strings.Contains(out, "<!-- fit: model=gpt-4o") {
+		t.Errorf("known model must produce a fit comment:\n%.200s", out)
+	}
+
+	c = captureStdout(t)
+	if code := cmdPack([]string{src, "--model", "no-such-model-xyz"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if out := c.Content(); !strings.Contains(out, "unknown model") {
+		t.Errorf("unknown model must produce a note, not silence:\n%.200s", out)
+	}
+}
+
 // TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
 // not an error: a well-formed envelope with no files and zero tokens, exit 0.
 func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
