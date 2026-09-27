@@ -653,6 +653,23 @@ func TestDiffOutsideRepo(t *testing.T) {
 	}
 }
 
+// TestPackPlainDirectoryWorks pins that pack (unlike diff) does not need git:
+// any directory — a plain folder, a downloaded archive, a temp dir — packs
+// fine, so the tool stays useful where git never was.
+func TestPackPlainDirectoryWorks(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{dir, "--format", "text"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d, want 0 for a plain directory", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "==== a.go") {
+		t.Errorf("plain-directory pack must include the file:\n%s", out)
+	}
+}
+
 func TestDiffDryRunShowsFiles(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
