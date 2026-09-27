@@ -8,6 +8,13 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **MCP `count_tokens` fits rename `name` to `model`.**
+  The CLI's `tokens --json` fit envelope uses `model`; the MCP `count_tokens`
+  envelope used `name` for the same field, so a script consuming both
+  interfaces needed two parsers. The MCP fits field is now `model`, and the
+  two envelopes are identical field-for-field: `model`/`vendor`/`window`/
+  `used`/`limit`/`fits`/`pct_used`.
+
 - **`tokens --json` fits now carry `window`.**
   With the previous `vendor` addition, the CLI fit envelope now matches the
   MCP `count_tokens` envelope field for field (`model`/`vendor`/`window`/

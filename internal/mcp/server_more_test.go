@@ -1224,6 +1224,11 @@ func TestToolCallCountTokensSortJSON(t *testing.T) {
 	if len(fits) != 2 {
 		t.Errorf("expected 2 fits with top=2, got %d", len(fits))
 	}
+	// The fit field is named "model", matching the CLI's tokens --json.
+	first, _ := fits[0].(map[string]any)
+	if first["model"] == "" {
+		t.Errorf("fit is missing the model field: %v", first)
+	}
 }
 
 func TestHumanTokens(t *testing.T) {

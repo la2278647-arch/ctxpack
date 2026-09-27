@@ -505,13 +505,13 @@ func countTokensJSON(path string, tokens, bytes int, models []counter.Model) str
 	for _, m := range models {
 		f := counter.FitsModel(counter.Estimate{Tokens: tokens}, m, counter.ReplyReserve)
 		fits = append(fits, map[string]any{
-			"name":     m.Name,
+			"model":    m.Name,
+			"vendor":   m.Vendor,
 			"window":   m.ContextWindow,
 			"limit":    f.Limit,
 			"used":     f.Used,
 			"pct_used": math.Round(f.PctUsed*100) / 100,
 			"fits":     f.Fits,
-			"vendor":   m.Vendor,
 		})
 	}
 	env := map[string]any{
