@@ -268,6 +268,36 @@ func TestPrintHelpDoesNotDocumentUnacceptedFlags(t *testing.T) {
 	}
 }
 
+// TestPrintHelpVersionSection pins the version command's help block. version
+// is deliberately not a member of flagMatrix: unlike the other commands it is
+// a dispatch branch (not a cmd* function), it registers exactly one flag, and
+// it rejects -o/--output, which the matrix test requires to be universal.
+// This test holds the section instead.
+func TestPrintHelpVersionSection(t *testing.T) {
+	var help bytes.Buffer
+	printHelp(&help)
+	text := help.String()
+
+	block := helpBlock(text, "FLAGS (version)")
+	if block == "" {
+		t.Fatal("help has no FLAGS (version) section")
+	}
+	if !strings.Contains(block, "--json") {
+		t.Error("FLAGS (version) does not document --json")
+	}
+	for _, f := range []string{"-o", "--output", "--format", "--top", "--json"} {
+		if f == "--json" {
+			continue
+		}
+		if strings.Contains(block, f) {
+			t.Errorf("FLAGS (version) must not document %s", f)
+		}
+	}
+	if !strings.Contains(text, "version [--json]") {
+		t.Error("COMMANDS list does not advertise version [--json]")
+	}
+}
+
 // TestWalkFlagScopeIsExact asserts the walk flags are registered on exactly
 // the four walking commands, not a superset or subset. This is the structural
 // fact the help text claims, pinned against the matrix rather than the prose.

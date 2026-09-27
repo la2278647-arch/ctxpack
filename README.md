@@ -286,6 +286,7 @@ the changed file paths without packing.
 | `models` | List known models and context windows. |
 | `mcp`    | Run as an MCP server on stdio. |
 | `doctor` | Print environment diagnostics (version, git, models). |
+| `version` | Print the build identity (`--json` for scripted consumers). |
 
 Run `ctxpack <command> --help` for details.
 

@@ -144,6 +144,9 @@ FLAGS (doctor)
   --top N              Show only the top N vendors by model count
   -o, --output FILE    Write to FILE instead of stdout
 
+FLAGS (version)
+  --json               Emit the build identity as one JSON object
+
 EXAMPLES
   ctxpack pack ./myrepo --format markdown -o repo.md
   ctxpack pack . --include "*.go" --exclude "*_test.go" --model gpt-4o

@@ -8,6 +8,15 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`version` gets a `FLAGS (version)` section in `--help` and a row in the
+  README command table.**
+  Every other command had its own flags block; `version` only had an inline
+  `[--json]` note. The help now documents the flag in the same shape as the
+  other commands, and the README command table lists `version` next to the
+  rest. `version` stays out of the help flag matrix on purpose: unlike the
+  matrix commands it is a dispatch branch, registers exactly one flag, and
+  rejects `-o`/`--output`, which the matrix requires to be universal.
+
 - **`version` accepts `--json`.**
   Every other command already had a machine-readable mode; `version` only
   printed prose, so a script that wanted the commit or build date parsed the
