@@ -63,6 +63,28 @@ func TestWalkIncludeExclude(t *testing.T) {
 	}
 }
 
+// TestWalkExcludeBeatsIncludeForSameFile pins the tie-break when one glob
+// includes a path and another excludes it: exclude wins, so a user can always
+// carve a sub-set out of an include.
+func TestWalkExcludeBeatsIncludeForSameFile(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "a.go"), []byte("a\n"))
+	mustWrite(t, filepath.Join(dir, "b.txt"), []byte("b\n"))
+
+	res, err := Walk(dir, Options{
+		Include:          []string{"*.go"},
+		Exclude:          []string{"a.*"},
+		RespectGitignore: false,
+		ReadContent:      true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 0 {
+		t.Errorf("a.go matches both globs; exclude must win, walked %v", res.Files)
+	}
+}
+
 func TestWalkMaxSize(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, "small.txt"), []byte("small\n"))
