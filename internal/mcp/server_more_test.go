@@ -369,6 +369,27 @@ func TestListModelsVendorFilter(t *testing.T) {
 	}
 }
 
+// TestListModelsVendorSort pins that sort re-orders the vendor-filtered set,
+// not the whole table: every model is from the vendor, and windows are
+// non-increasing when sorting by window.
+func TestListModelsVendorSort(t *testing.T) {
+	entries := listModelsJSONEntries(t, `"format":"json","vendor":"anthropic","sort":"window"`)
+	if len(entries) == 0 {
+		t.Fatal("no anthropic models")
+	}
+	prev := 1 << 62
+	for _, e := range entries {
+		if e["vendor"] != "anthropic" {
+			t.Fatalf("vendor filter leaked %q", e["vendor"])
+		}
+		win := int(e["context_window"].(float64))
+		if win > prev {
+			t.Errorf("sort=window is not non-increasing: %d after %d", win, prev)
+		}
+		prev = win
+	}
+}
+
 func TestListModelsTopAndSort(t *testing.T) {
 	top := listModelsJSONEntries(t, `"format":"json","top":3`)
 	if len(top) != 3 {
