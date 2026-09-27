@@ -1727,6 +1727,28 @@ func TestMapPathIsFileFails(t *testing.T) {
 	}
 }
 
+// TestMapNoGitignoreIncludesGitignoredFiles pins the flag at the CLI layer:
+// with .gitignore excluding a file, --no-gitignore walks it anyway (the
+// built-in denylist still applies; only .gitignore files are ignored).
+func TestMapNoGitignoreIncludesGitignoredFiles(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte("s\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--no-gitignore"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "secret.txt") {
+		t.Errorf("--no-gitignore must walk the gitignored file:\n%s", out)
+	}
+	if !strings.Contains(out, "keep.go") {
+		t.Errorf("--no-gitignore must not drop normal files:\n%s", out)
+	}
+}
+
 // TestMapIncludeNoMatch pins that an --include matching nothing is not an
 // error: the walk yields an empty tree, exit 0, so a script can rely on the
 // shape of the output rather than exit codes to detect an empty result.
