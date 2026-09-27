@@ -2423,6 +2423,11 @@ func TestDoctorJSON(t *testing.T) {
 	if data["model_count"].(float64) != 30 {
 		t.Errorf("JSON model_count = %v, want 30", data["model_count"])
 	}
+	for _, k := range []string{"go_version", "platform", "git_version", "model_vendors", "vendors"} {
+		if _, ok := data[k]; !ok {
+			t.Errorf("JSON missing key %q", k)
+		}
+	}
 }
 
 func TestDoctorRejectsExtraArgs(t *testing.T) {
