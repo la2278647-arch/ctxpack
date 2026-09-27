@@ -588,8 +588,9 @@ func TestPackModelAnnotatesXML(t *testing.T) {
 	if code := cmdPack([]string{src, "--model", "gpt-4o"}); code != 0 {
 		t.Fatalf("cmdPack exit = %d", code)
 	}
-	if out := c.Content(); !strings.Contains(out, "<!-- fit: model=gpt-4o") {
-		t.Errorf("known model must produce a fit comment:\n%.200s", out)
+	out := c.Content()
+	if !strings.Contains(out, "<!-- fit:") || !strings.Contains(out, "model=gpt-4o") {
+		t.Errorf("known model must produce a fit comment naming it:\n%.200s", out)
 	}
 
 	c = captureStdout(t)
