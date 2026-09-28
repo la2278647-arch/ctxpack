@@ -1834,6 +1834,20 @@ func TestModelsCSVTopTruncates(t *testing.T) {
 	}
 }
 
+// TestModelsTopZeroMeansAll pins that --top 0 is the same as no --top: the
+// full table, matching the budget/depth/max-size convention where 0 = off.
+func TestModelsTopZeroMeansAll(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--top", "0"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != len(counter.Models())+1 {
+		t.Errorf("--top 0 csv = %d lines, want %d (header + all models)",
+			len(lines), len(counter.Models())+1)
+	}
+}
+
 func TestModelsTopJSON(t *testing.T) {
 	c := captureStdout(t)
 
