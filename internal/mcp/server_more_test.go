@@ -169,6 +169,25 @@ func TestRepoMapIncludeFilter(t *testing.T) {
 	}
 }
 
+// TestRepoMapExcludeFilter pins repo_map's exclude argument: matching files
+// stay out of the outline (the mirror of TestRepoMapIncludeFilter).
+func TestRepoMapExcludeFilter(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b\n"), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"exclude":["*.txt"]}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	if !strings.Contains(text, "a.go") {
+		t.Errorf("exclude *.txt must keep a.go:\n%s", text)
+	}
+	if strings.Contains(text, "b.txt") {
+		t.Errorf("exclude *.txt must drop b.txt:\n%s", text)
+	}
+}
+
 // TestRepoMapJSONSortsByBytes pins that repo_map's sort argument orders the
 // JSON tree the same way it orders the text outline (and the CLI's map --json
 // does): children come largest-first when sorting by bytes.
