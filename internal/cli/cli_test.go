@@ -1480,6 +1480,29 @@ func TestDiffMaxSizeZeroUnlimited(t *testing.T) {
 	}
 }
 
+// TestDiffMaxSizeModelAnnotates pins that diff --max-size --model annotates
+// from the estimated total (the fit used figure reflects the cap).
+func TestDiffMaxSizeModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--max-size", "10", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "fit: FITS model=gpt-4o") {
+		t.Errorf("max-size model must carry the fit note:\n%s", out)
+	}
+	if !strings.Contains(out, "used=3") {
+		t.Errorf("fit used must reflect the estimate, got:\n%s", out)
+	}
+}
+
 // TestDiffMaxSizeOmitsContent pins diff --max-size: a changed file over the
 // cap is still in the diff, but its body is not read, so the token total
 // drops far below the full-read count.
