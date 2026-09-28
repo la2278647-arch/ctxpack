@@ -3197,6 +3197,27 @@ func TestModelsSortByVendor(t *testing.T) {
 	}
 }
 
+// TestModelsSortVendorFiltered pins that --sort applies within a --vendor
+// filter: the first row carries the largest window of that vendor.
+func TestModelsSortVendorFiltered(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--vendor", "openai", "--sort", "window"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	rows := []string{}
+	for _, line := range strings.Split(c.Content(), "\n") {
+		if strings.Contains(line, "(") && strings.Contains(line, "openai") {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) == 0 {
+		t.Fatalf("expected openai rows:\n%s", c.Content())
+	}
+	if !strings.Contains(rows[0], "200.0k") {
+		t.Errorf("sort=window within openai must put a 200.0k model first, got %q", rows[0])
+	}
+}
+
 func TestModelsSortJSON(t *testing.T) {
 	c := captureStdout(t)
 
