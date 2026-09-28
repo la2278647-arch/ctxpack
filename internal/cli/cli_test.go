@@ -3132,6 +3132,31 @@ func TestModelsCSVSortByVendor(t *testing.T) {
 	}
 }
 
+// TestModelsJSONVendorTopCombined pins that --vendor, --top and --json stack:
+// the json array carries exactly the filtered top entries.
+func TestModelsJSONVendorTopCombined(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--vendor", "openai", "--top", "3", "--json"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env struct {
+		Models []struct {
+			Vendor string `json:"vendor"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if len(env.Models) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(env.Models))
+	}
+	for _, m := range env.Models {
+		if m.Vendor != "openai" {
+			t.Errorf("entry vendor = %q, want openai", m.Vendor)
+		}
+	}
+}
+
 // TestModelsVendorAndTop pins that --vendor and --top combine: only that
 // vendor's models are ranked, and the top count applies within the filter.
 func TestModelsVendorAndTop(t *testing.T) {
