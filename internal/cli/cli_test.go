@@ -5403,6 +5403,32 @@ func TestMapFormatAlias(t *testing.T) {
 	}
 }
 
+// TestTokensJSONSortPctTopCombined pins that --sort pct --top --json stack:
+// the fits array carries the pct-first top entries.
+func TestTokensJSONSortPctTopCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--sort", "pct", "--top", "3", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env struct {
+		Fits []struct {
+			Model string `json:"model"`
+		} `json:"fits"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Fits) != 3 {
+		t.Fatalf("expected 3 fits, got %d", len(env.Fits))
+	}
+	if env.Fits[0].Model != "gemini-1.5-pro" {
+		t.Errorf("pct-first fit must be gemini-1.5-pro, got %q", env.Fits[0].Model)
+	}
+}
+
 // TestTokensJSONTopModelCombined pins that --json --top --model stack: the
 // model filter wins over the top count, so exactly one fits row appears.
 func TestTokensJSONTopModelCombined(t *testing.T) {
