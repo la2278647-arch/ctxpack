@@ -1459,6 +1459,42 @@ func TestToolCallCountTokensMaxDepth(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensNoGitignoreHidden pins count_tokens' no_gitignore and
+// hidden arguments: a gitignored file (and a dotfile) raise the total when
+// asked for (the mcp mirror of the CLI's gitignore/hidden tests).
+func TestToolCallCountTokensNoGitignoreHidden(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte(strings.Repeat("s", 200)), 0o644)
+	os.WriteFile(filepath.Join(dir, ".hidden.go"), []byte("package h\n"), 0o644)
+
+	dflt := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	noGit := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","no_gitignore":true}}}`,
+		filepath.ToSlash(dir)))
+	hidden := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","hidden":true}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("count_tokens json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(noGit), parse(dflt); got <= want {
+		t.Errorf("no_gitignore:true must raise the total above %d, got %d", want, got)
+	}
+	if got, want := parse(hidden), parse(dflt); got <= want {
+		t.Errorf("hidden:true must raise the total above %d, got %d", want, got)
+	}
+}
+
 // TestToolCallCountTokensInclude pins count_tokens' include argument: only
 // matching files are counted, so the total drops below the full-tree count.
 func TestToolCallCountTokensInclude(t *testing.T) {
