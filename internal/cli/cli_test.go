@@ -2935,6 +2935,34 @@ func envTokensOf(t *testing.T, src string) int {
 	return env.TotalTokens
 }
 
+// TestTokensHiddenIncludesDotfiles pins tokens --hidden: a dotfile is
+// excluded by default and counted with --hidden, so the total rises.
+func TestTokensHiddenIncludesDotfiles(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	dflt := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	hidden := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--hidden"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envDefault, envHidden tokensEnvelope
+	if err := json.Unmarshal([]byte(dflt.Content()), &envDefault); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(hidden.Content()), &envHidden); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envHidden.TotalTokens <= envDefault.TotalTokens {
+		t.Errorf("--hidden must raise the total above %d, got %d",
+			envDefault.TotalTokens, envHidden.TotalTokens)
+	}
+}
+
 // TestTokensMaxSizeUsesEstimate pins that tokens honors --max-size like map:
 // a file over the cap is estimated from its byte size instead of read, so the
 // total drops below the full-read count.
