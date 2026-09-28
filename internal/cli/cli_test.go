@@ -643,6 +643,26 @@ func TestPackBudgetXMLOmitted(t *testing.T) {
 	}
 }
 
+// TestPackBudgetModelAnnotates pins that --model's fit note still appears on
+// a budget-limited pack, with the used figure reflecting the budget result.
+func TestPackBudgetModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "fit: FITS model=gpt-4o") {
+		t.Errorf("budget-limited pack must carry the fit note:\n%s", out)
+	}
+	if !strings.Contains(out, "used=1") {
+		t.Errorf("fit note must reflect the budget total, got:\n%s", out)
+	}
+}
+
 // TestPackBudgetDepthOmitted pins that the omitted list names every walked
 // file left out of the bundle, not only budget drops: with --depth 1 the
 // two-level file appears there while the root file is packed.
