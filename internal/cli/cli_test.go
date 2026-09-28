@@ -2857,6 +2857,28 @@ func TestMapDepthLimitsTraversal(t *testing.T) {
 	}
 }
 
+// TestMapDepthExcludeCombined pins that --exclude still applies inside the
+// depth-bounded walk: a one-level txt is dropped while a go file stays.
+func TestMapDepthExcludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "a.txt"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "b.go"), []byte("package b\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("z\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--depth", "1", "--exclude", "*.txt"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "b.go") {
+		t.Errorf("depth 1 exclude *.txt must keep the go file:\n%s", out)
+	}
+	if strings.Contains(out, "a.txt") || strings.Contains(out, "root.txt") {
+		t.Errorf("depth 1 exclude *.txt must drop both txt files:\n%s", out)
+	}
+}
+
 // TestMapDepthHiddenCombined pins that --hidden and --depth work together: a
 // dotfile one level down is included when both flags are given (hidden lifts
 // the dotfile skip, depth still bounds the traversal).
