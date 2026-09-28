@@ -1091,6 +1091,30 @@ func TestDiffModelAnnotates(t *testing.T) {
 	}
 }
 
+// TestDiffJSONModelFitOnStderr pins that diff --json --model keeps the fit
+// note on stderr (stdout json stays parseable), matching pack's json path.
+func TestDiffJSONModelFitOnStderr(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\n"), 0o644)
+
+	c := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("stdout must stay parseable json: %v\n%s", err, c.Content())
+	}
+	if !strings.Contains(errCap.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("json path must carry the fit note on stderr:\n%s", errCap.Content())
+	}
+}
+
 // TestDiffNoChangesJSONEmitsEnvelope pins that an empty diff still yields a
 // parseable json envelope on stdout (never a bare stderr note), so a script
 // can always json-parse the output; --quiet silences the note.
