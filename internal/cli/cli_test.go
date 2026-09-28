@@ -2577,6 +2577,26 @@ func TestDoctorTopAll(t *testing.T) {
 	}
 }
 
+// TestDoctorTopZeroShowsAllVendors pins that doctor --top 0 is the same as
+// no --top: every vendor line, closing out the top-0 series.
+func TestDoctorTopZeroShowsAllVendors(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdDoctor([]string{"--top", "0"}); code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	out := c.Content()
+	lines := strings.Split(out, "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.Contains(line, " model(s)") {
+			count++
+		}
+	}
+	if count != 7 {
+		t.Errorf("expected 7 vendor lines with --top 0, got %d:\n%s", count, out)
+	}
+}
+
 func TestDoctorJSON(t *testing.T) {
 	c := captureStdout(t)
 
