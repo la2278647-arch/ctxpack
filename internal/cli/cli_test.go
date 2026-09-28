@@ -644,6 +644,34 @@ func TestPackIncludeFiltersFiles(t *testing.T) {
 	}
 }
 
+// TestPackDepthLimitsBundle pins pack --depth: a two-level directory is not
+// traversed at depth 1, so its file stays out of the bundle (the pack-side
+// mirror of TestMapDepthLimitsNestedDirs / TestTokensDepthLimitsTotal).
+func TestPackDepthLimitsBundle(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "deep", "b.txt"), []byte("deep\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	shallow := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if !strings.Contains(full.Content(), "sub/deep/b.txt") {
+		t.Fatalf("full pack must include the deep file:\n%s", full.Content())
+	}
+	if strings.Contains(shallow.Content(), "b.txt") {
+		t.Errorf("--depth 1 must keep the deep file out of the bundle:\n%s", shallow.Content())
+	}
+	if !strings.Contains(shallow.Content(), "root.go") {
+		t.Errorf("--depth 1 must keep the root file:\n%s", shallow.Content())
+	}
+}
+
 // TestPackRespectsGitignoreByDefault pins the default gitignore handling at
 // the pack level (same walker as map, own integration guard): an excluded
 // file stays out of the bundle.
