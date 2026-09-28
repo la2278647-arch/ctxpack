@@ -4288,6 +4288,28 @@ func TestMapIncludeNoMatch(t *testing.T) {
 	}
 }
 
+// TestMapJSONDepthCombined pins that --json --depth bounds the tree: the
+// two-level subtree is absent while the one-level dir and root file remain.
+func TestMapJSONDepthCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "deep", "x.txt"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("r\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--json", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "root.txt") || !strings.Contains(out, "a.go") {
+		t.Errorf("json depth 1 must keep root and one-level files:\n%s", out)
+	}
+	if strings.Contains(out, "deep") {
+		t.Errorf("json depth 1 must drop the two-level subtree:\n%s", out)
+	}
+}
+
 // TestMapJSONHiddenCombined pins that --json --hidden put the dotfile in the
 // json tree (the format-independent hidden behavior mirrored in json).
 func TestMapJSONHiddenCombined(t *testing.T) {
