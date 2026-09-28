@@ -3081,6 +3081,34 @@ func TestTokensRespectsGitignoreByDefault(t *testing.T) {
 	}
 }
 
+// TestTokensExcludeFiltersTotal pins tokens --exclude: a dropped file leaves
+// the counted tree, shrinking the total (the mirror of TestTokensIncludeFiltersTotal).
+func TestTokensExcludeFiltersTotal(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "drop.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	filtered := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--exclude", "*.txt"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envFiltered tokensEnvelope
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(filtered.Content()), &envFiltered); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envFiltered.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("--exclude *.txt must cut the total below %d, got %d",
+			envFull.TotalTokens, envFiltered.TotalTokens)
+	}
+}
+
 func TestTokensIncludeFiltersTotal(t *testing.T) {
 	src := t.TempDir()
 	os.WriteFile(filepath.Join(src, "a.go"), []byte("package main\n"), 0o644)
