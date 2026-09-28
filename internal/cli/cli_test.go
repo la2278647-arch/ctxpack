@@ -2935,6 +2935,34 @@ func envTokensOf(t *testing.T, src string) int {
 	return env.TotalTokens
 }
 
+// TestTokensMaxSizeUsesEstimate pins that tokens honors --max-size like map:
+// a file over the cap is estimated from its byte size instead of read, so the
+// total drops below the full-read count.
+func TestTokensMaxSizeUsesEstimate(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envCapped tokensEnvelope
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("--max-size 10 must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestTokensRespectsGitignoreByDefault pins the default gitignore handling at
 // the tokens level, closing out the map/pack/tokens trio: an excluded file is
 // not part of the counted tree.
