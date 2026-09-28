@@ -2633,6 +2633,29 @@ func TestMapIncludeDoesNotExposeDotfiles(t *testing.T) {
 	}
 }
 
+// TestPackNoGitignoreHiddenCombined pins the two "lift the guard" flags on
+// pack: together they bring a gitignored dotfile into the bundle (the pack
+// mirror of TestMapNoGitignoreHiddenCombined).
+func TestPackNoGitignoreHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte(".env\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--no-gitignore", "--hidden"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, ".env") {
+		t.Errorf("both flags together must include the gitignored dotfile:\n%s", out)
+	}
+	if !strings.Contains(out, "keep.go") {
+		t.Errorf("both flags together must not drop normal files:\n%s", out)
+	}
+}
+
 // TestMapNoGitignoreHiddenCombined pins that the two "lift the guard" flags
 // together bring even a gitignored dotfile into the walk: --no-gitignore
 // ignores the .gitignore rules and --hidden includes dotfiles.
