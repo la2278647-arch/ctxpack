@@ -3049,6 +3049,37 @@ func TestMapIncludeNoMatch(t *testing.T) {
 	}
 }
 
+// TestMapJSONTreeSortsByTokens pins that --sort tokens orders the JSON tree
+// largest-first too (the sibling of the sort=bytes test).
+func TestMapJSONTreeSortsByTokens(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("b", 20)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--json", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var env struct {
+		Tree struct {
+			Children []struct {
+				Name   string `json:"name"`
+				Tokens int    `json:"tokens"`
+			} `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Tree.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(env.Tree.Children))
+	}
+	if env.Tree.Children[0].Name != "big.go" || env.Tree.Children[0].Tokens < env.Tree.Children[1].Tokens {
+		t.Errorf("sort=tokens must put the larger file first, got %+v / %+v",
+			env.Tree.Children[0], env.Tree.Children[1])
+	}
+}
+
 // TestMapJSONTreeSortsBySortBy pins that --sort orders the JSON tree the
 // same way it orders the text outline: children come largest-first when
 // sorting by bytes.
