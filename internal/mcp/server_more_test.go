@@ -1430,6 +1430,35 @@ func TestToolCallCountTokensMaxSize(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensMaxDepth pins count_tokens' max_depth argument: a
+// two-level file is not counted at max_depth 1, so the total drops below the
+// full-tree count (the mcp mirror of TestTokensDepthLimitsTotal).
+func TestToolCallCountTokensMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "deep", "x.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.go"), []byte("package main\n"), 0o644)
+
+	full := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	shallow := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("count_tokens json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(shallow), parse(full); got >= want {
+		t.Errorf("max_depth 1 must cut the total below %d, got %d", want, got)
+	}
+}
+
 // TestToolCallCountTokensInclude pins count_tokens' include argument: only
 // matching files are counted, so the total drops below the full-tree count.
 func TestToolCallCountTokensInclude(t *testing.T) {
