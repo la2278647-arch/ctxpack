@@ -730,6 +730,27 @@ func TestPackRespectsGitignoreByDefault(t *testing.T) {
 	}
 }
 
+// TestPackOutputOverwritesExisting pins that -o overwrites an existing file
+// silently (os.Create truncates; no prompt, no error), so re-runs are safe.
+func TestPackOutputOverwritesExisting(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	out := filepath.Join(src, "out.json")
+	os.WriteFile(out, []byte("old"), 0o644)
+
+	if code := cmdPack([]string{src, "--format", "json", "-o", out}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output must be overwritten with the new json: %v\n%s", err, data)
+	}
+}
+
 // TestPackOutputDashIsStdout pins that pack honors --output - as stdout, the
 // last of the output-dash trio (models and diff already pinned): no file
 // named "-" is created and the json lands on stdout.
