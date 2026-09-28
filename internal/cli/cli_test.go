@@ -3652,6 +3652,38 @@ func TestMapIncludeNoMatch(t *testing.T) {
 	}
 }
 
+// TestMapJSONHiddenCombined pins that --json --hidden put the dotfile in the
+// json tree (the format-independent hidden behavior mirrored in json).
+func TestMapJSONHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--json", "--hidden"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var env struct {
+		Tree struct {
+			Children []struct {
+				Name string `json:"name"`
+			} `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	found := false
+	for _, ch := range env.Tree.Children {
+		if ch.Name == ".env" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("--json --hidden must include the dotfile:\n%s", c.Content())
+	}
+}
+
 // TestMapJSONTreeSortsByTokens pins that --sort tokens orders the JSON tree
 // largest-first too (the sibling of the sort=bytes test).
 func TestMapJSONTreeSortsByTokens(t *testing.T) {
