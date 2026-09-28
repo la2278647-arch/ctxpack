@@ -4848,6 +4848,31 @@ func TestTokensFormatAlias(t *testing.T) {
 	}
 }
 
+// TestTokensSortPctTopCombined pins that --sort pct and --top coexist: the
+// top count applies to the pct-sorted list, first row carrying the largest
+// percentage.
+func TestTokensSortPctTopCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("x", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--sort", "pct", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	rows := []string{}
+	for _, line := range strings.Split(c.Content(), "\n") {
+		if strings.Contains(line, "[") && strings.Contains(line, "/") {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) != 3 {
+		t.Fatalf("--top 3 must yield exactly 3 rows, got %d:\n%s", len(rows), c.Content())
+	}
+	if !strings.Contains(rows[0], "gemini-1.5-pro") {
+		t.Errorf("pct-sorted first row must be gemini-1.5-pro:\n%s", c.Content())
+	}
+}
+
 // --- tokens --top ---
 
 func TestTokensTopShowsFewerModels(t *testing.T) {
