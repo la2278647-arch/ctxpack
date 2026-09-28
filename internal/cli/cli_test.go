@@ -1723,6 +1723,26 @@ func TestDiffQuietSuppressesStatus(t *testing.T) {
 	}
 }
 
+// TestPackQuietMarkdownSuppressesWrote pins that --quiet silences the wrote
+// line for the markdown format too (json and xml are covered by the sibling
+// tests), closing out the quiet format series.
+func TestPackQuietMarkdownSuppressesWrote(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.md")
+
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "-o", out, "--format", "markdown", "--quiet"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if got := errCap.Content(); got != "" {
+		t.Errorf("with --quiet, stderr should be empty, got:\n%s", got)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("the output file must still be written: %v", err)
+	}
+}
+
 // TestPackQuietXMLSuppressesWrote pins that --quiet silences the wrote line
 // for the xml format too (the json path is covered by
 // TestPackQuietSuppressesWrote).
