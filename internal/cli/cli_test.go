@@ -1070,6 +1070,40 @@ func TestDiffDryRunQuietKeepsReport(t *testing.T) {
 	}
 }
 
+// TestDiffMaxSizeZeroUnlimited pins that diff --max-size 0 is the same as the
+// default (read everything), closing out the max-size 0 series across
+// pack/tokens/map/diff.
+func TestDiffMaxSizeZeroUnlimited(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	dflt := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	zero := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--max-size", "0"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envDefault, envZero struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(dflt.Content()), &envDefault); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(zero.Content()), &envZero); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envZero.TotalTokens != envDefault.TotalTokens {
+		t.Errorf("--max-size 0 must equal the default total (%d), got %d",
+			envDefault.TotalTokens, envZero.TotalTokens)
+	}
+}
+
 // TestDiffMaxSizeOmitsContent pins diff --max-size: a changed file over the
 // cap is still in the diff, but its body is not read, so the token total
 // drops far below the full-read count.
