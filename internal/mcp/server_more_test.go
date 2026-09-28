@@ -808,6 +808,42 @@ func TestToolCallDiffRepoList(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoMaxSize pins diff_repo's max_size argument: a changed
+// file over the cap stays in the diff but its body is not read, so the token
+// total is tiny and the envelope marks it skipped (the mcp mirror of
+// TestDiffMaxSizeOmitsContent).
+func TestToolCallDiffRepoMaxSize(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "f.txt"), []byte(strings.Repeat("a", 50)), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json","max_size":10}}}`,
+	)
+	text := toolText(t, msgs, "2")
+	var env struct {
+		Files       []any `json:"files"`
+		TotalTokens int   `json:"total_tokens"`
+		Skipped     int   `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("diff_repo json is not parseable: %v\n%s", err, text)
+	}
+	if len(env.Files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(env.Files))
+	}
+	if env.TotalTokens >= 100 {
+		t.Errorf("max_size 10 must omit the oversized body; total_tokens = %d", env.TotalTokens)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", env.Skipped)
+	}
+}
+
 // TestToolCallDiffRepoBudget pins diff_repo's budget argument: a changed file
 // too big for the budget is omitted (and named in the omitted list) while the
 // envelope stays parseable — the mcp mirror of the CLI diff budget tests.
