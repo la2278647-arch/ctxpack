@@ -1359,6 +1359,25 @@ func TestToolCallPackRepoMaxDepth(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoExclude pins pack_repo's exclude argument: matching
+// files stay out of the bundle (the mirror of the repo_map exclude test).
+func TestToolCallPackRepoExclude(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "drop.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","exclude":["*.txt"]}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	if !strings.Contains(text, "a.go") {
+		t.Errorf("exclude *.txt must keep a.go:\n%s", text)
+	}
+	if strings.Contains(text, "drop.txt") {
+		t.Errorf("exclude *.txt must drop drop.txt:\n%s", text)
+	}
+}
+
 // TestToolCallPackRepoMaxSize pins pack_repo's max_size argument: a file over
 // the cap is still in the bundle, but its body is not read (small token count
 // and a skipped entry in the envelope).
