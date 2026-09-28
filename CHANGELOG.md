@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-09-27
+
 ### Fixed
 
 - **MCP `diff_repo` reports an empty diff as a success, not an error.**
@@ -1851,6 +1853,7 @@ First public release.
   `packer`/`repomap`/`gitutil` packages.
 - **Read-only** — no code path writes into the target tree.
 
+[0.1.15]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.15
 [0.1.14]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.14
 [0.1.13]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.13
 [0.1.12]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.12
