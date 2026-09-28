@@ -4468,6 +4468,24 @@ func TestMapCSVHasOneRowPerFile(t *testing.T) {
 	}
 }
 
+// TestMapCSVDepthCombined pins that --csv honors --depth: one-level files stay
+// and two-level files drop out of the flat list.
+func TestMapCSVDepthCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("y\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--csv", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "root.txt") || !strings.Contains(out, "sub/a.go") {
+		t.Errorf("csv depth 1 must keep root and one-level files:\n%s", out)
+	}
+}
+
 func TestMapCSVSortableByBytes(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
