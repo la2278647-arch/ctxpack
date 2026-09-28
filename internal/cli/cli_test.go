@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"flag"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -2772,12 +2773,47 @@ func TestTokensSortByPct(t *testing.T) {
 	if !strings.Contains(out, "Per-model fit") {
 		t.Errorf("output missing 'Per-model fit':\n%s", out)
 	}
+	// The first model row must carry the highest pct_used.
+	firstPct := -1.0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "(") && strings.Contains(line, "%)") {
+			if i := strings.Index(line, "("); i >= 0 {
+				if p, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimSpace(line[i+1:]), "%)"), 64); err == nil {
+					firstPct = p
+					break
+				}
+			}
+		}
+	}
+	if firstPct < 0 {
+		t.Fatalf("could not find a pct row in:\n%s", out)
+	}
+	maxPct := 0.0
+	for _, m := range counter.Models() {
+		f := counter.FitsModel(counter.Estimate{Tokens: envTokensOf(t, src)}, m, fitReserve)
+		if f.PctUsed > maxPct {
+			maxPct = f.PctUsed
+		}
+	}
+	if math.Abs(firstPct-maxPct) > 0.5 {
+		t.Errorf("sort=pct first row pct = %v, want ~%v", firstPct, maxPct)
+	}
 }
 
-// TestTokensModelWithTopOverFilter pins that --top alongside --model is a
-// no-op on the filtered singleton (topN >= len), never an error or a drop.
-// TestTokensIncludeFiltersTotal pins that the walk filters shape tokens'
-// total: --include *.go must drop the .txt file from the count.
+// envTokensOf returns the total token estimate for a directory, reused by the
+// pct-order assertion above.
+func envTokensOf(t *testing.T, src string) int {
+	t.Helper()
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env tokensEnvelope
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	return env.TotalTokens
+}
 func TestTokensIncludeFiltersTotal(t *testing.T) {
 	src := t.TempDir()
 	os.WriteFile(filepath.Join(src, "a.go"), []byte("package main\n"), 0o644)
