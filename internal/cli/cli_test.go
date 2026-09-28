@@ -3158,6 +3158,38 @@ func TestMapMaxSizeZeroUnlimited(t *testing.T) {
 	}
 }
 
+// TestMapIncludeExcludeMaxSizeCombined pins that --include, --exclude and
+// --max-size stack on map: include narrows, exclude carves further, and
+// max-size caps the reads of what remains.
+func TestMapIncludeExcludeMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "skip_test.go"), []byte(strings.Repeat("b", 300)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("c", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.go", "--exclude", "*_test.go", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var env struct {
+		TotalTokens int `json:"total_tokens"`
+		Tree        struct {
+			Children []struct {
+				Name string `json:"name"`
+			} `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Tree.Children) != 1 || env.Tree.Children[0].Name != "big.go" {
+		t.Errorf("three flags must leave only big.go, got %+v", env.Tree.Children)
+	}
+	if env.TotalTokens >= 143 {
+		t.Errorf("max-size must cap the total below 143, got %d", env.TotalTokens)
+	}
+}
+
 // TestMapIncludeMaxSizeCombined pins that --include and --max-size combine:
 // the estimate applies to the included file, so the total drops below the
 // unfiltered read.
