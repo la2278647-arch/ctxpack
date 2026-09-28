@@ -3368,6 +3368,24 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortDepthCombined pins that --sort orders within the depth-bounded
+// walk (closing the map combination series: sort × every walk flag).
+func TestMapSortDepthCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "small.txt"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--depth", "1", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, "big.go") > strings.Index(out, "small.txt") {
+		t.Errorf("sort=tokens depth must rank big.go first:\n%s", out)
+	}
+}
+
 // TestMapSortExcludeCombined pins that --sort orders what --exclude left: the
 // excluded file never appears (the mirror of TestMapSortIncludeCombined).
 func TestMapSortExcludeCombined(t *testing.T) {
