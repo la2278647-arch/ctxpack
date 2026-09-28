@@ -643,6 +643,42 @@ func TestPackBudgetXMLOmitted(t *testing.T) {
 	}
 }
 
+// TestPackBudgetDepthOmitted pins that the omitted list names every walked
+// file left out of the bundle, not only budget drops: with --depth 1 the
+// two-level file appears there while the root file is packed.
+func TestPackBudgetDepthOmitted(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "deep.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--budget", "1", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "root.go" {
+		t.Errorf("depth 1 budget 1 must pack root.go, got %+v", env.Files)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == "sub/deep.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name the depth-excluded file, got %v", env.Omitted)
+	}
+}
+
 // TestPackBudgetJSONOmitted pins the command-level json envelope under a
 // budget: the packed files, plus an omitted list naming what the budget
 // dropped, so a script can see both sides of the cut.
