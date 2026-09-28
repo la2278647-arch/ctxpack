@@ -1103,6 +1103,44 @@ func TestDiffDepthLimitsNested(t *testing.T) {
 	}
 }
 
+// TestDiffBudgetJSONOmitted pins the diff json envelope under a budget: the
+// dropped change is named in the omitted list, so a script sees both sides of
+// the cut (the diff-side mirror of TestPackBudgetJSONOmitted).
+func TestDiffBudgetJSONOmitted(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--budget", "1"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files         *[]any `json:"files"`
+		Omitted       []any  `json:"omitted"`
+		OmittedTokens int    `json:"omitted_tokens"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	got := 0
+	if env.Files != nil {
+		got = len(*env.Files)
+	}
+	if got != 0 {
+		t.Errorf("budget 1 must drop the changed file; files = %d", got)
+	}
+	if len(env.Omitted) != 1 {
+		t.Errorf("omitted = %v, want one entry", env.Omitted)
+	}
+	if env.OmittedTokens <= 0 {
+		t.Errorf("omitted_tokens = %d, want > 0", env.OmittedTokens)
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
