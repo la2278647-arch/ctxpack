@@ -730,6 +730,22 @@ func TestPackRespectsGitignoreByDefault(t *testing.T) {
 	}
 }
 
+// TestPackOutputToDirectoryFails pins that -o pointing at an existing
+// directory is a runtime error (exit 1), never a truncation of the directory.
+func TestPackOutputToDirectoryFails(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.MkdirAll(filepath.Join(src, "outdir"), 0o755)
+
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "-o", filepath.Join(src, "outdir")}); code != 1 {
+		t.Fatalf("cmdPack exit = %d, want 1", code)
+	}
+	if !strings.Contains(errCap.Content(), "ctxpack:") {
+		t.Errorf("stderr should carry the error:\n%s", errCap.Content())
+	}
+}
+
 // TestPackOutputOverwritesExisting pins that -o overwrites an existing file
 // silently (os.Create truncates; no prompt, no error), so re-runs are safe.
 func TestPackOutputOverwritesExisting(t *testing.T) {
