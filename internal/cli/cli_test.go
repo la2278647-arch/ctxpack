@@ -3491,6 +3491,33 @@ func TestTokensHiddenIncludesDotfiles(t *testing.T) {
 	}
 }
 
+// TestTokensMaxSizeZeroUnlimited pins that tokens --max-size 0 is the same as
+// the default (read everything), the tokens-side mirror of the pack test.
+func TestTokensMaxSizeZeroUnlimited(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	dflt := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	zero := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--max-size", "0"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envDefault, envZero tokensEnvelope
+	if err := json.Unmarshal([]byte(dflt.Content()), &envDefault); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(zero.Content()), &envZero); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envZero.TotalTokens != envDefault.TotalTokens {
+		t.Errorf("--max-size 0 must equal the default total (%d), got %d",
+			envDefault.TotalTokens, envZero.TotalTokens)
+	}
+}
+
 // TestTokensMaxSizeUsesEstimate pins that tokens honors --max-size like map:
 // a file over the cap is estimated from its byte size instead of read, so the
 // total drops below the full-read count.
