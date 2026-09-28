@@ -597,6 +597,42 @@ func TestPackBudgetExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestPackDepthMaxSizeCombined pins that --depth and --max-size combine on
+// pack: the estimate applies inside the depth-bounded walk and marks the file
+// skipped (the pack mirror of TestMapDepthMaxSizeCombined).
+func TestPackDepthMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("x"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdPack([]string{src, "--depth", "1", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdPack([]string{src, "--depth", "1", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+		Skipped     int `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("depth+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+	if envCapped.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1 (the capped file)", envCapped.Skipped)
+	}
+}
+
 // TestPackBudgetMaxSizeCombined pins that --budget and --max-size combine: a
 // capped file's body is skipped (tiny token cost), so it stays in the bundle
 // instead of being pushed out by the budget.
