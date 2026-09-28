@@ -1378,6 +1378,35 @@ func TestToolCallPackRepoExclude(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoNoGitignore pins pack_repo's no_gitignore argument: a
+// tracked file later covered by .gitignore is out of the bundle by default
+// and in with no_gitignore:true (the pack-side mirror of the diff_repo test).
+func TestToolCallPackRepoNoGitignore(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte("x\n"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "tracked")
+	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "gitignore")
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte(strings.Repeat("s", 200)), 0o644)
+
+	dflt := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	if text := toolText(t, dflt, "1"); strings.Contains(text, "secret.txt") {
+		t.Errorf("default pack must exclude the gitignored file:\n%s", text)
+	}
+
+	noGit := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","no_gitignore":true}}}`,
+		filepath.ToSlash(dir)))
+	if text := toolText(t, noGit, "1"); !strings.Contains(text, "secret.txt") {
+		t.Errorf("no_gitignore:true must include the gitignored file:\n%s", text)
+	}
+}
+
 // TestToolCallPackRepoMaxSize pins pack_repo's max_size argument: a file over
 // the cap is still in the bundle, but its body is not read (small token count
 // and a skipped entry in the envelope).
