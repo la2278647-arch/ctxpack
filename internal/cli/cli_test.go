@@ -3114,6 +3114,22 @@ func TestModelsSortByWindow(t *testing.T) {
 	}
 }
 
+// TestModelsCSVSortWindow pins --sort window in csv mode: the first data row
+// carries the largest context window (gemini-1.5-pro).
+func TestModelsCSVSortWindow(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--sort", "window"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected header + rows:\n%s", c.Content())
+	}
+	if !strings.HasPrefix(lines[1], "gemini-1.5-pro,") {
+		t.Errorf("csv sort=window first row = %q, want gemini-1.5-pro", lines[1])
+	}
+}
+
 // TestModelsCSVSortByVendor pins --sort vendor in csv mode: the first data
 // row carries the alphabetically smallest vendor (alibaba), like the text
 // table.
