@@ -474,7 +474,10 @@ func callCountTokens(args map[string]any) (string, string) {
 			MaxDepth:         toInt(args["max_depth"]),
 			RespectGitignore: !toBool(args["no_gitignore"]),
 			IncludeHidden:    toBool(args["hidden"]),
-			ReadContent:      false,
+			// Read contents so the numbers agree with the CLI's tokens
+			// command: an estimate-only walk reported a different total for
+			// the same tree, and max_size still caps the reading below.
+			ReadContent: true,
 		},
 	})
 	if err != nil {

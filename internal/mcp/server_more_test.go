@@ -1286,6 +1286,33 @@ func TestToolCallCountTokensModelFilter(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensMaxSize pins count_tokens' max_size argument: a file
+// over the cap is estimated from its byte size, so the total is far below the
+// full-read count (the mcp mirror of TestTokensMaxSizeUsesEstimate).
+func TestToolCallCountTokensMaxSize(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	full := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	capped := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","max_size":10}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("count_tokens json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(capped), parse(full); got >= want {
+		t.Errorf("max_size 10 must cut the total below the full-read %d, got %d", want, got)
+	}
+}
+
 func TestToolCallCountTokensTop(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)

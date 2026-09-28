@@ -6,6 +6,16 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP `count_tokens` reads contents, matching the CLI's `tokens`.**
+  The tool's walker ran with `ReadContent: false`, so it reported the
+  bytes/4 estimate while the CLI's `tokens` read the files — the same tree
+  produced two different totals depending on which interface you asked.
+  `count_tokens` now reads like the CLI (and `max_size` still caps the
+  reading, so the estimate path remains reachable), and the two interfaces
+  agree on the total.
+
 ## [0.1.15] - 2026-09-27
 
 ### Fixed
