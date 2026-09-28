@@ -2903,6 +2903,22 @@ func TestModelsOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestModelsCSVTop pins that --top truncates the csv data rows too: exactly
+// header + N data lines.
+func TestModelsCSVTop(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 4 {
+		t.Errorf("csv --top 3 must yield header + 3 rows, got %d:\n%s", len(lines), c.Content())
+	}
+	if !strings.HasPrefix(lines[0], "name,") {
+		t.Errorf("first line must be the csv header, got %q", lines[0])
+	}
+}
+
 func TestModelsTopShowsFewer(t *testing.T) {
 	c := captureStdout(t)
 
