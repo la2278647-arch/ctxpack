@@ -2888,6 +2888,7 @@ func envTokensOf(t *testing.T, src string) int {
 	}
 	return env.TotalTokens
 }
+
 // TestTokensRespectsGitignoreByDefault pins the default gitignore handling at
 // the tokens level, closing out the map/pack/tokens trio: an excluded file is
 // not part of the counted tree.
