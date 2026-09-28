@@ -2888,6 +2888,37 @@ func envTokensOf(t *testing.T, src string) int {
 	}
 	return env.TotalTokens
 }
+// TestTokensRespectsGitignoreByDefault pins the default gitignore handling at
+// the tokens level, closing out the map/pack/tokens trio: an excluded file is
+// not part of the counted tree.
+func TestTokensRespectsGitignoreByDefault(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte(strings.Repeat("s", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	withFlag := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--no-gitignore"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envDefault, envNoGit tokensEnvelope
+	if err := json.Unmarshal([]byte(full.Content()), &envDefault); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(withFlag.Content()), &envNoGit); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envDefault.TotalTokens >= envNoGit.TotalTokens {
+		t.Errorf("default total (%d) must be below the --no-gitignore total (%d)",
+			envDefault.TotalTokens, envNoGit.TotalTokens)
+	}
+}
+
 func TestTokensIncludeFiltersTotal(t *testing.T) {
 	src := t.TempDir()
 	os.WriteFile(filepath.Join(src, "a.go"), []byte("package main\n"), 0o644)
