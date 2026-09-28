@@ -588,6 +588,27 @@ func TestPackBudgetIncludeCombined(t *testing.T) {
 	}
 }
 
+// TestPackBudgetXMLOmitted pins the command-level xml output under a budget:
+// the omitted element names what the budget dropped (the xml sibling of
+// TestPackBudgetJSONOmitted).
+func TestPackBudgetXMLOmitted(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "xml", "--budget", "1"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "<omitted") {
+		t.Errorf("xml budget must emit an omitted element:\n%s", out)
+	}
+	if !strings.Contains(out, "big.txt") {
+		t.Errorf("xml omitted element must name the dropped file:\n%s", out)
+	}
+}
+
 // TestPackBudgetJSONOmitted pins the command-level json envelope under a
 // budget: the packed files, plus an omitted list naming what the budget
 // dropped, so a script can see both sides of the cut.
