@@ -1397,6 +1397,36 @@ func TestDiffListHonoursInclude(t *testing.T) {
 	}
 }
 
+// TestDiffListIncludeExcludeCombined pins that --include and --exclude work
+// together on diff --list: the include narrows the candidate set and the
+// exclude carves it further (the mirror of the map walker conflict test).
+func TestDiffListIncludeExcludeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n\nvar a = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "a_test.go"), []byte("package a\n\nvar t = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "notes.txt"), []byte("notes\n\nmore\n"), 0o644)
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--list", "--include", "*.go", "--exclude", "*_test.go"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "a.go") {
+		t.Errorf("combined filters must keep a.go:\n%s", out)
+	}
+	if strings.Contains(out, "a_test.go") {
+		t.Errorf("exclude must drop a_test.go:\n%s", out)
+	}
+	if strings.Contains(out, "notes.txt") {
+		t.Errorf("include must drop notes.txt:\n%s", out)
+	}
+}
+
 // TestDiffListHonoursExclude pins diff --list --exclude: a dropped glob keeps
 // the file out of the list while the rest stays (the mirror of the include test).
 func TestDiffListHonoursExclude(t *testing.T) {
