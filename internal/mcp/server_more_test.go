@@ -754,6 +754,42 @@ func TestToolCallDiffRepoList(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoBudget pins diff_repo's budget argument: a changed file
+// too big for the budget is omitted (and named in the omitted list) while the
+// envelope stays parseable — the mcp mirror of the CLI diff budget tests.
+func TestToolCallDiffRepoBudget(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "f.txt"), []byte(strings.Repeat("a", 50)), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	msgs := serveLines(t,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":"`+filepath.ToSlash(dir)+`","format":"json","budget":1}}}`,
+	)
+	text := toolText(t, msgs, "2")
+	var env struct {
+		Files    *[]any `json:"files"`
+		Omitted  []any  `json:"omitted"`
+		SkipFlag bool   `json:"-"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("diff_repo budget json is not parseable: %v\n%s", err, text)
+	}
+	got := 0
+	if env.Files != nil {
+		got = len(*env.Files)
+	}
+	if got != 0 {
+		t.Errorf("budget 1 must drop the changed file; files = %d", got)
+	}
+	if len(env.Omitted) != 1 {
+		t.Errorf("omitted = %v, want [f.txt]", env.Omitted)
+	}
+}
+
 // TestToolCallDiffRepoListIgnoresFormat pins that list wins over format at
 // the MCP layer too (matching the CLI): with list:true and format:json, the
 // answer is a plain path list, not a JSON envelope.
