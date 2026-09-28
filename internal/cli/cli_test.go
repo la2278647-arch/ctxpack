@@ -962,6 +962,25 @@ func TestPackOutputOverwritesExisting(t *testing.T) {
 	}
 }
 
+// TestPackOutputDashModelAnnotates pins that -o - with --model prints the fit
+// note on stdout (like any non-json render) without creating a "-" file.
+func TestPackOutputDashModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "-o", "-", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "fit: FITS model=gpt-4o") {
+		t.Errorf("-o - --model must carry the fit note on stdout:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(src, "-")); err == nil {
+		t.Errorf("-o - must not create a file named '-'")
+	}
+}
+
 // TestPackOutputDashIsStdout pins that pack honors --output - as stdout, the
 // last of the output-dash trio (models and diff already pinned): no file
 // named "-" is created and the json lands on stdout.
