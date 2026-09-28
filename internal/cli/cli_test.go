@@ -2248,6 +2248,29 @@ func TestMapHiddenExcludesDotfilesByDefault(t *testing.T) {
 	}
 }
 
+// TestMapRespectsGitignoreByDefault pins the default: without --no-gitignore,
+// a .gitignore exclusion keeps the file out of the walk (the mirror of
+// TestMapNoGitignoreIncludesGitignoredFiles).
+func TestMapRespectsGitignoreByDefault(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte("s\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(out, "secret.txt") {
+		t.Errorf("default walk must respect .gitignore:\n%s", out)
+	}
+	if !strings.Contains(out, "keep.go") {
+		t.Errorf("default walk must keep normal files:\n%s", out)
+	}
+}
+
 // TestMapNoGitignoreIncludesGitignoredFiles pins the flag at the CLI layer:
 // with .gitignore excluding a file, --no-gitignore walks it anyway (the
 // built-in denylist still applies; only .gitignore files are ignored).
