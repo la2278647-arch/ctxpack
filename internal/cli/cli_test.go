@@ -3581,6 +3581,25 @@ func TestMapSortNoGitignoreCombined(t *testing.T) {
 	}
 }
 
+// TestMapHiddenNoGitignoreSortCombined pins that the two guard-lifting flags
+// plus --sort stack: a gitignored dotfile ranks first once admitted.
+func TestMapHiddenNoGitignoreSortCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte(".env\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--no-gitignore", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, ".env") > strings.Index(out, "small.go") {
+		t.Errorf("three flags must rank .env first:\n%s", out)
+	}
+}
+
 // TestMapSortHiddenCombined pins that --hidden admits dotfiles into the
 // sorted outline: the big dotfile ranks first by tokens once admitted.
 func TestMapSortHiddenCombined(t *testing.T) {
