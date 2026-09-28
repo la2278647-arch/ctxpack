@@ -5611,6 +5611,31 @@ func TestTokensSortPctTopCombined(t *testing.T) {
 	}
 }
 
+// TestTokensSortNameTopCombined pins that --top ranks by its own key and
+// ignores --sort name: the first of the three rows is the pct-largest
+// (gemini-1.5-pro), matching the sort=pct top behavior.
+func TestTokensSortNameTopCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--sort", "name", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	rows := []string{}
+	for _, line := range strings.Split(c.Content(), "\n") {
+		if strings.Contains(line, "[") && strings.Contains(line, "/") {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) != 3 {
+		t.Fatalf("--top 3 must yield exactly 3 rows, got %d:\n%s", len(rows), c.Content())
+	}
+	if !strings.Contains(rows[0], "gemini-1.5-pro") {
+		t.Errorf("top ignores sort=name and ranks pct-first, got %q", rows[0])
+	}
+}
+
 // --- tokens --top ---
 
 func TestTokensTopShowsFewerModels(t *testing.T) {
