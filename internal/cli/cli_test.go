@@ -2164,6 +2164,36 @@ func TestMapDepthLimitsTraversal(t *testing.T) {
 	}
 }
 
+// TestMapDepthLimitsNestedDirs pins the depth boundary at the CLI layer using
+// the documented semantics (a directory at depth 1 is one level below, so at
+// --depth 1 its own files reach the map but a directory below it does not).
+func TestMapDepthLimitsNestedDirs(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package sub\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "deep", "b.go"), []byte("package deep\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "a.go") {
+		t.Errorf("--depth 1 must reach one-level files:\n%s", out)
+	}
+	if strings.Contains(out, "b.go") {
+		t.Errorf("--depth 1 must not reach a two-level file:\n%s", out)
+	}
+
+	c = captureStdout(t)
+	if code := cmdMap([]string{src, "--depth", "2"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if out := c.Content(); !strings.Contains(out, "b.go") {
+		t.Errorf("--depth 2 must reach a two-level file:\n%s", out)
+	}
+}
+
 func TestMapDepthPositive(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
