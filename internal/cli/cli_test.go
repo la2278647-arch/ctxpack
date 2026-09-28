@@ -1093,6 +1093,29 @@ func TestPackPlainDirectoryWorks(t *testing.T) {
 	}
 }
 
+// TestDiffDryRunBudgetShowsOmitted pins that diff --dry-run --budget reports
+// what the budget dropped in the dry-run summary.
+func TestDiffDryRunBudgetShowsOmitted(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	errCap := captureStderr(t)
+	if code := cmdDiff([]string{src, "--dry-run", "--budget", "1"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "dry run") {
+		t.Errorf("stderr missing the dry-run header:\n%s", out)
+	}
+	if !strings.Contains(out, "omitted by the budget") {
+		t.Errorf("stderr missing the omitted summary:\n%s", out)
+	}
+}
+
 func TestDiffDryRunShowsFiles(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
