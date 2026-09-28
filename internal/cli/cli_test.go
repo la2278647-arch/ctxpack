@@ -2760,6 +2760,27 @@ func TestMapDepthPositive(t *testing.T) {
 	}
 }
 
+// TestMapTopIncludeCombined pins that --top ranks only what --include left:
+// the flat top list is drawn from the filtered set.
+func TestMapTopIncludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "mid.go"), []byte(strings.Repeat("b", 100)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("c", 20)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "big.go") {
+		t.Errorf("top 1 include *.go must name big.go:\n%s", out)
+	}
+	if strings.Contains(out, "small.txt") || strings.Contains(out, "mid.go") {
+		t.Errorf("top 1 include *.go must only name the largest go file:\n%s", out)
+	}
+}
+
 // --- map --top ---
 
 func TestMapTopShowsFlatList(t *testing.T) {
