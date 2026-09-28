@@ -4729,6 +4729,28 @@ func TestDoctorOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestDoctorJSONOutputWritesFile pins that doctor --json -o writes a
+// parseable envelope to the file (the json sibling of the text file test).
+func TestDoctorJSONOutputWritesFile(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "doctor.json")
+	if code := cmdDoctor([]string{"--json", "-o", dst}); code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	var env struct {
+		GoVersion string `json:"go_version"`
+	}
+	if err := json.Unmarshal(data, &env); err != nil {
+		t.Fatalf("output must be parseable json: %v\n%s", err, data)
+	}
+	if env.GoVersion == "" {
+		t.Errorf("go_version missing from the json file")
+	}
+}
+
 func TestDoctorOutputWritesFile(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "out.txt")
 
