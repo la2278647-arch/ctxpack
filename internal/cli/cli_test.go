@@ -563,6 +563,40 @@ func TestPackBudgetExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestPackBudgetMaxSizeCombined pins that --budget and --max-size combine: a
+// capped file's body is skipped (tiny token cost), so it stays in the bundle
+// instead of being pushed out by the budget.
+func TestPackBudgetMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--budget", "5", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path   string `json:"path"`
+			Tokens int    `json:"tokens"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+		Skipped int   `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 2 {
+		t.Errorf("budget+max-size must keep both files, got %+v", env.Files)
+	}
+	if len(env.Omitted) != 0 {
+		t.Errorf("budget+max-size must omit nothing, got %v", env.Omitted)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1 (the capped file)", env.Skipped)
+	}
+}
+
 // TestPackBudgetIncludeCombined pins that --budget selects from the
 // --include-filtered set: a file outside the include never enters, so the
 // budget works on a pre-narrowed candidate pool.
