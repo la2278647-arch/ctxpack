@@ -3368,6 +3368,26 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortExcludeCombined pins that --sort orders what --exclude left: the
+// excluded file never appears (the mirror of TestMapSortIncludeCombined).
+func TestMapSortExcludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("b", 300)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--exclude", "*.txt", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "big.go") {
+		t.Errorf("sort=tokens exclude must keep big.go:\n%s", out)
+	}
+	if strings.Contains(out, "big.txt") {
+		t.Errorf("sort=tokens exclude must drop the txt file:\n%s", out)
+	}
+}
+
 // TestMapSortIncludeCombined pins that --sort orders within the include set:
 // the bigger matching file ranks first and excluded files never appear.
 func TestMapSortIncludeCombined(t *testing.T) {
