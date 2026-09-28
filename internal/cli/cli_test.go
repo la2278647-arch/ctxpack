@@ -3152,6 +3152,24 @@ func TestDoctorFormatUnknown(t *testing.T) {
 	}
 }
 
+// TestDoctorOutputDashIsStdout pins that doctor honors --output - as stdout,
+// closing out the output-dash trio (models, diff, pack) across every command
+// that takes -o: no file named "-" is created.
+func TestDoctorOutputDashIsStdout(t *testing.T) {
+	dir := t.TempDir()
+	c := captureStdout(t)
+	if code := cmdDoctor([]string{"--json", "-o", "-"}); code != 0 {
+		t.Fatalf("cmdDoctor exit = %d", code)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Errorf("-o - must print the json to stdout: %v\n%s", err, c.Content())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "-")); err == nil {
+		t.Errorf("-o - must not create a file named '-'")
+	}
+}
+
 func TestDoctorOutputWritesFile(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "out.txt")
 
