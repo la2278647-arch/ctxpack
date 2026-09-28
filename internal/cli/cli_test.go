@@ -2240,6 +2240,29 @@ func TestMapIncludeDoesNotExposeDotfiles(t *testing.T) {
 	}
 }
 
+// TestMapHiddenDoesNotOverrideGitignore pins that an explicit .gitignore
+// exclusion wins over --hidden: --hidden only lifts the default dotfile skip,
+// not a named ignore.
+func TestMapHiddenDoesNotOverrideGitignore(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte(".env\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.txt"), []byte("x\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(out, ".env") {
+		t.Errorf("--hidden must not override a .gitignore exclusion:\n%s", out)
+	}
+	if !strings.Contains(out, "keep.txt") {
+		t.Errorf("--hidden must not drop normal files:\n%s", out)
+	}
+}
+
 // TestMapHiddenExcludesDotfilesByDefault pins --hidden at the CLI layer: a
 // dotfile like .env is skipped by default, included with --hidden, and .git
 // stays out either way (VCS metadata is never walked).
