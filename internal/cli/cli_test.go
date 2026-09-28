@@ -3368,6 +3368,23 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortHiddenCombined pins that --hidden admits dotfiles into the
+// sorted outline: the big dotfile ranks first by tokens once admitted.
+func TestMapSortHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, ".env") > strings.Index(out, "small.go") {
+		t.Errorf("sort=tokens hidden must rank the dotfile first:\n%s", out)
+	}
+}
+
 // TestMapSortTokensMaxSizeCombined pins that --sort tokens still orders by
 // the estimated values when --max-size caps the reads.
 func TestMapSortTokensMaxSizeCombined(t *testing.T) {
