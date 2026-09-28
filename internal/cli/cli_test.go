@@ -2944,6 +2944,31 @@ func TestMapTopExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestMapTopMaxSizeCombined pins that --top and --max-size combine: the flat
+// top list still names the largest file, but with the estimate when capped.
+func TestMapTopMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if !strings.Contains(full.Content(), "big.txt") || !strings.Contains(capped.Content(), "big.txt") {
+		t.Errorf("both runs must name big.txt as top 1:\nfull:\n%s\ncapped:\n%s",
+			full.Content(), capped.Content())
+	}
+	// The capped run reports the estimate, which is smaller than the read.
+	if strings.Contains(capped.Content(), "143") {
+		t.Errorf("--max-size 10 must report the estimate, not the full read:\n%s", capped.Content())
+	}
+}
+
 // TestMapTopIncludeCombined pins that --top ranks only what --include left:
 // the flat top list is drawn from the filtered set.
 func TestMapTopIncludeCombined(t *testing.T) {
