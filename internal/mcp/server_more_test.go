@@ -1076,6 +1076,36 @@ func TestToolCallCountTokensJSON(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoMaxSize pins pack_repo's max_size argument: a file over
+// the cap is still in the bundle, but its body is not read (small token count
+// and a skipped entry in the envelope).
+func TestToolCallPackRepoMaxSize(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","max_size":10}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		Files       []any `json:"files"`
+		TotalTokens int   `json:"total_tokens"`
+		Skipped     int   `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("pack_repo json is not parseable: %v\n%s", err, text)
+	}
+	if len(env.Files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(env.Files))
+	}
+	if env.TotalTokens >= 100 {
+		t.Errorf("max_size 10 must omit the oversized body; total_tokens = %d", env.TotalTokens)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", env.Skipped)
+	}
+}
+
 // TestToolCallPackRepoEmptyDirJSON pins that packing an empty directory in
 // json format yields a parseable envelope (files null, zero tokens), not an
 // error — the MCP mirror of the CLI's TestPackEmptyDirYieldsEmptyBundle.
