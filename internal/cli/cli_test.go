@@ -1369,6 +1369,40 @@ func TestDiffBudgetJSONOmitted(t *testing.T) {
 	}
 }
 
+// TestDiffBudgetMaxSizeCombined pins that diff --budget and --max-size
+// combine like pack: a capped change's body is skipped (tiny token cost), so
+// it stays in the diff instead of being pushed out by the budget.
+func TestDiffBudgetMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--budget", "5", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files   []any `json:"files"`
+		Omitted []any `json:"omitted"`
+		Skipped int   `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 {
+		t.Errorf("budget+max-size must keep the change, got %d files", len(env.Files))
+	}
+	if len(env.Omitted) != 0 {
+		t.Errorf("budget+max-size must omit nothing, got %v", env.Omitted)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1 (the capped change)", env.Skipped)
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
