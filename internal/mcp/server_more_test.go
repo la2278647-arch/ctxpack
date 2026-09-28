@@ -871,6 +871,32 @@ func TestToolCallDiffRepoMaxDepth(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoHidden pins diff_repo's hidden argument: a modified
+// dotfile is out of the default list and in with hidden:true (the mcp mirror
+// of TestDiffListHiddenExcludesByDefault).
+func TestToolCallDiffRepoHidden(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, ".hidden.txt"), []byte("x\n"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "dotfile")
+	os.WriteFile(filepath.Join(dir, ".hidden.txt"), []byte("x\ny\n"), 0o644)
+
+	dflt := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, dflt, "1"); strings.Contains(got, ".hidden.txt") {
+		t.Errorf("default diff must exclude the dotfile, got:\n%s", got)
+	}
+
+	hidden := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true,"hidden":true}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, hidden, "1"); !strings.Contains(got, ".hidden.txt") {
+		t.Errorf("hidden:true must list the dotfile, got:\n%s", got)
+	}
+}
+
 // TestToolCallDiffRepoBudget pins diff_repo's budget argument: a changed file
 // too big for the budget is omitted (and named in the omitted list) while the
 // envelope stays parseable — the mcp mirror of the CLI diff budget tests.
