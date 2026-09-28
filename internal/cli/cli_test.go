@@ -3368,6 +3368,25 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortNoGitignoreCombined pins that --no-gitignore admits gitignored
+// files into the sorted outline: the big one ranks first by tokens.
+func TestMapSortNoGitignoreCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--no-gitignore", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, "secret.txt") > strings.Index(out, "small.go") {
+		t.Errorf("sort=tokens no-gitignore must rank the gitignored file first:\n%s", out)
+	}
+}
+
 // TestMapSortHiddenCombined pins that --hidden admits dotfiles into the
 // sorted outline: the big dotfile ranks first by tokens once admitted.
 func TestMapSortHiddenCombined(t *testing.T) {
