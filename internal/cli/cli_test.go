@@ -1405,6 +1405,48 @@ func TestDiffBudgetJSONOmitted(t *testing.T) {
 	}
 }
 
+// TestDiffBudgetDepthOmitted pins that diff's omitted list names every walked
+// change left out of the bundle: with --depth 1 the two-level change appears
+// there (like pack's depth drops) while a one-level change stays.
+func TestDiffBudgetDepthOmitted(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "deep.txt"), []byte("d\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	// Same-size change keeps root.go tiny (1 token) so the budget keeps it.
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("y"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "deep.txt"), []byte("d\n"+strings.Repeat("d", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--budget", "1", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "root.go" {
+		t.Errorf("depth 1 budget 1 must keep root.go, got %+v", env.Files)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == "sub/deep.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name the depth-excluded change, got %v", env.Omitted)
+	}
+}
+
 // TestDiffBudgetMaxSizeCombined pins that diff --budget and --max-size
 // combine like pack: a capped change's body is skipped (tiny token cost), so
 // it stays in the diff instead of being pushed out by the budget.
