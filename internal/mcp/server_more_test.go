@@ -1306,6 +1306,31 @@ func TestToolCallCountTokensJSON(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoHidden pins pack_repo's hidden argument: a dotfile is
+// out of the bundle by default and in with hidden:true (the mcp mirror of the
+// CLI pack hidden behavior).
+func TestToolCallPackRepoHidden(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, ".hidden.go"), []byte("package h\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "keep.go"), []byte("package main\n"), 0o644)
+
+	dflt := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, dflt, "1")
+	if strings.Contains(text, ".hidden.go") {
+		t.Errorf("default pack must exclude the dotfile:\n%s", text)
+	}
+
+	hidden := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","hidden":true}}}`,
+		filepath.ToSlash(dir)))
+	text = toolText(t, hidden, "1")
+	if !strings.Contains(text, ".hidden.go") {
+		t.Errorf("hidden:true must include the dotfile:\n%s", text)
+	}
+}
+
 // TestToolCallPackRepoMaxSize pins pack_repo's max_size argument: a file over
 // the cap is still in the bundle, but its body is not read (small token count
 // and a skipped entry in the envelope).
