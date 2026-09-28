@@ -2581,6 +2581,24 @@ func TestMapTopZeroShowsTree(t *testing.T) {
 	}
 }
 
+// TestMapSortNameDirsFirst pins the README's "name (default, dirs first)"
+// promise: a directory sorts ahead of a file even when its name is larger.
+func TestMapSortNameDirsFirst(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "zzz_dir"), 0o755)
+	os.WriteFile(filepath.Join(src, "zzz_dir", "inner.go"), []byte("package z\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "aaa_file.txt"), []byte("a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--sort", "name"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, "zzz_dir") > strings.Index(out, "aaa_file.txt") {
+		t.Errorf("dirs must sort before files regardless of name:\n%s", out)
+	}
+}
+
 func TestMapSortByNameDefault(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
