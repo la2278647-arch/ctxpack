@@ -1918,6 +1918,26 @@ func TestPackQuietShortFlag(t *testing.T) {
 	}
 }
 
+// TestPackDryRunIncludeFilters pins that pack --dry-run --include reports the
+// filtered file count, so the summary reflects what would actually pack.
+func TestPackDryRunIncludeFilters(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "--dry-run", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := errCap.Content()
+	if !strings.Contains(out, "1 file") {
+		t.Errorf("dry-run include *.go must report 1 file:\n%s", out)
+	}
+	if strings.Contains(out, "big.txt") {
+		t.Errorf("dry-run include *.go must not list the excluded file:\n%s", out)
+	}
+}
+
 func TestPackDryRunShowsFiles(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
