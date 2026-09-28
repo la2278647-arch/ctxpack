@@ -1033,6 +1033,41 @@ func TestDiffListHiddenExcludesByDefault(t *testing.T) {
 	}
 }
 
+// TestDiffDepthLimitsNested pins diff --depth's boundary: a change two levels
+// deep is out of the list at depth 1 and in at depth 2 (one-level changes are
+// in at depth 1, matching the map/tokens semantics).
+func TestDiffDepthLimitsNested(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "deep", "x.txt"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package a\n"), 0o644)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "sub", "deep", "x.txt"), []byte("x\ny\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package a\n\nvar a = 1\n"), 0o644)
+
+	shallow := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := shallow.Content()
+	if !strings.Contains(out, "sub/a.go") {
+		t.Errorf("--depth 1 must list the one-level change:\n%s", out)
+	}
+	if strings.Contains(out, "deep/x.txt") {
+		t.Errorf("--depth 1 must not list the two-level change:\n%s", out)
+	}
+
+	deeper := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--depth", "2"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(deeper.Content(), "deep/x.txt") {
+		t.Errorf("--depth 2 must list the two-level change:\n%s", deeper.Content())
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
