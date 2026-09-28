@@ -1198,6 +1198,44 @@ func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
 	}
 }
 
+// TestDiffRefBudgetCombined pins that diff --budget applies to an explicit
+// ref's worktree changes: the small change stays, the big one is omitted.
+func TestDiffRefBudgetCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "HEAD", "--format", "json", "--budget", "5"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "f.txt" {
+		t.Errorf("ref budget 5 must keep f.txt, got %+v", env.Files)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == "big.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name big.txt, got %v", env.Omitted)
+	}
+}
+
 // TestDiffRefModelAnnotates pins that diff with an explicit ref still carries
 // the fit note, computed from that ref's diff total.
 func TestDiffRefModelAnnotates(t *testing.T) {
