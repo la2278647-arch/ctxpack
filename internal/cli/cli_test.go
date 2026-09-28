@@ -538,6 +538,45 @@ func TestPackMissingPathFails(t *testing.T) {
 	}
 }
 
+// TestPackBudgetMaxSizeHiddenCombined pins that --budget, --max-size and
+// --hidden stack: hidden admits the dotfile, max-size caps its body, and the
+// budget keeps the small file (a three-flag variant).
+func TestPackBudgetMaxSizeHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("e", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--max-size", "10", "--hidden", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+		Skipped int   `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "small.go" {
+		t.Errorf("three flags must keep small.go, got %+v", env.Files)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1 (the capped dotfile)", env.Skipped)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == ".env" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name .env, got %v", env.Omitted)
+	}
+}
+
 // TestPackBudgetHiddenCombined pins that --budget and --hidden combine: the
 // dotfile joins the candidate pool and the budget still drops it when too big.
 func TestPackBudgetHiddenCombined(t *testing.T) {
