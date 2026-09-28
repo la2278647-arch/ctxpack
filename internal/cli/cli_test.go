@@ -1198,6 +1198,28 @@ func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
 	}
 }
 
+// TestDiffRefModelAnnotates pins that diff with an explicit ref still carries
+// the fit note, computed from that ref's diff total.
+func TestDiffRefModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "first")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "second")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\nz\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "HEAD~1", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("diff with an explicit ref must carry the fit note:\n%s", c.Content())
+	}
+}
+
 // TestDiffSingleRefIncludesWorktree pins that a single revision ref (not a
 // range) diffs against the working tree, so untracked files are included —
 // the mirror of TestDiffRangeExcludesWorktree.
