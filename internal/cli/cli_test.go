@@ -3644,6 +3644,23 @@ func TestMapTopExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestMapTopHiddenCombined pins that --hidden lets the dotfile compete for
+// the flat top: the big dotfile ranks first once admitted.
+func TestMapTopHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--top", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, ".env") {
+		t.Errorf("top 1 hidden must name the big dotfile:\n%s", out)
+	}
+}
+
 // TestMapTopNoGitignoreCombined pins that --top ranks the gitignored file
 // once --no-gitignore lifts the filter: the flat list then shows it first.
 func TestMapTopNoGitignoreCombined(t *testing.T) {
