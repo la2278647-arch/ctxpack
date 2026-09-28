@@ -2143,6 +2143,26 @@ func TestPackDryRunIncludeFilters(t *testing.T) {
 	}
 }
 
+// TestPackDryRunModelNoFit pins that --dry-run does not render, so the fit
+// note (which belongs to rendered output) stays absent even with --model: the
+// summary line is all stderr carries.
+func TestPackDryRunModelNoFit(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	outCap := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "--dry-run", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if strings.Contains(outCap.Content(), "fit:") {
+		t.Errorf("dry-run must not render the fit note:\n%s", outCap.Content())
+	}
+	if !strings.Contains(errCap.Content(), "dry run") {
+		t.Errorf("dry-run summary must go to stderr:\n%s", errCap.Content())
+	}
+}
+
 func TestPackDryRunShowsFiles(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
