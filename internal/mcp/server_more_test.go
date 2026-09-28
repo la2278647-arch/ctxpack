@@ -1394,6 +1394,34 @@ func TestToolCallCountTokensInclude(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensExclude pins count_tokens' exclude argument: a
+// dropped file leaves the counted tree, shrinking the total (the mirror of
+// TestToolCallCountTokensInclude).
+func TestToolCallCountTokensExclude(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "keep.go"), []byte("package main\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "drop.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	full := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	filtered := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","exclude":["*.txt"]}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("count_tokens json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(filtered), parse(full); got >= want {
+		t.Errorf("exclude *.txt must cut the total below %d, got %d", want, got)
+	}
+}
+
 func TestToolCallCountTokensTop(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
