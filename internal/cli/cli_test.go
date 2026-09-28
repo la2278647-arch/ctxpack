@@ -1974,6 +1974,26 @@ func TestDiffListIncludeExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestDiffListBudgetIgnoresBudget pins that --list wins over --budget: the
+// path list is not a render, so the budget has nothing to cut.
+func TestDiffListBudgetIgnoresBudget(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--budget", "1"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "f.txt") {
+		t.Errorf("--list must keep the path despite the tiny budget:\n%s", out)
+	}
+}
+
 // TestDiffListHonoursExclude pins diff --list --exclude: a dropped glob keeps
 // the file out of the list while the rest stays (the mirror of the include test).
 func TestDiffListHonoursExclude(t *testing.T) {
