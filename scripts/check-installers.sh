@@ -148,7 +148,7 @@ else
 fi
 
 echo "--- 2. asset naming ---"
-VER="0.1.15"
+VER="0.1.16"
 
 # The rows the Makefile builds. Lines are \ -continued.
 OSARCHES="$(sed -n '/^OSARCHES[[:space:]]*:=/,/^[^\\]*$/p' Makefile \
