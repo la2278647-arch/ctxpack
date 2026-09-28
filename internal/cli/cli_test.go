@@ -2635,6 +2635,28 @@ func TestMapDepthLimitsTraversal(t *testing.T) {
 	}
 }
 
+// TestMapDepthHiddenCombined pins that --hidden and --depth work together: a
+// dotfile one level down is included when both flags are given (hidden lifts
+// the dotfile skip, depth still bounds the traversal).
+func TestMapDepthHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", ".hidden.go"), []byte("package h\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, ".hidden.go") {
+		t.Errorf("--hidden --depth 1 must include the one-level dotfile:\n%s", out)
+	}
+	if !strings.Contains(out, "root.go") {
+		t.Errorf("--hidden --depth 1 must keep the root file:\n%s", out)
+	}
+}
+
 // TestMapDepthLimitsNestedDirs pins the depth boundary at the CLI layer using
 // the documented semantics (a directory at depth 1 is one level below, so at
 // --depth 1 its own files reach the map but a directory below it does not).
