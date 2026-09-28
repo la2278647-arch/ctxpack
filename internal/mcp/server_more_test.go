@@ -844,6 +844,33 @@ func TestToolCallDiffRepoMaxSize(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoMaxDepth pins diff_repo's max_depth argument: a changed
+// file two levels deep is out of the list at max_depth 1 (the mcp mirror of
+// TestDiffDepthLimitsNested).
+func TestToolCallDiffRepoMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "deep", "x.txt"), []byte("x\n"), 0o644)
+	gitInit(t, dir)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "sub", "deep", "x.txt"), []byte("x\ny\n"), 0o644)
+
+	shallow := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, shallow, "1"); strings.Contains(got, "x.txt") {
+		t.Errorf("max_depth 1 must not list the two-level change, got:\n%s", got)
+	}
+
+	deeper := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true,"max_depth":2}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, deeper, "1"); !strings.Contains(got, "x.txt") {
+		t.Errorf("max_depth 2 must list the two-level change, got:\n%s", got)
+	}
+}
+
 // TestToolCallDiffRepoBudget pins diff_repo's budget argument: a changed file
 // too big for the budget is omitted (and named in the omitted list) while the
 // envelope stays parseable — the mcp mirror of the CLI diff budget tests.
