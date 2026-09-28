@@ -3368,6 +3368,27 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortIncludeCombined pins that --sort orders within the include set:
+// the bigger matching file ranks first and excluded files never appear.
+func TestMapSortIncludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "big_test.go"), []byte(strings.Repeat("b", 300)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("c", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.go", "--sort", "tokens"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, "big.go") > strings.Index(out, "big_test.go") {
+		t.Errorf("sort=tokens include must rank big.go first:\n%s", out)
+	}
+	if strings.Contains(out, "small.txt") {
+		t.Errorf("include *.go must drop the txt file:\n%s", out)
+	}
+}
+
 // TestMapSortNoGitignoreCombined pins that --no-gitignore admits gitignored
 // files into the sorted outline: the big one ranks first by tokens.
 func TestMapSortNoGitignoreCombined(t *testing.T) {
