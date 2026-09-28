@@ -538,6 +538,41 @@ func TestPackMissingPathFails(t *testing.T) {
 	}
 }
 
+// TestPackBudgetJSONOmitted pins the command-level json envelope under a
+// budget: the packed files, plus an omitted list naming what the budget
+// dropped, so a script can see both sides of the cut.
+func TestPackBudgetJSONOmitted(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--budget", "1"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files         []any `json:"files"`
+		Omitted       []any `json:"omitted"`
+		OmittedTokens int   `json:"omitted_tokens"`
+		TotalTokens   int   `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 {
+		t.Errorf("budget 1 should keep exactly one file, got %d", len(env.Files))
+	}
+	if len(env.Omitted) != 1 {
+		t.Errorf("omitted = %v, want one entry", env.Omitted)
+	}
+	if env.OmittedTokens <= 0 {
+		t.Errorf("omitted_tokens = %d, want > 0", env.OmittedTokens)
+	}
+	if env.TotalTokens <= 0 {
+		t.Errorf("total_tokens = %d, want > 0", env.TotalTokens)
+	}
+}
+
 // TestPackMaxSizeZeroMeansUnlimited pins that an explicit --max-size 0 reads
 // whole files like the default, while a positive cap still lists the file but
 // omits its content.
