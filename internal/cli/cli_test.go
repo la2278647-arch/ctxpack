@@ -538,6 +538,40 @@ func TestPackMissingPathFails(t *testing.T) {
 	}
 }
 
+// TestPackBudgetHiddenCombined pins that --budget and --hidden combine: the
+// dotfile joins the candidate pool and the budget still drops it when too big.
+func TestPackBudgetHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("e", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--budget", "1", "--hidden"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "small.go" {
+		t.Errorf("budget+hidden must keep small.go, got %+v", env.Files)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == ".env" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name the dropped dotfile, got %v", env.Omitted)
+	}
+}
+
 // TestPackBudgetExcludeCombined pins that --budget selects from what
 // --exclude left: the excluded file never competes (the mirror of
 // TestPackBudgetIncludeCombined).
