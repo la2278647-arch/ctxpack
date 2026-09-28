@@ -1003,6 +1003,36 @@ func TestDiffMaxSizeOmitsContent(t *testing.T) {
 	}
 }
 
+// TestDiffListHiddenExcludesByDefault pins diff's hidden handling: a modified
+// dotfile is out of the default list and in with --hidden (the same walker
+// semantics map has, at the diff layer).
+func TestDiffListHiddenExcludesByDefault(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, ".hidden.txt"), []byte("x\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "dotfile")
+	os.WriteFile(filepath.Join(src, ".hidden.txt"), []byte("x\ny\n"), 0o644)
+
+	dflt := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	hidden := captureStdout(t)
+	if code := cmdDiff([]string{src, "--list", "--hidden"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if strings.Contains(dflt.Content(), ".hidden.txt") {
+		t.Errorf("default diff must exclude the dotfile:\n%s", dflt.Content())
+	}
+	if !strings.Contains(hidden.Content(), ".hidden.txt") {
+		t.Errorf("--hidden diff must list the dotfile:\n%s", hidden.Content())
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
