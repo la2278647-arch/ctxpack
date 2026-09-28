@@ -3603,6 +3603,27 @@ func TestMapDepthPositive(t *testing.T) {
 	}
 }
 
+// TestMapTopDepthCombined pins that --top ranks within the depth-bounded set:
+// a deeper big file is still the flat top when the depth admits it.
+func TestMapTopDepthCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "big.go") {
+		t.Errorf("top 1 depth 1 must name the deeper big file:\n%s", out)
+	}
+	if strings.Contains(out, "root.txt") {
+		t.Errorf("top 1 depth 1 must not name the smaller root file:\n%s", out)
+	}
+}
+
 // TestMapTopExcludeCombined pins that --top ranks what --exclude left: the
 // excluded file never competes (the mirror of TestMapTopIncludeCombined).
 func TestMapTopExcludeCombined(t *testing.T) {
