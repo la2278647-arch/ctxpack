@@ -3216,6 +3216,26 @@ func TestMapSortNameDirsFirst(t *testing.T) {
 	}
 }
 
+// TestMapSortTokensMaxSizeCombined pins that --sort tokens still orders by
+// the estimated values when --max-size caps the reads.
+func TestMapSortTokensMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--sort", "tokens", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Index(out, "big.go") > strings.Index(out, "small.txt") {
+		t.Errorf("sort=tokens must keep big.go first:\n%s", out)
+	}
+	if strings.Contains(out, "143") {
+		t.Errorf("--max-size 10 must report the estimate, not the full read:\n%s", out)
+	}
+}
+
 func TestMapSortByNameDefault(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
