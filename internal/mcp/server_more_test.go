@@ -897,6 +897,36 @@ func TestToolCallDiffRepoHidden(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoNoGitignore pins diff_repo's no_gitignore argument: a
+// tracked file later covered by .gitignore is out of the default list and in
+// with no_gitignore:true (untracked gitignored files stay out regardless —
+// git status does not report them, which is a git semantic, not a walker one).
+func TestToolCallDiffRepoNoGitignore(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte("x\n"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "tracked")
+	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "gitignore")
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte("x\ny\n"), 0o644)
+
+	dflt := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, dflt, "1"); strings.Contains(got, "secret.txt") {
+		t.Errorf("default diff must exclude the gitignored change, got:\n%s", got)
+	}
+
+	noGit := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"list":true,"no_gitignore":true}}}`,
+		filepath.ToSlash(dir)))
+	if got := toolText(t, noGit, "1"); !strings.Contains(got, "secret.txt") {
+		t.Errorf("no_gitignore:true must list the gitignored change, got:\n%s", got)
+	}
+}
+
 // TestToolCallDiffRepoBudget pins diff_repo's budget argument: a changed file
 // too big for the budget is omitted (and named in the omitted list) while the
 // envelope stays parseable — the mcp mirror of the CLI diff budget tests.
