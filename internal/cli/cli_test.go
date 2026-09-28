@@ -2240,6 +2240,29 @@ func TestMapIncludeDoesNotExposeDotfiles(t *testing.T) {
 	}
 }
 
+// TestMapNoGitignoreHiddenCombined pins that the two "lift the guard" flags
+// together bring even a gitignored dotfile into the walk: --no-gitignore
+// ignores the .gitignore rules and --hidden includes dotfiles.
+func TestMapNoGitignoreHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte(".env\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".env"), []byte("SECRET=1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.txt"), []byte("x\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--no-gitignore", "--hidden"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, ".env") {
+		t.Errorf("both flags together must include the gitignored dotfile:\n%s", out)
+	}
+	if !strings.Contains(out, "keep.txt") {
+		t.Errorf("both flags together must not drop normal files:\n%s", out)
+	}
+}
+
 // TestMapHiddenDoesNotOverrideGitignore pins that an explicit .gitignore
 // exclusion wins over --hidden: --hidden only lifts the default dotfile skip,
 // not a named ignore.
