@@ -1367,6 +1367,33 @@ func TestToolCallCountTokensMaxSize(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensInclude pins count_tokens' include argument: only
+// matching files are counted, so the total drops below the full-tree count.
+func TestToolCallCountTokensInclude(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	full := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	filtered := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","include":["*.go"]}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("count_tokens json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(filtered), parse(full); got >= want {
+		t.Errorf("include *.go must cut the total below %d, got %d", want, got)
+	}
+}
+
 func TestToolCallCountTokensTop(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello world"), 0o644)
