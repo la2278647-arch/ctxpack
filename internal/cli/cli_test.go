@@ -730,6 +730,26 @@ func TestPackRespectsGitignoreByDefault(t *testing.T) {
 	}
 }
 
+// TestPackOutputDashIsStdout pins that pack honors --output - as stdout, the
+// last of the output-dash trio (models and diff already pinned): no file
+// named "-" is created and the json lands on stdout.
+func TestPackOutputDashIsStdout(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "-o", "-"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Errorf("-o - must print the json to stdout: %v\n%s", err, c.Content())
+	}
+	if _, err := os.Stat(filepath.Join(src, "-")); err == nil {
+		t.Errorf("-o - must not create a file named '-'")
+	}
+}
+
 // TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
 // not an error: a well-formed envelope with no files and zero tokens, exit 0.
 func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
