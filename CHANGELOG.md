@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-09-27
+
 ### Fixed
 
 - **MCP `repo_map` honours `no_gitignore` and `hidden`, and reads contents
@@ -1873,6 +1875,7 @@ First public release.
   `packer`/`repomap`/`gitutil` packages.
 - **Read-only** — no code path writes into the target tree.
 
+[0.1.16]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.16
 [0.1.15]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.15
 [0.1.14]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.14
 [0.1.13]: https://github.com/la2278647-arch/ctxpack/releases/tag/v0.1.13
