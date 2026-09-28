@@ -331,8 +331,11 @@ func callRepoMap(args map[string]any) (string, string) {
 			Exclude:          toStrSlice(args["exclude"]),
 			MaxFileSize:      toInt64(args["max_size"]),
 			MaxDepth:         toInt(args["max_depth"]),
-			RespectGitignore: true,
-			ReadContent:      false,
+			RespectGitignore: !toBool(args["no_gitignore"]),
+			IncludeHidden:    toBool(args["hidden"]),
+			// Read contents so the numbers agree with the CLI's map command;
+			// max_size still caps the reading below the cap.
+			ReadContent: true,
 		},
 		SortBy: toStr(args["sort"]),
 	})

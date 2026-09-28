@@ -150,6 +150,60 @@ func TestRepoMapEmptyDirJSON(t *testing.T) {
 	}
 }
 
+// TestRepoMapMaxSizeUsesEstimate pins repo_map's max_size argument: a file
+// over the cap is estimated from its byte size, so the envelope's total drops
+// below the full-read count (the mcp mirror of TestMapMaxSizeUsesEstimate).
+func TestRepoMapMaxSizeUsesEstimate(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	full := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json"}}}`,
+		filepath.ToSlash(dir)))
+	capped := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json","max_size":10}}}`,
+		filepath.ToSlash(dir)))
+	parse := func(msgs []map[string]any) int {
+		var env struct {
+			TotalTokens int `json:"total_tokens"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, msgs, "1")), &env); err != nil {
+			t.Fatalf("repo_map json is not parseable: %v", err)
+		}
+		return env.TotalTokens
+	}
+	if got, want := parse(capped), parse(full); got >= want {
+		t.Errorf("max_size 10 must cut the total below the full-read %d, got %d", want, got)
+	}
+}
+
+// TestRepoMapNoGitignoreHiddenFlags pins that repo_map's no_gitignore and
+// hidden arguments actually take effect (they used to be ignored: the walker
+// hard-coded RespectGitignore and omitted IncludeHidden).
+func TestRepoMapNoGitignoreHiddenFlags(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "secret.txt"), []byte("s\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".hidden.go"), []byte("package h\n"), 0o644)
+
+	noGit := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"no_gitignore":true}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, noGit, "1")
+	if !strings.Contains(text, "secret.txt") {
+		t.Errorf("no_gitignore:true must include the gitignored file:\n%s", text)
+	}
+
+	hidden := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"hidden":true}}}`,
+		filepath.ToSlash(dir)))
+	text = toolText(t, hidden, "1")
+	if !strings.Contains(text, ".hidden.go") {
+		t.Errorf("hidden:true must include the dotfile:\n%s", text)
+	}
+}
+
 // TestRepoMapIncludeFilter pins repo_map's include argument: only matching
 // files appear in the outline (the mcp mirror of the CLI map --include tests).
 func TestRepoMapIncludeFilter(t *testing.T) {
