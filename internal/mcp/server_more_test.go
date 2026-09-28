@@ -150,6 +150,38 @@ func TestRepoMapEmptyDirJSON(t *testing.T) {
 	}
 }
 
+// TestRepoMapMaxSizeMaxDepthCombined pins that max_size and max_depth stack
+// on repo_map: the depth bounds the walk and the cap turns reads into
+// estimates inside it (the first mcp argument-combination test).
+func TestRepoMapMaxSizeMaxDepthCombined(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.txt"), []byte("x"), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"format":"json","max_size":10,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		TotalTokens int `json:"total_tokens"`
+		Tree        struct {
+			Children []struct {
+				Name string `json:"name"`
+			} `json:"children"`
+		} `json:"tree"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("repo_map json is not parseable: %v\n%s", err, text)
+	}
+	if env.TotalTokens >= 143 {
+		t.Errorf("max_size must cap the total below 143, got %d", env.TotalTokens)
+	}
+	if len(env.Tree.Children) != 2 || env.Tree.Children[0].Name != "sub" {
+		t.Errorf("max_depth 1 must keep the one-level dir plus the root file, got %+v", env.Tree.Children)
+	}
+}
+
 // TestRepoMapMaxSizeUsesEstimate pins repo_map's max_size argument: a file
 // over the cap is estimated from its byte size, so the envelope's total drops
 // below the full-read count (the mcp mirror of TestMapMaxSizeUsesEstimate).
