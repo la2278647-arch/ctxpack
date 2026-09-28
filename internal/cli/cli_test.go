@@ -873,6 +873,15 @@ func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
 	if !strings.Contains(errCap.Content(), "no changed files") {
 		t.Errorf("stderr should carry the note:\n%s", errCap.Content())
 	}
+
+	// --quiet silences the note for text too, like the json path.
+	errCap2 := captureStderr(t)
+	if code := cmdDiff([]string{src, "--quiet"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if errCap2.Content() != "" {
+		t.Errorf("--quiet must silence the empty-diff note:\n%s", errCap2.Content())
+	}
 }
 
 // TestDiffSingleRefIncludesWorktree pins that a single revision ref (not a

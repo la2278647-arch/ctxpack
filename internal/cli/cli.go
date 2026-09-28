@@ -392,7 +392,12 @@ func cmdDiff(args []string) int {
 				return 1
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+			// --quiet means "no stderr status messages" for every format, so
+			// the empty-diff note is suppressed here exactly like the json path
+			// above.
+			if !*quiet {
+				fmt.Fprintf(os.Stderr, "no changed files vs %q\n", *ref)
+			}
 		}
 		return 0
 	}

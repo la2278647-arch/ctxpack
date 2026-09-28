@@ -6,6 +6,14 @@ to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`diff --quiet` now silences the empty-diff note for every format.**
+  The json path respected `--quiet` on an empty diff, but the other formats
+  always printed `no changed files vs <ref>` regardless — a `--quiet` caller
+  still got stderr noise on the one repo with nothing to say. The note is now
+  suppressed for all formats, matching the flag's documented meaning.
+
 ## [0.1.16] - 2026-09-27
 
 ### Fixed
