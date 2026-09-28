@@ -969,6 +969,40 @@ func TestDiffDryRunQuietKeepsReport(t *testing.T) {
 	}
 }
 
+// TestDiffMaxSizeOmitsContent pins diff --max-size: a changed file over the
+// cap is still in the diff, but its body is not read, so the token total
+// drops far below the full-read count.
+func TestDiffMaxSizeOmitsContent(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("--max-size 10 must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestDiffBudgetTinyDropsFiles pins diff --budget: a budget too small for
 // any changed file yields an empty bundle (exit 0, not an error), while a
 // generous budget keeps every changed file — the same priority-selection
