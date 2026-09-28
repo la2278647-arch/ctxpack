@@ -644,6 +644,29 @@ func TestPackIncludeFiltersFiles(t *testing.T) {
 	}
 }
 
+// TestPackRespectsGitignoreByDefault pins the default gitignore handling at
+// the pack level (same walker as map, own integration guard): an excluded
+// file stays out of the bundle.
+func TestPackRespectsGitignoreByDefault(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte("s\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "text"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if strings.Contains(out, "==== secret.txt") {
+		t.Errorf("default pack must respect .gitignore:\n%s", out)
+	}
+	if !strings.Contains(out, "==== keep.go") {
+		t.Errorf("default pack must keep normal files:\n%s", out)
+	}
+}
+
 // TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
 // not an error: a well-formed envelope with no files and zero tokens, exit 0.
 func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
