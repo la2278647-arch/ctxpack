@@ -3728,6 +3728,28 @@ func TestMapPathIsFileFails(t *testing.T) {
 	}
 }
 
+// TestMapIncludeDepthCombined pins that --include applies inside the
+// depth-bounded walk: only the matching one-level file stays.
+func TestMapIncludeDepthCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "b.txt"), []byte("y\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("z\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--depth", "1", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "a.go") {
+		t.Errorf("depth 1 include *.go must keep the go file:\n%s", out)
+	}
+	if strings.Contains(out, "b.txt") || strings.Contains(out, "root.txt") {
+		t.Errorf("depth 1 include *.go must drop both txt files:\n%s", out)
+	}
+}
+
 // TestMapIncludeNoGitignoreCombined pins that --include does not override
 // .gitignore either: a gitignored file only enters when --no-gitignore joins.
 func TestMapIncludeNoGitignoreCombined(t *testing.T) {
