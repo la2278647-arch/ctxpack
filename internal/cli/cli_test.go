@@ -2966,6 +2966,25 @@ func TestMapTopExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestMapTopNoGitignoreCombined pins that --top ranks the gitignored file
+// once --no-gitignore lifts the filter: the flat list then shows it first.
+func TestMapTopNoGitignoreCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("package main\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1", "--no-gitignore"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "secret.txt") {
+		t.Errorf("top 1 no-gitignore must name the gitignored big file:\n%s", out)
+	}
+}
+
 // TestMapTopMaxSizeCombined pins that --top and --max-size combine: the flat
 // top list still names the largest file, but with the estimate when capped.
 func TestMapTopMaxSizeCombined(t *testing.T) {
