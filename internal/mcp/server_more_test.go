@@ -1331,6 +1331,34 @@ func TestToolCallPackRepoHidden(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoMaxDepth pins pack_repo's max_depth argument: a
+// two-level file stays out of the bundle at max_depth 1 (the mcp mirror of
+// TestPackDepthLimitsBundle).
+func TestToolCallPackRepoMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "deep", "x.txt"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.go"), []byte("package main\n"), 0o644)
+
+	shallow := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, shallow, "1")
+	if !strings.Contains(text, "root.go") {
+		t.Errorf("max_depth 1 must keep the root file:\n%s", text)
+	}
+	if strings.Contains(text, "x.txt") {
+		t.Errorf("max_depth 1 must not pack the two-level file:\n%s", text)
+	}
+
+	deeper := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","max_depth":2}}}`,
+		filepath.ToSlash(dir)))
+	if text := toolText(t, deeper, "1"); !strings.Contains(text, "x.txt") {
+		t.Errorf("max_depth 2 must pack the two-level file:\n%s", text)
+	}
+}
+
 // TestToolCallPackRepoMaxSize pins pack_repo's max_size argument: a file over
 // the cap is still in the bundle, but its body is not read (small token count
 // and a skipped entry in the envelope).
