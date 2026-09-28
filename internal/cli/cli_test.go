@@ -2096,6 +2096,29 @@ func TestPackQuietXMLSuppressesWrote(t *testing.T) {
 	}
 }
 
+// TestPackQuietModelKeepsFit pins that --quiet suppresses the wrote line but
+// the fit annotation still lands in the output file when --model is given.
+func TestPackQuietModelKeepsFit(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.txt")
+
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "-o", out, "--quiet", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if got := errCap.Content(); got != "" {
+		t.Errorf("with --quiet, stderr should be empty, got:\n%s", got)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	if !strings.Contains(string(data), "fit: FITS model=gpt-4o") {
+		t.Errorf("output file must carry the fit note:\n%s", data)
+	}
+}
+
 func TestPackQuietSuppressesWrote(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
