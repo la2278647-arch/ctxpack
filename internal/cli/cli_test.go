@@ -3135,6 +3135,27 @@ func TestTokensSortByNameDefault(t *testing.T) {
 	}
 }
 
+// TestTokensSortByNameFirst pins the default/name sort: the first model row
+// is the alphabetically smallest name (claude-3-haiku).
+func TestTokensSortByNameFirst(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--sort", "name"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	first := ""
+	for _, line := range strings.Split(c.Content(), "\n") {
+		if strings.Contains(line, "[") && strings.Contains(line, "/") {
+			first = line
+			break
+		}
+	}
+	if !strings.HasPrefix(first, "  [fits] claude-3-haiku") {
+		t.Errorf("sort=name must put claude-3-haiku first, got %q:\n%s", first, c.Content())
+	}
+}
+
 func TestTokensSortByPct(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
