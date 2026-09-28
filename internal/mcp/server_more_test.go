@@ -1363,6 +1363,39 @@ func TestToolCallPackRepoHidden(t *testing.T) {
 	}
 }
 
+// TestToolCallPackRepoMaxSizeMaxDepthCombined pins that max_size and
+// max_depth stack on pack_repo: the one-level file keeps its read content
+// while the deeper capped file is listed without a body.
+func TestToolCallPackRepoMaxSizeMaxDepthCombined(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.txt"), []byte("x"), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pack_repo","arguments":{"path":%q,"format":"json","max_size":10,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		Files []struct {
+			Path   string `json:"path"`
+			Tokens int    `json:"tokens"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("pack_repo json is not parseable: %v\n%s", err, text)
+	}
+	if len(env.Files) != 2 {
+		t.Fatalf("expected 2 files, got %d:\n%s", len(env.Files), text)
+	}
+	if env.Files[0].Path != "root.txt" || env.Files[1].Path != "sub/big.go" {
+		t.Errorf("unexpected file order: %+v", env.Files)
+	}
+	if env.Files[1].Tokens >= 143 {
+		t.Errorf("max_size must cap the deeper file's tokens, got %d", env.Files[1].Tokens)
+	}
+}
+
 // TestToolCallPackRepoMaxDepth pins pack_repo's max_depth argument: a
 // two-level file stays out of the bundle at max_depth 1 (the mcp mirror of
 // TestPackDepthLimitsBundle).
