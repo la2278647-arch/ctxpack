@@ -840,6 +840,42 @@ func TestToolCallDiffRepoList(t *testing.T) {
 	}
 }
 
+// TestToolCallDiffRepoMaxSizeMaxDepthCombined pins that max_size and
+// max_depth stack on diff_repo: the one-level change stays listed and capped.
+func TestToolCallDiffRepoMaxSizeMaxDepthCombined(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "big.txt"), []byte("x\n"), 0o644)
+	gitInit(t, dir)
+	gitAddAll(t, dir)
+	gitCommit(t, dir, "initial")
+	os.WriteFile(filepath.Join(dir, "sub", "big.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"diff_repo","arguments":{"path":%q,"format":"json","max_size":10,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		Files []struct {
+			Path   string `json:"path"`
+			Tokens int    `json:"tokens"`
+		} `json:"files"`
+		Skipped int `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("diff_repo json is not parseable: %v\n%s", err, text)
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "sub/big.txt" {
+		t.Fatalf("expected sub/big.txt, got %+v", env.Files)
+	}
+	if env.Files[0].Tokens >= 143 {
+		t.Errorf("max_size must cap the tokens, got %d", env.Files[0].Tokens)
+	}
+	if env.Skipped != 1 {
+		t.Errorf("skipped = %d, want 1", env.Skipped)
+	}
+}
+
 // TestToolCallDiffRepoMaxSize pins diff_repo's max_size argument: a changed
 // file over the cap stays in the diff but its body is not read, so the token
 // total is tiny and the envelope marks it skipped (the mcp mirror of
