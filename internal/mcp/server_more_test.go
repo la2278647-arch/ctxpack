@@ -188,6 +188,27 @@ func TestRepoMapExcludeFilter(t *testing.T) {
 	}
 }
 
+// TestRepoMapMaxDepth pins repo_map's max_depth argument: a two-level file is
+// not traversed at max_depth 1, while one-level files are (the mcp mirror of
+// the CLI depth boundary tests).
+func TestRepoMapMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "deep", "x.txt"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "sub", "a.go"), []byte("package a\n"), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"repo_map","arguments":{"path":%q,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	if !strings.Contains(text, "a.go") {
+		t.Errorf("max_depth 1 must keep the one-level file:\n%s", text)
+	}
+	if strings.Contains(text, "x.txt") {
+		t.Errorf("max_depth 1 must not reach the two-level file:\n%s", text)
+	}
+}
+
 // TestRepoMapJSONSortsByBytes pins that repo_map's sort argument orders the
 // JSON tree the same way it orders the text outline (and the CLI's map --json
 // does): children come largest-first when sorting by bytes.
