@@ -2785,6 +2785,26 @@ func TestMapDepthPositive(t *testing.T) {
 	}
 }
 
+// TestMapTopExcludeCombined pins that --top ranks what --exclude left: the
+// excluded file never competes (the mirror of TestMapTopIncludeCombined).
+func TestMapTopExcludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "mid.go"), []byte(strings.Repeat("b", 100)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "1", "--exclude", "*.txt"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "mid.go") {
+		t.Errorf("top 1 exclude *.txt must name mid.go:\n%s", out)
+	}
+	if strings.Contains(out, "big.txt") {
+		t.Errorf("top 1 exclude *.txt must drop the excluded file:\n%s", out)
+	}
+}
+
 // TestMapTopIncludeCombined pins that --top ranks only what --include left:
 // the flat top list is drawn from the filtered set.
 func TestMapTopIncludeCombined(t *testing.T) {
