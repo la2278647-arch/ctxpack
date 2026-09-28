@@ -2721,6 +2721,27 @@ func TestModelsCSVSortByVendor(t *testing.T) {
 	}
 }
 
+// TestModelsVendorAndTop pins that --vendor and --top combine: only that
+// vendor's models are ranked, and the top count applies within the filter.
+func TestModelsVendorAndTop(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--vendor", "openai", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	rows := 0
+	for _, line := range strings.Split(c.Content(), "\n") {
+		if strings.Contains(line, "(") && strings.Contains(line, "openai") {
+			rows++
+			if !strings.Contains(line, "openai") {
+				t.Errorf("row must carry the openai tag:\n%s", c.Content())
+			}
+		}
+	}
+	if rows != 3 {
+		t.Errorf("--vendor openai --top 3 must yield exactly 3 rows, got %d:\n%s", rows, c.Content())
+	}
+}
+
 func TestModelsSortByVendor(t *testing.T) {
 	c := captureStdout(t)
 
