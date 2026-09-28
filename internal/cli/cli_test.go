@@ -2002,6 +2002,22 @@ func TestMapMaxSizeUsesEstimate(t *testing.T) {
 	}
 }
 
+// TestMapTopZeroShowsTree pins that map --top 0 is the same as no --top: the
+// full tree, not the flat top list (top only takes effect when N > 0).
+func TestMapTopZeroShowsTree(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--top", "0"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Repository:") {
+		t.Errorf("--top 0 must show the tree, not a flat list:\n%s", out)
+	}
+}
+
 func TestMapSortByNameDefault(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
