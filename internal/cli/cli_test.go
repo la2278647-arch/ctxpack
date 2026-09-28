@@ -2411,6 +2411,30 @@ func TestModelsSortJSON(t *testing.T) {
 	}
 }
 
+// TestModelsJSONSortByVendor pins --sort vendor in json mode: the first model
+// carries the alphabetically smallest vendor (alibaba), like the text/csv
+// tables.
+func TestModelsJSONSortByVendor(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--json", "--sort", "vendor"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env struct {
+		Models []struct {
+			Vendor string `json:"vendor"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+	if len(env.Models) == 0 {
+		t.Fatal("no models returned")
+	}
+	if env.Models[0].Vendor != "alibaba" {
+		t.Errorf("first vendor = %q, want alibaba", env.Models[0].Vendor)
+	}
+}
+
 // --- map --sort ---
 
 // TestMapMaxSizeUsesEstimate pins map's --max-size: a file over the cap is
