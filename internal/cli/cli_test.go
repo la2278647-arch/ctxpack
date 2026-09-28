@@ -2903,6 +2903,26 @@ func TestModelsOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestModelsJSONTop pins that --top truncates the json models array too:
+// exactly N entries.
+func TestModelsJSONTop(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--json", "--top", "3"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if len(env.Models) != 3 {
+		t.Errorf("json --top 3 must yield exactly 3 entries, got %d", len(env.Models))
+	}
+}
+
 // TestModelsCSVTop pins that --top truncates the csv data rows too: exactly
 // header + N data lines.
 func TestModelsCSVTop(t *testing.T) {
