@@ -3052,6 +3052,31 @@ func TestMapPathIsFileFails(t *testing.T) {
 	}
 }
 
+// TestMapIncludeNoGitignoreCombined pins that --include does not override
+// .gitignore either: a gitignored file only enters when --no-gitignore joins.
+func TestMapIncludeNoGitignoreCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte(strings.Repeat("s", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.txt"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if strings.Contains(c.Content(), "secret.txt") {
+		t.Errorf("include alone must not override gitignore:\n%s", c.Content())
+	}
+
+	c = captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.txt", "--no-gitignore"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "secret.txt") {
+		t.Errorf("include plus no-gitignore must include the gitignored file:\n%s", c.Content())
+	}
+}
+
 // TestMapIncludeDoesNotExposeDotfiles pins that --include cannot sneak a
 // hidden file past the default dotfile exclusion: .env needs --hidden even
 // when a glob names it directly. The explicit flag stays the only way in.
