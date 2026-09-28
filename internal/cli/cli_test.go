@@ -636,6 +636,43 @@ func TestPackBudgetExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestPackBudgetDepthIncludeCombined pins that --budget, --depth and
+// --include stack on pack: include narrows the candidates, depth bounds the
+// walk, and the budget keeps the path-ordered first file.
+func TestPackBudgetDepthIncludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "deep.txt"), []byte(strings.Repeat("d", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "a.go"), []byte("y"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--depth", "1", "--include", "*.go", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "root.go" {
+		t.Errorf("three flags must keep root.go, got %+v", env.Files)
+	}
+	found := false
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s == "sub/a.go" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("omitted must name the budgeted-out go file, got %v", env.Omitted)
+	}
+}
+
 // TestPackDepthBudgetMaxSizeCombined pins that --depth, --budget and
 // --max-size stack independently on pack: depth excludes the deeper files
 // (recorded in omitted), max-size caps their bodies, and budget keeps the
