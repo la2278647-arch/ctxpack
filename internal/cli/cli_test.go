@@ -2675,6 +2675,36 @@ func TestMapMaxSizeZeroUnlimited(t *testing.T) {
 	}
 }
 
+// TestMapMaxSizeHiddenCombined pins that --hidden and --max-size combine: the
+// dotfile is included but capped, so the total is below the full read of it.
+func TestMapMaxSizeHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdMap([]string{src, "--hidden", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("--hidden --max-size 10 must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestMapMaxSizeUsesEstimate pins map's --max-size: a file over the cap is
 // still listed, but with the bytes/4 estimate instead of a content read, so
 // the flag constrains reading (and the tokens column) on map too.
