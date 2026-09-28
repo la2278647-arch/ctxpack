@@ -1135,6 +1135,31 @@ func TestDiffListHonoursInclude(t *testing.T) {
 	}
 }
 
+// TestDiffListHonoursExclude pins diff --list --exclude: a dropped glob keeps
+// the file out of the list while the rest stays (the mirror of the include test).
+func TestDiffListHonoursExclude(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "keep.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "drop.txt"), []byte("notes\n\nmore\n"), 0o644)
+
+	outCap := captureStdout(t)
+	code := cmdDiff([]string{src, "--list", "--exclude", "*.txt"})
+	if code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := outCap.Content()
+	if !strings.Contains(out, "keep.go") {
+		t.Errorf("--exclude *.txt must keep keep.go:\n%s", out)
+	}
+	if strings.Contains(out, "drop.txt") {
+		t.Errorf("--exclude *.txt must drop drop.txt:\n%s", out)
+	}
+}
+
 func TestDiffListReportsDeletions(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
