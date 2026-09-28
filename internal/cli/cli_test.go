@@ -1191,6 +1191,30 @@ func TestDiffBudgetTinyDropsFiles(t *testing.T) {
 	caseFor(-1, 1) // no budget: everything
 }
 
+// TestDiffOutputDashIsStdout pins that diff honors --output - as stdout (the
+// mirror of TestModelsOutputDashIsStdout): a file named "-" must never be
+// created, and the json lands on stdout.
+func TestDiffOutputDashIsStdout(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "modified.go"), []byte("package main\n\nvar x = 1\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "json", "-o", "-"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Errorf("-o - must print the json to stdout: %v\n%s", err, c.Content())
+	}
+	if _, err := os.Stat(filepath.Join(src, "-")); err == nil {
+		t.Errorf("-o - must not create a file named '-'")
+	}
+}
+
 // TestDiffOutputWritesFile pins the -o file branch for diff, mirroring the
 // --output tests the other commands have: json goes to the file, exit 0.
 func TestDiffOutputWritesFile(t *testing.T) {
