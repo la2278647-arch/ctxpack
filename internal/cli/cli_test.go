@@ -1689,6 +1689,26 @@ func TestDiffQuietSuppressesStatus(t *testing.T) {
 	}
 }
 
+// TestPackQuietXMLSuppressesWrote pins that --quiet silences the wrote line
+// for the xml format too (the json path is covered by
+// TestPackQuietSuppressesWrote).
+func TestPackQuietXMLSuppressesWrote(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	out := filepath.Join(t.TempDir(), "bundle.xml")
+
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "-o", out, "--format", "xml", "--quiet"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if got := errCap.Content(); got != "" {
+		t.Errorf("with --quiet, stderr should be empty, got:\n%s", got)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("the output file must still be written: %v", err)
+	}
+}
+
 func TestPackQuietSuppressesWrote(t *testing.T) {
 	src := t.TempDir()
 	writeRepo(t, src)
