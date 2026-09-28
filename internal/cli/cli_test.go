@@ -1038,6 +1038,25 @@ func TestDiffRefHEADEqualsWorktree(t *testing.T) {
 	}
 }
 
+// TestDiffModelAnnotates pins that diff --model carries the fit note like
+// pack does, with the used figure from the diff total.
+func TestDiffModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("diff --model must carry the fit note:\n%s", c.Content())
+	}
+}
+
 // TestDiffNoChangesJSONEmitsEnvelope pins that an empty diff still yields a
 // parseable json envelope on stdout (never a bare stderr note), so a script
 // can always json-parse the output; --quiet silences the note.
