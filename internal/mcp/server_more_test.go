@@ -1661,6 +1661,30 @@ func TestToolCallCountTokensModelFilter(t *testing.T) {
 	}
 }
 
+// TestToolCallCountTokensMaxSizeMaxDepthCombined pins that max_size and
+// max_depth stack on count_tokens: the estimate applies inside the bounded
+// walk (closing the mcp walk-argument combination series).
+func TestToolCallCountTokensMaxSizeMaxDepthCombined(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(dir, "root.txt"), []byte("x"), 0o644)
+
+	msgs := serveLines(t, fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count_tokens","arguments":{"path":%q,"format":"json","max_size":10,"max_depth":1}}}`,
+		filepath.ToSlash(dir)))
+	text := toolText(t, msgs, "1")
+	var env struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(text), &env); err != nil {
+		t.Fatalf("count_tokens json is not parseable: %v\n%s", err, text)
+	}
+	if env.TotalTokens >= 143 {
+		t.Errorf("max_size must cap the total below 143, got %d", env.TotalTokens)
+	}
+}
+
 // TestToolCallCountTokensMaxSize pins count_tokens' max_size argument: a file
 // over the cap is estimated from its byte size, so the total is far below the
 // full-read count (the mcp mirror of TestTokensMaxSizeUsesEstimate).
