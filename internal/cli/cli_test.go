@@ -2209,6 +2209,24 @@ func TestModelsSortByWindow(t *testing.T) {
 	}
 }
 
+// TestModelsCSVSortByVendor pins --sort vendor in csv mode: the first data
+// row carries the alphabetically smallest vendor (alibaba), like the text
+// table.
+func TestModelsCSVSortByVendor(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--csv", "--sort", "vendor"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected header + rows:\n%s", c.Content())
+	}
+	first := strings.Split(lines[1], ",")
+	if len(first) != 3 || first[2] != "alibaba" {
+		t.Errorf("csv sort=vendor first row = %q, want vendor alibaba", lines[1])
+	}
+}
+
 func TestModelsSortByVendor(t *testing.T) {
 	c := captureStdout(t)
 
