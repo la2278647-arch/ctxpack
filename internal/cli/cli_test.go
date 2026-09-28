@@ -538,6 +538,31 @@ func TestPackMissingPathFails(t *testing.T) {
 	}
 }
 
+// TestPackBudgetIncludeCombined pins that --budget selects from the
+// --include-filtered set: a file outside the include never enters, so the
+// budget works on a pre-narrowed candidate pool.
+func TestPackBudgetIncludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "json", "--budget", "1", "--include", "*.go"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "small.go" {
+		t.Errorf("budget+include must pack only small.go, got %+v", env.Files)
+	}
+}
+
 // TestPackBudgetJSONOmitted pins the command-level json envelope under a
 // budget: the packed files, plus an omitted list naming what the budget
 // dropped, so a script can see both sides of the cut.
