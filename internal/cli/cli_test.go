@@ -597,6 +597,44 @@ func TestPackBudgetExcludeCombined(t *testing.T) {
 	}
 }
 
+// TestPackDepthBudgetMaxSizeCombined pins that --depth, --budget and
+// --max-size stack independently on pack: depth excludes the deeper files
+// (recorded in omitted), max-size caps their bodies, and budget keeps the
+// small root file.
+func TestPackDepthBudgetMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "sub", "med.txt"), []byte(strings.Repeat("b", 300)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--depth", "1", "--budget", "1", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		Omitted []any `json:"omitted"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "root.go" {
+		t.Errorf("three flags must keep only root.go, got %+v", env.Files)
+	}
+	got := map[string]bool{}
+	for _, o := range env.Omitted {
+		if s, _ := o.(string); s != "" {
+			got[s] = true
+		}
+	}
+	if !got["sub/big.go"] || !got["sub/med.txt"] {
+		t.Errorf("omitted must name both deeper files, got %v", env.Omitted)
+	}
+}
+
 // TestPackDepthMaxSizeCombined pins that --depth and --max-size combine on
 // pack: the estimate applies inside the depth-bounded walk and marks the file
 // skipped (the pack mirror of TestMapDepthMaxSizeCombined).
