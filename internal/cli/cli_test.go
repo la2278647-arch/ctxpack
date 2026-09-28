@@ -5078,6 +5078,29 @@ func TestMapFormatAlias(t *testing.T) {
 	}
 }
 
+// TestTokensJSONTopModelCombined pins that --json --top --model stack: the
+// model filter wins over the top count, so exactly one fits row appears.
+func TestTokensJSONTopModelCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--top", "3", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env struct {
+		Fits []struct {
+			Model string `json:"model"`
+		} `json:"fits"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Fits) != 1 || env.Fits[0].Model != "gpt-4o" {
+		t.Errorf("model must win over top, got %d rows", len(env.Fits))
+	}
+}
+
 // TestTokensSortModelCombined pins that --model and --sort work together on
 // tokens: the single filtered row is still sorted (here the largest window).
 func TestTokensSortModelCombined(t *testing.T) {
