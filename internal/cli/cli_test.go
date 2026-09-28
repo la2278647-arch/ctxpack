@@ -4574,6 +4574,31 @@ func TestMapFormatAlias(t *testing.T) {
 	}
 }
 
+// TestTokensSortModelCombined pins that --model and --sort work together on
+// tokens: the single filtered row is still sorted (here the largest window).
+func TestTokensSortModelCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--model", "gpt-4o", "--sort", "window"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	out := c.Content()
+	rows := 0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "[") && strings.Contains(line, "/") {
+			rows++
+			if !strings.Contains(line, "gpt-4o") {
+				t.Errorf("filtered row must be gpt-4o, got:\n%s", out)
+			}
+		}
+	}
+	if rows != 1 {
+		t.Errorf("--model gpt-4o must yield exactly one row, got %d", rows)
+	}
+}
+
 // --- tokens --format ---
 
 func TestTokensFormatText(t *testing.T) {
