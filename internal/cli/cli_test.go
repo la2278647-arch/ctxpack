@@ -2815,6 +2815,22 @@ func TestTokensJSONReserveField(t *testing.T) {
 	}
 }
 
+// TestTokensTopZeroMeansAll pins that --top 0 is the same as no --top for
+// tokens too: every model fit, matching the models command.
+func TestTokensTopZeroMeansAll(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--csv", "--top", "0"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != len(counter.Models())+1 {
+		t.Errorf("--top 0 csv = %d lines, want %d (header + all models)",
+			len(lines), len(counter.Models())+1)
+	}
+}
+
 // TestTokensCSVTopTruncates pins that --top works in csv mode too: exactly
 // the N largest windows, header included, with the largest first.
 func TestTokensCSVTopTruncates(t *testing.T) {
