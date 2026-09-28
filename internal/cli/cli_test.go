@@ -3061,6 +3061,37 @@ func TestMapMaxSizeZeroUnlimited(t *testing.T) {
 	}
 }
 
+// TestMapIncludeMaxSizeCombined pins that --include and --max-size combine:
+// the estimate applies to the included file, so the total drops below the
+// unfiltered read.
+func TestMapIncludeMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.txt"), []byte(strings.Repeat("b", 10)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.go", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdMap([]string{src, "--include", "*.go", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("include+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestMapMaxSizeHiddenCombined pins that --hidden and --max-size combine: the
 // dotfile is included but capped, so the total is below the full read of it.
 func TestMapMaxSizeHiddenCombined(t *testing.T) {
