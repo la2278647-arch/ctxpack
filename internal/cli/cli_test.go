@@ -2332,6 +2332,43 @@ func TestDiffListBudgetIgnoresBudget(t *testing.T) {
 	}
 }
 
+// TestDiffNoGitignoreMaxSizeCombined pins that diff --no-gitignore --max-size
+// combine: the gitignored-but-tracked change is estimated when capped.
+func TestDiffNoGitignoreMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte("x\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte("secret.txt\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "gitignore")
+	os.WriteFile(filepath.Join(src, "secret.txt"), []byte(strings.Repeat("s", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdDiff([]string{src, "--no-gitignore", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdDiff([]string{src, "--no-gitignore", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("no-gitignore+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestDiffListHonoursExclude pins diff --list --exclude: a dropped glob keeps
 // the file out of the list while the rest stays (the mirror of the include test).
 func TestDiffListHonoursExclude(t *testing.T) {
