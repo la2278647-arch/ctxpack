@@ -1299,6 +1299,25 @@ func TestDiffRefHEADEqualsWorktree(t *testing.T) {
 	}
 }
 
+// TestDiffMarkdownModelAnnotates pins that diff --format markdown --model
+// carries the fit note too, closing the diff annotation format series.
+func TestDiffMarkdownModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte("x\ny\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--format", "markdown", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("diff markdown --model must carry the fit note:\n%s", c.Content())
+	}
+}
+
 // TestDiffXMLModelAnnotates pins that diff --format xml --model carries the
 // fit note like the text path (the xml format variant).
 func TestDiffXMLModelAnnotates(t *testing.T) {
