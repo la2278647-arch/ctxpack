@@ -520,6 +520,20 @@ func listModelsJSONEntries(t *testing.T, args string) []map[string]any {
 	return out
 }
 
+// TestListModelsVendorTopCombined pins that vendor and top stack on
+// list_models: exactly top entries, all of the vendor.
+func TestListModelsVendorTopCombined(t *testing.T) {
+	entries := listModelsJSONEntries(t, `"format":"json","vendor":"openai","top":3`)
+	if len(entries) != 3 {
+		t.Fatalf("vendor=openai top=3 must yield exactly 3 entries, got %d", len(entries))
+	}
+	for _, e := range entries {
+		if e["vendor"] != "openai" {
+			t.Errorf("entry vendor = %q, want openai", e["vendor"])
+		}
+	}
+}
+
 func TestListModelsVendorFilter(t *testing.T) {
 	entries := listModelsJSONEntries(t, `"format":"json","vendor":"GOOGLE"`)
 	if len(entries) == 0 {
