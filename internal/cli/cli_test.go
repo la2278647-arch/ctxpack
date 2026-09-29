@@ -2795,6 +2795,25 @@ func TestPackDryRunIncludeFilters(t *testing.T) {
 	}
 }
 
+// TestPackDryRunTextNoRender pins that --dry-run skips rendering for the
+// text format too, closing the dry-run format series.
+func TestPackDryRunTextNoRender(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	outCap := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "--dry-run", "--format", "text"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if out := outCap.Content(); out != "" {
+		t.Errorf("dry-run text must not render to stdout, got:\n%s", out)
+	}
+	if !strings.Contains(errCap.Content(), "dry run") {
+		t.Errorf("dry-run summary must go to stderr:\n%s", errCap.Content())
+	}
+}
+
 // TestPackDryRunJSONNoRender pins that --dry-run skips rendering even for
 // json: stdout stays empty and the summary goes to stderr.
 func TestPackDryRunJSONNoRender(t *testing.T) {

@@ -1,7 +1,7 @@
 Repository: ctxpack
-Files: ~451326 tokens, 1021.3 KB
+Files: ~451594 tokens, 1021.9 KB
 
-ctxpack/  [451326t, 1021.3KB]
+ctxpack/  [451594t, 1021.9KB]
   docs/  [42247t, 99.0KB]
     ci.yml  [3519t, 8.3KB]
     examples.md  [1245t, 3.0KB]
@@ -29,12 +29,12 @@ ctxpack/  [451326t, 1021.3KB]
       diff.xml  [382t, 865B]
       make.sh  [867t, 1.9KB]
     README.md  [791t, 1.9KB]
-  internal/  [304513t, 678.2KB]
-    cli/  [147712t, 329.2KB]
+  internal/  [304781t, 678.8KB]
+    cli/  [147980t, 329.8KB]
       cli.go  [19984t, 46.0KB]
       cli_gaps_test.go  [2982t, 6.8KB]
       cli_more_test.go  [16680t, 36.0KB]
-      cli_test.go  [94563t, 209.5KB]
+      cli_test.go  [94831t, 210.1KB]
       fit_test.go  [3873t, 9.0KB]
       help_test.go  [4147t, 9.7KB]
       readme_diff_demo_test.go  [1706t, 3.9KB]
