@@ -570,6 +570,18 @@ func TestListModelsVendorSort(t *testing.T) {
 	}
 }
 
+// TestListModelsTopIgnoresSortName pins that list_models' top ranks by its
+// own key (window) and ignores sort=name, matching the CLI's tokens behavior.
+func TestListModelsTopIgnoresSortName(t *testing.T) {
+	entries := listModelsJSONEntries(t, `"format":"json","sort":"name","top":2`)
+	if len(entries) != 2 {
+		t.Fatalf("top=2 must yield exactly 2 entries, got %d", len(entries))
+	}
+	if entries[0]["name"] != "gemini-1.5-pro" {
+		t.Errorf("top must ignore sort=name and rank window-first, got %v", entries[0]["name"])
+	}
+}
+
 func TestListModelsTopAndSort(t *testing.T) {
 	top := listModelsJSONEntries(t, `"format":"json","top":3`)
 	if len(top) != 3 {
