@@ -4473,6 +4473,38 @@ func TestPackNoGitignoreHiddenCombined(t *testing.T) {
 	}
 }
 
+// TestMapNoGitignoreHiddenMaxSizeCombined pins that --no-gitignore, --hidden
+// and --max-size stack: both guards lift and the admitted dotfile is estimated.
+func TestMapNoGitignoreHiddenMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".gitignore"), []byte(".env\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdMap([]string{src, "--no-gitignore", "--hidden", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdMap([]string{src, "--no-gitignore", "--hidden", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("three flags must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestMapNoGitignoreMaxSizeCombined pins that --no-gitignore and --max-size
 // combine: the gitignored big file joins the walk and is then capped to the
 // estimate (closing the max-size × guard-flag series).
