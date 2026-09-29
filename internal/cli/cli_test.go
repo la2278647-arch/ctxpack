@@ -3297,6 +3297,29 @@ func TestModelsJSONTop(t *testing.T) {
 	}
 }
 
+// TestModelsJSONTopIgnoresSortName pins that json --top also ranks by its own
+// key (window) and ignores --sort name: the first entry is the largest window.
+func TestModelsJSONTopIgnoresSortName(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--sort", "name", "--top", "2", "--json"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	var env struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if len(env.Models) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(env.Models))
+	}
+	if env.Models[0].Name != "gemini-1.5-pro" {
+		t.Errorf("json top must ignore sort=name and rank window-first, got %q", env.Models[0].Name)
+	}
+}
+
 // TestModelsCSVTopIgnoresSortName pins that csv --top ranks by its own key
 // (window) and ignores --sort name: the first data row is the largest window.
 func TestModelsCSVTopIgnoresSortName(t *testing.T) {
