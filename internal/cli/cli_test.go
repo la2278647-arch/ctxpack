@@ -1813,6 +1813,40 @@ func TestDiffMaxSizeOmitsContent(t *testing.T) {
 	}
 }
 
+// TestDiffHiddenMaxSizeCombined pins that diff --hidden --max-size combine:
+// the dotfile change is estimated when capped.
+func TestDiffHiddenMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	os.WriteFile(filepath.Join(src, ".env"), []byte("x\n"), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdDiff([]string{src, "--hidden", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdDiff([]string{src, "--hidden", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("hidden+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestDiffListHiddenExcludesByDefault pins diff's hidden handling: a modified
 // dotfile is out of the default list and in with --hidden (the same walker
 // semantics map has, at the diff layer).
