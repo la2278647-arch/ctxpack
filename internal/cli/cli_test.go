@@ -5405,6 +5405,37 @@ func TestTokensHiddenIncludesDotfiles(t *testing.T) {
 	}
 }
 
+// TestTokensDepthMaxSizeCombined pins that tokens --depth --max-size stack:
+// the estimate applies inside the depth-bounded tree.
+func TestTokensDepthMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "big.go"), []byte(strings.Repeat("a", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.txt"), []byte("x"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--depth", "1", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdTokens([]string{src, "--depth", "1", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("depth+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestTokensDepthBoundsTheCount pins that tokens --depth bounds the counted
 // tree: a two-level file drops out of the total at depth 1.
 func TestTokensDepthBoundsTheCount(t *testing.T) {
