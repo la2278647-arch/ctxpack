@@ -4845,6 +4845,27 @@ func TestMapCSVHasOneRowPerFile(t *testing.T) {
 	}
 }
 
+// TestMapCSVIncludeExcludeCombined pins that --csv honors both glob filters:
+// the flat list carries only what survives include plus exclude.
+func TestMapCSVIncludeExcludeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "a_test.go"), []byte("package a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, "n.txt"), []byte("z\n"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdMap([]string{src, "--csv", "--include", "*.go", "--exclude", "*_test.go"}); code != 0 {
+		t.Fatalf("cmdMap exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "a.go") {
+		t.Errorf("csv include+exclude must keep a.go:\n%s", out)
+	}
+	if strings.Contains(out, "a_test.go") || strings.Contains(out, "n.txt") {
+		t.Errorf("csv include+exclude must drop the rest:\n%s", out)
+	}
+}
+
 // TestMapCSVDepthCombined pins that --csv honors --depth: one-level files stay
 // and two-level files drop out of the flat list.
 func TestMapCSVDepthCombined(t *testing.T) {
