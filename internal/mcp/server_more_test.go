@@ -520,6 +520,24 @@ func listModelsJSONEntries(t *testing.T, args string) []map[string]any {
 	return out
 }
 
+// TestListModelsVendorSortTopCombined pins that vendor, sort and top stack on
+// list_models: the vendor-filtered top entries, ranked window-first even with
+// sort=name.
+func TestListModelsVendorSortTopCombined(t *testing.T) {
+	entries := listModelsJSONEntries(t, `"format":"json","vendor":"google","sort":"name","top":2`)
+	if len(entries) != 2 {
+		t.Fatalf("vendor=google top=2 must yield exactly 2 entries, got %d", len(entries))
+	}
+	if entries[0]["name"] != "gemini-1.5-pro" {
+		t.Errorf("top must ignore sort=name and rank window-first, got %v", entries[0]["name"])
+	}
+	for _, e := range entries {
+		if e["vendor"] != "google" {
+			t.Errorf("entry vendor = %q, want google", e["vendor"])
+		}
+	}
+}
+
 // TestListModelsVendorTopCombined pins that vendor and top stack on
 // list_models: exactly top entries, all of the vendor.
 func TestListModelsVendorTopCombined(t *testing.T) {
