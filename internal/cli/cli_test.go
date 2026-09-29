@@ -3297,6 +3297,22 @@ func TestModelsJSONTop(t *testing.T) {
 	}
 }
 
+// TestModelsCSVTopIgnoresSortName pins that csv --top ranks by its own key
+// (window) and ignores --sort name: the first data row is the largest window.
+func TestModelsCSVTopIgnoresSortName(t *testing.T) {
+	c := captureStdout(t)
+	if code := cmdModels([]string{"--sort", "name", "--top", "2", "--csv"}); code != 0 {
+		t.Fatalf("cmdModels exit = %d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(c.Content()), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected header + 2 rows, got %d:\n%s", len(lines), c.Content())
+	}
+	if !strings.HasPrefix(lines[1], "gemini-1.5-pro,") {
+		t.Errorf("csv top must ignore sort=name and rank window-first, got %q", lines[1])
+	}
+}
+
 // TestModelsCSVTop pins that --top truncates the csv data rows too: exactly
 // header + N data lines.
 func TestModelsCSVTop(t *testing.T) {
