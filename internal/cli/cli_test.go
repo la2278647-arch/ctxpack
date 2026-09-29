@@ -2182,6 +2182,40 @@ func TestDiffListHonoursInclude(t *testing.T) {
 	}
 }
 
+// TestDiffIncludeMaxSizeCombined pins that diff --include and --max-size
+// combine: the included change is estimated when capped.
+func TestDiffIncludeMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.go"), []byte(strings.Repeat("b", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "n.txt"), []byte("y2\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdDiff([]string{src, "--include", "*.go", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdDiff([]string{src, "--include", "*.go", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("include+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestDiffListIncludeExcludeCombined pins that --include and --exclude work
 // together on diff --list: the include narrows the candidate set and the
 // exclude carves it further (the mirror of the map walker conflict test).
