@@ -5405,6 +5405,37 @@ func TestTokensHiddenIncludesDotfiles(t *testing.T) {
 	}
 }
 
+// TestTokensDepthHiddenCombined pins that tokens --depth --hidden stack: a
+// one-level dotfile joins the counted tree once admitted.
+func TestTokensDepthHiddenCombined(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	withHidden := captureStdout(t)
+	if code := cmdTokens([]string{src, "--hidden", "--depth", "1", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	noHidden := captureStdout(t)
+	if code := cmdTokens([]string{src, "--depth", "1", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envH, envN struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(withHidden.Content()), &envH); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(noHidden.Content()), &envN); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envH.TotalTokens <= envN.TotalTokens {
+		t.Errorf("hidden+depth must raise the total above %d, got %d",
+			envN.TotalTokens, envH.TotalTokens)
+	}
+}
+
 // TestTokensDepthMaxSizeCombined pins that tokens --depth --max-size stack:
 // the estimate applies inside the depth-bounded tree.
 func TestTokensDepthMaxSizeCombined(t *testing.T) {
