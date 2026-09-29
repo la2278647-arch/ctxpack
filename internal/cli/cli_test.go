@@ -2795,6 +2795,25 @@ func TestPackDryRunIncludeFilters(t *testing.T) {
 	}
 }
 
+// TestPackDryRunJSONNoRender pins that --dry-run skips rendering even for
+// json: stdout stays empty and the summary goes to stderr.
+func TestPackDryRunJSONNoRender(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	outCap := captureStdout(t)
+	errCap := captureStderr(t)
+	if code := cmdPack([]string{src, "--dry-run", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if out := outCap.Content(); out != "" {
+		t.Errorf("dry-run json must not render to stdout, got:\n%s", out)
+	}
+	if !strings.Contains(errCap.Content(), "dry run") {
+		t.Errorf("dry-run summary must go to stderr:\n%s", errCap.Content())
+	}
+}
+
 // TestPackDryRunModelNoFit pins that --dry-run does not render, so the fit
 // note (which belongs to rendered output) stays absent even with --model: the
 // summary line is all stderr carries.
