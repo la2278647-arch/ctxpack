@@ -5405,6 +5405,36 @@ func TestTokensHiddenIncludesDotfiles(t *testing.T) {
 	}
 }
 
+// TestTokensHiddenMaxSizeCombined pins that tokens --hidden --max-size stack:
+// the admitted dotfile is estimated when capped.
+func TestTokensHiddenMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, ".env"), []byte(strings.Repeat("s", 500)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--hidden", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdTokens([]string{src, "--hidden", "--max-size", "10", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("hidden+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestTokensDepthHiddenCombined pins that tokens --depth --hidden stack: a
 // one-level dotfile joins the counted tree once admitted.
 func TestTokensDepthHiddenCombined(t *testing.T) {
