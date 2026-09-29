@@ -1151,6 +1151,25 @@ func TestPackOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestPackBudgetTextEmptyBundle pins that a budget too small for every file
+// renders a well-formed text header with zero files (exit 0), not an error.
+func TestPackBudgetTextEmptyBundle(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--format", "text"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "Files: 0") {
+		t.Errorf("text budget-empty bundle must report Files: 0:\n%s", out)
+	}
+	if !strings.Contains(out, "Tokens: ~0") {
+		t.Errorf("text budget-empty bundle must report Tokens: ~0:\n%s", out)
+	}
+}
+
 // TestPackEmptyDirYieldsEmptyBundle pins that packing an empty directory is
 // not an error: a well-formed envelope with no files and zero tokens, exit 0.
 func TestPackEmptyDirYieldsEmptyBundle(t *testing.T) {
