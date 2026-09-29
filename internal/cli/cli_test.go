@@ -1151,6 +1151,25 @@ func TestPackOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestPackBudgetMarkdownEmptyBundle pins that a budget too small for every
+// file renders a well-formed markdown header with zero files (exit 0).
+func TestPackBudgetMarkdownEmptyBundle(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--format", "markdown"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "# Repository:") {
+		t.Errorf("markdown budget-empty bundle must keep the heading:\n%s", out)
+	}
+	if !strings.Contains(out, "Files: 0") {
+		t.Errorf("markdown budget-empty bundle must report Files: 0:\n%s", out)
+	}
+}
+
 // TestPackBudgetTextEmptyBundle pins that a budget too small for every file
 // renders a well-formed text header with zero files (exit 0), not an error.
 func TestPackBudgetTextEmptyBundle(t *testing.T) {
