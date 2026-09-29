@@ -5375,6 +5375,37 @@ func TestTokensHiddenIncludesDotfiles(t *testing.T) {
 	}
 }
 
+// TestTokensDepthBoundsTheCount pins that tokens --depth bounds the counted
+// tree: a two-level file drops out of the total at depth 1.
+func TestTokensDepthBoundsTheCount(t *testing.T) {
+	src := t.TempDir()
+	os.MkdirAll(filepath.Join(src, "sub", "deep"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "deep", "x.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "root.go"), []byte("package main\n"), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	shallow := captureStdout(t)
+	if code := cmdTokens([]string{src, "--json", "--depth", "1"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var envFull, envShallow struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(shallow.Content()), &envShallow); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envShallow.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("depth 1 must cut the total below %d, got %d",
+			envFull.TotalTokens, envShallow.TotalTokens)
+	}
+}
+
 // TestTokensMaxSizeZeroUnlimited pins that tokens --max-size 0 is the same as
 // the default (read everything), the tokens-side mirror of the pack test.
 func TestTokensMaxSizeZeroUnlimited(t *testing.T) {
