@@ -827,6 +827,21 @@ func TestPackBudgetXMLOmitted(t *testing.T) {
 	}
 }
 
+// TestPackMarkdownModelAnnotates pins that pack --format markdown --model
+// carries the fit note (the markdown format variant).
+func TestPackMarkdownModelAnnotates(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--format", "markdown", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("pack markdown --model must carry the fit note:\n%s", c.Content())
+	}
+}
+
 // TestPackBudgetModelAnnotates pins that --model's fit note still appears on
 // a budget-limited pack, with the used figure reflecting the budget result.
 func TestPackBudgetModelAnnotates(t *testing.T) {
