@@ -2182,6 +2182,38 @@ func TestDiffListHonoursInclude(t *testing.T) {
 	}
 }
 
+// TestDiffExcludeMaxSizeCombined pins that diff --exclude and --max-size
+// combine: the surviving change is estimated and marked skipped.
+func TestDiffExcludeMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.go"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--exclude", "*.txt", "--max-size", "10", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var env struct {
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+		TotalTokens int `json:"total_tokens"`
+		Skipped     int `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, c.Content())
+	}
+	if len(env.Files) != 1 || env.Files[0].Path != "f.go" {
+		t.Errorf("exclude+max-size must keep f.go, got %+v", env.Files)
+	}
+	if env.TotalTokens >= 143 {
+		t.Errorf("max-size must cap the total below 143, got %d", env.TotalTokens)
+	}
+}
+
 // TestDiffIncludeMaxSizeCombined pins that diff --include and --max-size
 // combine: the included change is estimated when capped.
 func TestDiffIncludeMaxSizeCombined(t *testing.T) {
