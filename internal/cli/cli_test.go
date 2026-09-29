@@ -1474,6 +1474,42 @@ func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
 	}
 }
 
+// TestDiffRefMaxSizeCombined pins that diff --max-size caps an explicit ref's
+// worktree changes: the total drops to the estimate.
+func TestDiffRefMaxSizeCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+	gitAddAll(t, src)
+	gitCommit(t, src, "second")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("c", 500)), 0o644)
+
+	full := captureStdout(t)
+	if code := cmdDiff([]string{src, "HEAD", "--format", "json"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	capped := captureStdout(t)
+	if code := cmdDiff([]string{src, "HEAD", "--format", "json", "--max-size", "10"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	var envFull, envCapped struct {
+		TotalTokens int `json:"total_tokens"`
+	}
+	if err := json.Unmarshal([]byte(full.Content()), &envFull); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(capped.Content()), &envCapped); err != nil {
+		t.Fatalf("JSON parse: %v", err)
+	}
+	if envCapped.TotalTokens >= envFull.TotalTokens {
+		t.Errorf("ref+max-size must cut the total below %d, got %d",
+			envFull.TotalTokens, envCapped.TotalTokens)
+	}
+}
+
 // TestDiffRefBudgetCombined pins that diff --budget applies to an explicit
 // ref's worktree changes: the small change stays, the big one is omitted.
 func TestDiffRefBudgetCombined(t *testing.T) {
