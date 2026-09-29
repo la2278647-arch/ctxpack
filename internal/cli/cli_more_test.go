@@ -756,6 +756,17 @@ func TestPackHonoursEnvDefaults(t *testing.T) {
 	if out := errBuf.Content(); !strings.Contains(out, "omitted by the budget") {
 		t.Errorf("CTXPACK_BUDGET=5 was ignored:\n%s", out)
 	}
+
+	// A model annotation coming from the environment must be applied too.
+	t.Setenv("CTXPACK_BUDGET", "")
+	t.Setenv("CTXPACK_MODEL", "gpt-4o")
+	outBuf := captureStdout(t)
+	if code := cmdPack([]string{src}); code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if out := outBuf.Content(); !strings.Contains(out, "fit: FITS model=gpt-4o") {
+		t.Errorf("CTXPACK_MODEL=gpt-4o was ignored:\n%s", out)
+	}
 }
 
 // --- mcp ---
