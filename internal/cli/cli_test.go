@@ -1151,6 +1151,26 @@ func TestPackOutputDashIsStdout(t *testing.T) {
 	}
 }
 
+// TestPackBudgetXMLEmptyBundle pins that a budget too small for every file
+// renders a well-formed xml envelope with zero files (exit 0), closing the
+// empty-bundle format series.
+func TestPackBudgetXMLEmptyBundle(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--format", "xml"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "<root>") {
+		t.Errorf("xml budget-empty bundle must keep the root element:\n%s", out)
+	}
+	if !strings.Contains(out, "<fileCount>0</fileCount>") {
+		t.Errorf("xml budget-empty bundle must report fileCount 0:\n%s", out)
+	}
+}
+
 // TestPackBudgetMarkdownEmptyBundle pins that a budget too small for every
 // file renders a well-formed markdown header with zero files (exit 0).
 func TestPackBudgetMarkdownEmptyBundle(t *testing.T) {
