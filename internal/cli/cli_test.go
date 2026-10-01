@@ -1565,6 +1565,26 @@ func TestDiffNoChangesTextNotesOnStderr(t *testing.T) {
 	}
 }
 
+// TestDiffRefMaxSizeModelCombined pins that diff --ref --max-size --model
+// stack: the fit note reflects the estimated total of the ref's changes.
+func TestDiffRefMaxSizeModelCombined(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "HEAD", "--max-size", "10", "--model", "gpt-4o"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "fit: FITS model=gpt-4o used=3") {
+		t.Errorf("ref max-size model must annotate the estimate used=3:\n%s", out)
+	}
+}
+
 // TestDiffRefMaxSizeCombined pins that diff --max-size caps an explicit ref's
 // worktree changes: the total drops to the estimate.
 func TestDiffRefMaxSizeCombined(t *testing.T) {
