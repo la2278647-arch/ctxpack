@@ -857,6 +857,23 @@ func TestPackMarkdownModelAnnotates(t *testing.T) {
 	}
 }
 
+// TestPackBudgetModelXML pins that the budget-limited fit note appears in xml
+// output too, with the used figure reflecting the budget.
+func TestPackBudgetModelXML(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+	os.WriteFile(filepath.Join(src, "small.go"), []byte("x"), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdPack([]string{src, "--budget", "1", "--model", "gpt-4o", "--format", "xml"}); code != 0 {
+		t.Fatalf("cmdPack exit = %d", code)
+	}
+	out := c.Content()
+	if !strings.Contains(out, "fit: FITS model=gpt-4o used=1") {
+		t.Errorf("budget xml --model must carry the fit note with used=1:\n%s", out)
+	}
+}
+
 // TestPackBudgetModelMarkdown pins that the budget-limited fit note appears
 // in markdown output too, with the used figure reflecting the budget.
 func TestPackBudgetModelMarkdown(t *testing.T) {
