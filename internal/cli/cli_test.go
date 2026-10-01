@@ -6240,6 +6240,33 @@ func TestTokensJSONSortPctTopCombined(t *testing.T) {
 	}
 }
 
+// TestTokensMaxSizeModelJSONCombined pins that --max-size --model --json
+// stack: the single fit reflects the estimated total.
+func TestTokensMaxSizeModelJSONCombined(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "big.txt"), []byte(strings.Repeat("a", 500)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdTokens([]string{src, "--max-size", "10", "--model", "gpt-4o", "--json"}); code != 0 {
+		t.Fatalf("cmdTokens exit = %d", code)
+	}
+	var env struct {
+		TotalTokens int `json:"total_tokens"`
+		Fits        []struct {
+			Model string `json:"model"`
+		} `json:"fits"`
+	}
+	if err := json.Unmarshal([]byte(c.Content()), &env); err != nil {
+		t.Fatalf("output not valid JSON: %v\n%s", err, c.Content())
+	}
+	if env.TotalTokens >= 143 {
+		t.Errorf("max-size must cap the total below 143, got %d", env.TotalTokens)
+	}
+	if len(env.Fits) != 1 || env.Fits[0].Model != "gpt-4o" {
+		t.Errorf("model filter must leave exactly gpt-4o, got %d rows", len(env.Fits))
+	}
+}
+
 // TestTokensJSONTopModelCombined pins that --json --top --model stack: the
 // model filter wins over the top count, so exactly one fits row appears.
 func TestTokensJSONTopModelCombined(t *testing.T) {
