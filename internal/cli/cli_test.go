@@ -1363,6 +1363,25 @@ func TestDiffRefHEADEqualsWorktree(t *testing.T) {
 	}
 }
 
+// TestDiffBudgetModelText pins that diff --budget --model --format text keeps
+// the fit note, closing the budget×model format series.
+func TestDiffBudgetModelText(t *testing.T) {
+	src := t.TempDir()
+	writeRepo(t, src)
+	gitInit(t, src)
+	gitAddAll(t, src)
+	gitCommit(t, src, "initial")
+	os.WriteFile(filepath.Join(src, "f.txt"), []byte(strings.Repeat("b", 200)), 0o644)
+
+	c := captureStdout(t)
+	if code := cmdDiff([]string{src, "--budget", "1", "--model", "gpt-4o", "--format", "text"}); code != 0 {
+		t.Fatalf("cmdDiff exit = %d", code)
+	}
+	if !strings.Contains(c.Content(), "fit: FITS model=gpt-4o") {
+		t.Errorf("diff budget text --model must carry the fit note:\n%s", c.Content())
+	}
+}
+
 // TestDiffBudgetModelXML pins that diff --budget --model --format xml keeps
 // the fit note on the budget-limited xml render.
 func TestDiffBudgetModelXML(t *testing.T) {
